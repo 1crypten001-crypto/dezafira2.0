@@ -91,14 +91,71 @@ TOTAL_TARGET = DEFAULT_TOTAL
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ARTIGOS VARIADOS — Tópicos específicos para evitar duplicatas
+# TOPICOS DINAMICOS — Gerados por LLM por nicho
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Lista de 30+ tópicos variados sobre ensinamentos de Jesus
-# Usada pela pipeline quando target_articles > 1
-# Cada tópico é único e cobre um aspecto diferente do tema
+# Cache de topicos por nicho (evita gerar repetidamente)
+_TOPICS_CACHE = {}
+
+async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt") -> list:
+    """
+    Gera topicos de artigos variados usando LLM, especificos para o nicho.
+    Usa cache para nao regenerar os mesmos topicos.
+    """
+    cache_key = f"{niche.lower().strip()}:{language}"
+    if cache_key in _TOPICS_CACHE and len(_TOPICS_CACHE[cache_key]) >= count:
+        return _TOPICS_CACHE[cache_key][:count]
+    
+    try:
+        from modules.blog_writer import _call_llm
+        prompt = (
+            f"Crie uma lista de {count} topicos variados e especificos para artigos de blog "
+            f"sobre o nicho: '{niche}'.\n"
+            f"Cada topico deve ser um micro-tema UNICO, especifico e bem segmentado.\n"
+            f"Regras:\n"
+            f"- VARIEDADE absoluta: nenhum topico pode tratar do mesmo assunto\n"
+            f"- Seja ESPECIFICO: ao inves de 'dicas de financas', use 'como negociar descontos em boletos'\n"
+            f"- Misture tipos: guias praticos, explicacoes, listas, comparacoes, estudos de caso\n"
+            f"- Cada topico deve render um artigo de ~1200 palavras\n"
+            f"- Idioma: {language}\n"
+            f"\n"
+            f"Retorne APENAS uma lista numerada, um topico por linha, sem marcadores extras.\n"
+            f"Exemplo:\n"
+            f"1. Como criar um orcamento mensal infalivel\n"
+            f"2. Os 5 maiores erros financeiros dos brasileiros\n"
+            f"3. Investimento em CDB vs Tesouro Direto: qual escolher\n"
+        )
+        system = f"Você é um editor-chefe especialista em criar pautas para blogs sobre {niche}."
+        raw = await _call_llm(system, prompt, temperature=0.8, max_tokens=4096)
+        
+        # Parse: extrair linhas numeradas
+        import re
+        topics = []
+        for line in raw.split('\n'):
+            line = line.strip()
+            # Remove numeracao: "1. " ou "1) " ou "- "
+            cleaned = re.sub(r'^[\d\-]+[.)\]\s]+', '', line)
+            cleaned = re.sub(r'^[\*\-•]\s*', '', cleaned)
+            if cleaned and len(cleaned) > 15:
+                topics.append(cleaned)
+        
+        if len(topics) >= 5:
+            # Cache
+            _TOPICS_CACHE[cache_key] = topics
+            return topics[:count]
+    except Exception as e:
+        print(f"[Pipeline] Erro ao gerar topicos dinâmicos: {e}")
+    
+    # Fallback: topicos genericos baseados no nicho
+    fallback = [
+        f"Guia completo sobre {niche} — parte {i+1}"
+        for i in range(count)
+    ]
+    return fallback
+
+
+# Lista de fallback para topicos de ensinamentos de Jesus (mantida para compatibilidade)
 ARTICLE_TOPICS = [
-    # 📖 Parábolas
     "A parabola do semeador - estudo completo",
     "O filho prodigo - o amor incondicional do Pai",
     "O bom samaritano - quem e o meu proximo",
@@ -106,8 +163,6 @@ ARTICLE_TOPICS = [
     "O fermento do reino - crescimento silencioso",
     "A parabola dos talentos - administrando dons",
     "O semeador e os solos - preparando o coracao",
-    
-    # 🙏 Ensinamentos principais
     "As bem-aventurancas - o manifesto do reino",
     "O sermao da montanha - etica do reino",
     "A regra de ouro - tratai os outros como quereis",
@@ -115,8 +170,6 @@ ARTICLE_TOPICS = [
     "A oracao do Pai Nosso - modelo de oracao",
     "O jejum que agrada a Deus",
     "Ajuntai tesouros no ceu - prioridades eternas",
-    
-    # ✨ Milagres
     "A cura do cego de Jerico - fe que restaura",
     "A multiplicacao dos paes e peixes - Deus provedor",
     "Jesus acalma a tempestade - paz no meio da crise",
@@ -124,8 +177,6 @@ ARTICLE_TOPICS = [
     "A cura do paralitico - perdao e cura",
     "A agua transformada em vinho - o primeiro milagre",
     "A filha de Jairo - a fe que ressuscita",
-    
-    # 🕊️ Encontros transformadores
     "Jesus e a mulher samaritana - agua viva",
     "Zaqueu - a salvacao entra em casa",
     "Nicodemos - nascer de novo",
@@ -133,24 +184,11 @@ ARTICLE_TOPICS = [
     "Maria e Marta - a melhor parte",
     "O jovem rico - vende tudo que tens",
     "A mulher do fluxo de sangue - a fe que toca",
-    
-    # 📜 Discipulado e chamado
     "O chamado dos primeiros discipulos",
     "Pedro - a rocha e as quedas",
-    "Joao - o discipulo amado",
-    "Tomé - bem aventurados os que creem sem ver",
-    "Os 70 enviados - a grande comissao",
-    "Negar a si mesmo - tomai a cruz",
-    "Sede perfeitos - o padrao do reino",
-    
-    # 🔥 Profecias e ensinos escatologicos
     "O sermao profetico - sinais da volta",
     "As virgens prudentes e nescias - vigiai",
     "A porta estreita - nem todo que diz Senhor",
-    "O juizo final - apartai os bodes das ovelhas",
-    "A vinda do Filho do Homem - vigiai e orai",
-    
-    # 💎 Temas teologicos
     "O Reino de Deus esta entre vos",
     "A fe que move montanhas",
     "O poder da oracao em conjunto",
@@ -624,9 +662,7 @@ class BlogMacroPipeline:
 
     # ═══════════════════════════════════════════════════════════════════════════
     # FASE 3: PRODUÇÃO — O CORAÇÃO DA ESTEIRA
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    async def _phase_producao(self):
+    # ═══════════════════════════════════════════════════════════════════════════    async def _phase_producao(self):
         """Gera 30-40 artigos em 3 rodadas de qualidade crescente."""
         sid = "producao"
         channel_id = self.state.channel_id
@@ -635,9 +671,9 @@ class BlogMacroPipeline:
         total_articles = 0
         total_words = 0
 
-        # Usar target_articles do state (vindo do parâmetro da API) em vez do fixo PRODUCTION_ROUNDS
+        # Usar target_articles do state
         target = self.state.target_articles
-        target_words = 1000  # Padrão: ~1.100-1.500 palavras finais
+        target_words = 1000
 
         # Calcula quantos artigos por seção
         if not sections:
@@ -652,6 +688,20 @@ class BlogMacroPipeline:
 
         self._update_macro(sid, "active", 5,
             f"📝 Produzindo {target} artigos em {len(articles_per_section)} seções...")
+
+        # ─── GERAR TÓPICOS DINÂMICOS POR NICHOS ─────────────────────
+        self._update_macro(sid, "active", 7,
+            "🧠 Gerando tópicos variados específicos para o nicho...")
+        dynamic_topics = await _generate_dynamic_topics(
+            niche=self.state.niche,
+            count=max(target * 2, 30),
+            language=self.state.language,
+        )
+        self._update_macro(sid, "active", 10,
+            f"📋 {len(dynamic_topics)} tópicos gerados para o nicho '{self.state.niche[:30]}...'")
+
+        # Guardar para referência
+        self.state._dynamic_topics = dynamic_topics
 
         # Gerar artigos para esta rodada
         for sec_idx, (sec_id, article_count) in enumerate(articles_per_section.items()):
@@ -674,8 +724,11 @@ class BlogMacroPipeline:
                 if self.state.status != "running":
                     return
 
-                # Usar tópicos variados da lista ARTICLE_TOPICS para evitar duplicatas
-                if ARTICLE_TOPICS:
+                # Usar tópicos dinâmicos PRIORITARIAMENTE; fallback para ARTICLE_TOPICS
+                if dynamic_topics:
+                    topic_idx = (self.state.articles_generated + a_idx) % len(dynamic_topics)
+                    article_topic = dynamic_topics[topic_idx]
+                elif ARTICLE_TOPICS:
                     topic_idx = (self.state.articles_generated + a_idx) % len(ARTICLE_TOPICS)
                     article_topic = ARTICLE_TOPICS[topic_idx]
                 else:
@@ -683,32 +736,28 @@ class BlogMacroPipeline:
 
                 self.state.current_macro_stage = sid
 
-                # Progresso do artigo atual (calculado antes do revisor para usar nos logs)
+                # Progresso do artigo atual
                 progress_in_target = (self.state.articles_generated + a_idx) / max(target, 1)
                 overall_progress = int(10 + progress_in_target * 85)
 
-                # ─── REVISOR: verificar se o tópico já foi coberto ───────
+                # ─── REVISOR DE TÓPICO ────────────────────────────────
                 try:
                     from modules.blog_revisor import review_topic_before_generation
                     review = await review_topic_before_generation(
                         topic=article_topic,
                         channel_id=self.state.channel_id or "default",
-                        topics_pool=ARTICLE_TOPICS,
+                        topics_pool=dynamic_topics or ARTICLE_TOPICS,
                         threshold=0.65,
                     )
                     if review.get("approved"):
-                        article_topic = review["topic"]
-                        if review.get("similar_to"):
-                            self._update_macro(sid, "active", overall_progress,
-                                f"🔍 Revisor: '{article_topic[:40]}...' (alternativa ao similar '{review['similar_to'][:30]}')")
-                            await asyncio.sleep(0.2)
+                        article_topic = review.get("topic", article_topic)
                     else:
                         self._update_macro(sid, "active", overall_progress,
-                            f"⏭️ Revisor bloqueou: '{article_topic[:40]}' (similar a '{review['similar_to'][:30]}'). Pulando...")
+                            f"⏭️ Revisor bloqueou tópico. Pulando...")
                         await asyncio.sleep(0.2)
-                        continue  # Pula este artigo, tenta próximo
+                        continue
                 except ImportError:
-                    pass  # Revisor não disponível, segue sem verificação
+                    pass
                 except Exception as e:
                     print(f"[Pipeline] Revisor warning: {e}")
 
@@ -729,6 +778,43 @@ class BlogMacroPipeline:
                     total_articles += 1
                     total_words += article_result.get("word_count", 0)
                     self.state.articles_generated = total_articles
+
+                    # ─── LILI: Revisar artigo recém-gerado ────────────
+                    post_id = article_result.get("post_id")
+                    if post_id:
+                        try:
+                            from modules.lili import lili_review_after_generation
+                            lili_result = await lili_review_after_generation(post_id)
+                            if lili_result.get("status") != "erro":
+                                lili_approved = lili_result.get("approved", False)
+                                lili_score = lili_result.get("overall_score", 0)
+                                lili_corrected = lili_result.get("auto_corrected", False)
+                                title_preview = (article_result.get("title") or "")[:40]
+                                if lili_corrected:
+                                    self._update_macro(
+                                        sid, "active", overall_progress,
+                                        f"🌸 LiLi corrigiu auto: '{title_preview}' score {lili_score}/100")
+                                    await asyncio.sleep(0.2)
+                                elif lili_approved:
+                                    self._update_macro(
+                                        sid, "active", overall_progress,
+                                        f"🌸 LiLi aprovou: score {lili_score}/100")
+                                else:
+                                    self._update_macro(
+                                        sid, "active", overall_progress,
+                                        f"🌸 LiLi: score {lili_score}/100, correcoes manuais necessarias")
+                                # Registrar resultado da revisão no article_result
+                                article_result["lili_review"] = {
+                                    "approved": lili_approved,
+                                    "score": lili_score,
+                                    "auto_corrected": lili_corrected,
+                                }
+                            await asyncio.sleep(0.1)
+                        except ImportError:
+                            pass  # Lili não disponível
+                        except Exception as e_lili:
+                            print(f"[Pipeline] Lili warning: {e_lili}")
+
                     # Checkpoint após cada artigo
                     await self._save_checkpoint()
 
@@ -741,6 +827,8 @@ class BlogMacroPipeline:
                 "total_articles": total_articles,
                 "total_words": total_words,
                 "articles_preview": self.state.articles[-5:],
+                "dynamic_topics_count": len(dynamic_topics),
+                "lili_reviews": len([a for a in self.state.articles if a.get("lili_review")]),
             })
 
     async def _generate_single_article(self, topic: str, keywords: str,
