@@ -473,7 +473,7 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     )
     # Remove <p> com padrao <numero:numero> (angle_bracket_number_slash)
     content_html = re.sub(
-        r'<p>[^<]*?<\d+[:.]\d+>[^<]*?</p>',
+        r'<p>.*?<\d+[:.]\d+>.*?</p>',
         '',
         content_html,
         flags=re.DOTALL
