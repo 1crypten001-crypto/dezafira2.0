@@ -5,11 +5,22 @@ from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # 1. Determinar URL do banco de dados (Railway Postgres ou SQLite local)
+# Usa o diretório onde o server.py está rodando como base
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not SCRIPT_DIR or not os.path.exists(SCRIPT_DIR):
+    SCRIPT_DIR = os.getcwd()
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    # Fallback para banco SQLite local em desenvolvimento
-    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    DATABASE_URL = f"sqlite:///{os.path.join(project_dir, 'dezafira.db')}"
+    DB_PATH = os.path.join(SCRIPT_DIR, "dezafira.db")
+    # Garante que o diretório existe
+    try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    except Exception:
+        pass
+    # No Windows, SQLAlchemy requer forward slashes no path do SQLite
+    db_path_unix = DB_PATH.replace("\\", "/")
+    DATABASE_URL = f"sqlite:///{db_path_unix}"
 
 # 2. Configurar o Engine e Sessão com Fallback Resiliente
 try:
@@ -140,6 +151,7 @@ class BlogChannel(Base):
     app_password = Column(String(500), nullable=True)
     status = Column(String(20), default="active")
     frequency = Column(String(20), default="daily")
+    banner_url = Column(String(1000), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -164,6 +176,168 @@ class BlogPost(Base):
     published_at = Column(DateTime, nullable=True)
 
 
+class BlogSection(Base):
+    """Seção/micro-nicho dentro de um blog."""
+    __tablename__ = "blog_sections"
+
+    id = Column(String(50), primary_key=True, index=True)
+    channel_id = Column(String(50), ForeignKey("blog_channels.id"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    slug = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)
+    keywords = Column(String(2000), nullable=True)
+    target_articles = Column(Integer, default=5)
+    sort_order = Column(Integer, default=0)
+    status = Column(String(20), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BlogPipelineRun(Base):
+    """Registro de execução do pipeline de blog."""
+    __tablename__ = "blog_pipeline_runs"
+
+    id = Column(String(50), primary_key=True, index=True)
+    channel_id = Column(String(50), ForeignKey("blog_channels.id"), nullable=False, index=True)
+    blog_name = Column(String(200), nullable=True)
+    niche = Column(String(200), nullable=True)
+    language = Column(String(10), default="pt")
+    phase = Column(String(30), default="fundacao")  # fundacao, arquitetura, producao, refino, entrega
+    status = Column(String(20), default="running")
+    total_articles_target = Column(Integer, default=3)
+    articles_generated = Column(Integer, default=0)
+    current_round = Column(Integer, default=0)
+    pipeline_data = Column(JSON, nullable=True)  # Checkpoint completo do estado
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    error = Column(String(2000), nullable=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODELOS — FABRICA DE LIVROS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class Book(Base):
+    """Livro gerado pela Fabrica de Livros."""
+    __tablename__ = "books"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    subtitle = Column(String(500), nullable=True)
+    author = Column(String(200), default="Dezafira Editorial")
+    description = Column(Text, nullable=True)
+    cover_url = Column(String(1000), nullable=True)
+    topic = Column(String(500), nullable=True)
+    keywords = Column(String(1000), nullable=True)
+    status = Column(String(30), default="draft")
+    total_chapters = Column(Integer, default=0)
+    total_words = Column(Integer, default=0)
+    price_cents = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    published_at = Column(DateTime, nullable=True)
+
+
+class BookChapter(Base):
+    """Capitulo de livro."""
+    __tablename__ = "book_chapters"
+
+    id = Column(String(50), primary_key=True, index=True)
+    book_id = Column(String(50), ForeignKey("books.id"), nullable=False, index=True)
+    chapter_number = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=True)
+    word_count = Column(Integer, default=0)
+    status = Column(String(20), default="draft")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BookFormat(Base):
+    """Formato de exportacao do livro."""
+    __tablename__ = "book_formats"
+
+    id = Column(String(50), primary_key=True, index=True)
+    book_id = Column(String(50), ForeignKey("books.id"), nullable=False, index=True)
+    format_type = Column(String(10), nullable=False)
+    file_url = Column(String(1000), nullable=True)
+    file_size_bytes = Column(Integer, default=0)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODELOS — FABRICA DE CURSOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class Course(Base):
+    """Curso gerado pela Fabrica de Cursos."""
+    __tablename__ = "courses"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    subtitle = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    topic = Column(String(500), nullable=True)
+    keywords = Column(String(1000), nullable=True)
+    status = Column(String(30), default="draft")  # draft, publishing, completed
+    total_modules = Column(Integer, default=0)
+    total_lessons = Column(Integer, default=0)
+    total_lessons_completed = Column(Integer, default=0)
+    estimated_hours = Column(Integer, default=0)
+    difficulty = Column(String(20), default="iniciante")  # iniciante, intermediario, avancado
+    price_cents = Column(Integer, default=0)
+    cover_url = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    published_at = Column(DateTime, nullable=True)
+
+
+class CourseModule(Base):
+    """Modulo de curso."""
+    __tablename__ = "course_modules"
+
+    id = Column(String(50), primary_key=True, index=True)
+    course_id = Column(String(50), ForeignKey("courses.id"), nullable=False, index=True)
+    module_number = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CourseLesson(Base):
+    """Aula de curso."""
+    __tablename__ = "course_lessons"
+
+    id = Column(String(50), primary_key=True, index=True)
+    module_id = Column(String(50), ForeignKey("course_modules.id"), nullable=False, index=True)
+    lesson_number = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=True)
+    content_type = Column(String(30), default="texto")  # texto, video_url, pdf_ref
+    word_count = Column(Integer, default=0)
+    estimated_minutes = Column(Integer, default=10)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CourseMaterial(Base):
+    """Material complementar de aula."""
+    __tablename__ = "course_materials"
+
+    id = Column(String(50), primary_key=True, index=True)
+    lesson_id = Column(String(50), ForeignKey("course_lessons.id"), nullable=False, index=True)
+    material_type = Column(String(30), nullable=False)  # pdf_resumo, exercicio, quiz, infografico
+    title = Column(String(500), nullable=True)
+    content = Column(Text, nullable=True)
+    file_url = Column(String(1000), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CourseQuiz(Base):
+    """Questoes de quiz para aula."""
+    __tablename__ = "course_quizzes"
+
+    id = Column(String(50), primary_key=True, index=True)
+    lesson_id = Column(String(50), ForeignKey("course_lessons.id"), nullable=False, index=True)
+    questions_json = Column(JSON, nullable=False)  # Lista de {pergunta, alternativas, resposta_correta}
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # Criar tabelas se não existirem com tratamento de erro
 try:
     Base.metadata.create_all(bind=engine)
@@ -182,6 +356,14 @@ try:
         try:
             conn.execute(text("ALTER TABLE automation_tasks ADD COLUMN video_url VARCHAR(500);"))
             conn.commit()
+        except Exception:
+            pass
+        
+        # banner_url na tabela blog_channels
+        try:
+            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN banner_url VARCHAR(1000);"))
+            conn.commit()
+            print("[Database] Coluna banner_url adicionada na tabela blog_channels.")
         except Exception:
             pass
             
@@ -648,6 +830,7 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
                 "slug": p.slug,
                 "excerpt": p.excerpt,
                 "keywords": p.keywords,
+                "featured_image_url": p.featured_image_url,
                 "status": p.status,
                 "platform_status": p.platform_status,
                 "platform_url": p.platform_url,
@@ -659,6 +842,7 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
         ]
     finally:
         db.close()
+
 
 def get_db_blog_post(post_id: str) -> dict:
     db = SessionLocal()
@@ -701,6 +885,16 @@ def update_db_blog_post(post_id: str, **kwargs) -> bool:
     finally:
         db.close()
 
+
+def update_db_blog_post_status(post_id: str, status: str) -> bool:
+    """Atualiza o status de um post do blog."""
+    from datetime import datetime
+    kwargs = {"status": status}
+    if status == "published":
+        kwargs["published_at"] = datetime.utcnow()
+    return update_db_blog_post(post_id, **kwargs)
+
+
 def get_db_blog_channel(channel_id: str) -> dict:
     db = SessionLocal()
     try:
@@ -722,6 +916,530 @@ def get_db_blog_channel(channel_id: str) -> dict:
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
         return None
+    finally:
+        db.close()
+
+
+def get_db_blog_info(slug: str) -> dict:
+    """Retorna info completa de um blog pelo slug (name slug)."""
+    db = SessionLocal()
+    try:
+        # Encontra o blog pelo slug do nome
+        channels = db.query(BlogChannel).all()
+        for c in channels:
+            name_slug = c.name.lower().replace(" ", "-")[:50]
+            if name_slug == slug:
+                post_count = db.query(BlogPost).filter(
+                    BlogPost.channel_id == c.id
+                ).count()
+                return {
+                    "id": c.id,
+                    "name": c.name,
+                    "nicho": c.nicho,
+                    "lang": c.lang,
+                    "slug": name_slug,
+                    "platform": c.platform,
+                    "site_url": c.site_url,
+                    "status": c.status,
+                    "frequency": c.frequency,
+                    "banner_url": c.banner_url,
+                    "post_count": post_count,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
+        return None
+    finally:
+        db.close()
+
+
+def update_db_blog_channel(channel_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        chan = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+        if chan:
+            for key, value in kwargs.items():
+                if hasattr(chan, key):
+                    setattr(chan, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+# ─── BlogSection CRUD ────────────────────────────────────────────────
+
+def create_db_blog_section(channel_id: str, name: str, slug: str = "",
+                           description: str = "", keywords: str = "",
+                           target_articles: int = 5, sort_order: int = 0) -> dict:
+    db = SessionLocal()
+    try:
+        section = BlogSection(
+            id=f"sec_{uuid.uuid4().hex[:6]}",
+            channel_id=channel_id,
+            name=name,
+            slug=slug or name.lower().replace(" ", "-")[:50],
+            description=description,
+            keywords=keywords,
+            target_articles=target_articles,
+            sort_order=sort_order,
+            status="active",
+        )
+        db.add(section)
+        db.commit()
+        return {"id": section.id, "name": section.name, "slug": section.slug,
+                "target_articles": section.target_articles, "sort_order": section.sort_order}
+    finally:
+        db.close()
+
+
+def get_db_blog_sections(channel_id: str) -> list:
+    db = SessionLocal()
+    try:
+        sections = db.query(BlogSection).filter(
+            BlogSection.channel_id == channel_id
+        ).order_by(BlogSection.sort_order).all()
+        return [{
+            "id": s.id, "name": s.name, "slug": s.slug,
+            "description": s.description, "keywords": s.keywords,
+            "target_articles": s.target_articles, "sort_order": s.sort_order,
+            "status": s.status,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        } for s in sections]
+    finally:
+        db.close()
+
+
+def delete_db_blog_section(section_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        section = db.query(BlogSection).filter(BlogSection.id == section_id).first()
+        if section:
+            db.delete(section)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+# ─── BlogPipelineRun CRUD ────────────────────────────────────────────
+
+def create_db_blog_pipeline_run(channel_id: str, total_articles_target: int = 3,
+                                 blog_name: str = "", niche: str = "",
+                                 language: str = "pt",
+                                 pipeline_data: dict = None) -> dict:
+    db = SessionLocal()
+    try:
+        run = BlogPipelineRun(
+            id=f"bpr_{uuid.uuid4().hex[:8]}",
+            channel_id=channel_id,
+            blog_name=blog_name,
+            niche=niche,
+            language=language,
+            phase="fundacao",
+            status="running",
+            total_articles_target=total_articles_target,
+            articles_generated=0,
+            current_round=0,
+            pipeline_data=pipeline_data or {},
+        )
+        db.add(run)
+        db.commit()
+        return {"id": run.id, "phase": run.phase, "status": run.status}
+    finally:
+        db.close()
+
+
+def update_db_blog_pipeline_run(run_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        run = db.query(BlogPipelineRun).filter(BlogPipelineRun.id == run_id).first()
+        if run:
+            for key, value in kwargs.items():
+                if hasattr(run, key):
+                    setattr(run, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def get_db_blog_pipeline_run(run_id: str) -> dict:
+    """Retorna um pipeline run completo."""
+    db = SessionLocal()
+    try:
+        r = db.query(BlogPipelineRun).filter(BlogPipelineRun.id == run_id).first()
+        if r:
+            return {
+                "id": r.id, "channel_id": r.channel_id,
+                "blog_name": r.blog_name, "niche": r.niche,
+                "language": r.language, "phase": r.phase,
+                "status": r.status,
+                "total_articles_target": r.total_articles_target,
+                "articles_generated": r.articles_generated,
+                "current_round": r.current_round,
+                "pipeline_data": r.pipeline_data,
+                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                "error": r.error,
+            }
+        return None
+    finally:
+        db.close()
+
+
+def get_stuck_pipeline_runs() -> list:
+    """Retorna pipelines que estão como 'running' (interrompidas)."""
+    db = SessionLocal()
+    try:
+        runs = db.query(BlogPipelineRun).filter(
+            BlogPipelineRun.status == "running"
+        ).order_by(BlogPipelineRun.started_at.desc()).all()
+        return [{
+            "id": r.id, "channel_id": r.channel_id,
+            "blog_name": r.blog_name,
+            "phase": r.phase, "status": r.status,
+            "articles_generated": r.articles_generated,
+            "total_articles_target": r.total_articles_target,
+            "pipeline_data": r.pipeline_data,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+        } for r in runs]
+    finally:
+        db.close()
+
+
+def update_db_blog_pipeline_run_checkpoint(run_id: str, phase: str,
+                                            articles_generated: int,
+                                            current_round: int,
+                                            pipeline_data: dict) -> bool:
+    """Atualiza checkpoint de uma pipeline run."""
+    return update_db_blog_pipeline_run(
+        run_id,
+        phase=phase,
+        articles_generated=articles_generated,
+        current_round=current_round,
+        pipeline_data=pipeline_data,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — FABRICA DE LIVROS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_book(title: str, topic: str, description: str = "", author: str = "Dezafira Editorial",
+                   keywords: str = "", price_cents: int = 0) -> dict:
+    db = SessionLocal()
+    try:
+        book = Book(
+            id=f"book_{uuid.uuid4().hex[:8]}",
+            title=title, topic=topic,
+            description=description, author=author, keywords=keywords,
+            price_cents=price_cents, status="draft",
+        )
+        db.add(book)
+        db.commit()
+        return {
+            "id": book.id, "title": book.title, "topic": book.topic,
+            "status": book.status, "author": book.author,
+            "created_at": book.created_at.isoformat() if book.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+def get_db_books(limit: int = 50) -> list:
+    db = SessionLocal()
+    try:
+        books = db.query(Book).order_by(Book.created_at.desc()).limit(limit).all()
+        result = []
+        for b in books:
+            chapters_count = db.query(BookChapter).filter(BookChapter.book_id == b.id).count()
+            result.append({
+                "id": b.id, "title": b.title, "subtitle": b.subtitle,
+                "author": b.author, "description": b.description,
+                "cover_url": b.cover_url, "topic": b.topic,
+                "keywords": b.keywords, "status": b.status,
+                "total_chapters": chapters_count,
+                "total_words": b.total_words,
+                "price_cents": b.price_cents,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            })
+        return result
+    finally:
+        db.close()
+
+
+def get_db_book(book_id: str) -> dict:
+    db = SessionLocal()
+    try:
+        b = db.query(Book).filter(Book.id == book_id).first()
+        if not b:
+            return None
+        chapters = db.query(BookChapter).filter(BookChapter.book_id == book_id).order_by(
+            BookChapter.chapter_number
+        ).all()
+        formats = db.query(BookFormat).filter(BookFormat.book_id == book_id).all()
+        return {
+            "id": b.id, "title": b.title, "subtitle": b.subtitle,
+            "author": b.author, "description": b.description,
+            "cover_url": b.cover_url, "topic": b.topic,
+            "keywords": b.keywords, "status": b.status,
+            "total_chapters": len(chapters), "total_words": b.total_words,
+            "price_cents": b.price_cents,
+            "chapters": [{
+                "id": ch.id, "chapter_number": ch.chapter_number,
+                "title": ch.title, "content": ch.content,
+                "word_count": ch.word_count, "status": ch.status,
+            } for ch in chapters],
+            "formats": [{
+                "format_type": f.format_type, "file_url": f.file_url,
+                "file_size_bytes": f.file_size_bytes,
+                "generated_at": f.generated_at.isoformat() if f.generated_at else None,
+            } for f in formats],
+            "created_at": b.created_at.isoformat() if b.created_at else None,
+            "published_at": b.published_at.isoformat() if b.published_at else None,
+        }
+    finally:
+        db.close()
+
+
+def create_db_book_chapter(book_id: str, chapter_number: int, title: str,
+                           content: str = "") -> dict:
+    db = SessionLocal()
+    try:
+        ch = BookChapter(
+            id=f"bch_{uuid.uuid4().hex[:8]}", book_id=book_id,
+            chapter_number=chapter_number, title=title,
+            content=content, word_count=len(content.split()),
+            status="draft",
+        )
+        db.add(ch)
+        book = db.query(Book).filter(Book.id == book_id).first()
+        if book:
+            book.total_chapters = db.query(BookChapter).filter(
+                BookChapter.book_id == book_id
+            ).count()
+            total = db.query(BookChapter.word_count).filter(
+                BookChapter.book_id == book_id
+            ).all()
+            book.total_words = sum(wc[0] or 0 for wc in total)
+        db.commit()
+        return {
+            "id": ch.id, "chapter_number": ch.chapter_number,
+            "title": ch.title, "word_count": ch.word_count,
+            "status": ch.status,
+        }
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def update_db_book(book_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        book = db.query(Book).filter(Book.id == book_id).first()
+        if book:
+            for key, value in kwargs.items():
+                if hasattr(book, key):
+                    setattr(book, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def delete_db_book(book_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        db.query(BookChapter).filter(BookChapter.book_id == book_id).delete()
+        db.query(BookFormat).filter(BookFormat.book_id == book_id).delete()
+        book = db.query(Book).filter(Book.id == book_id).first()
+        if book:
+            db.delete(book)
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        print(f"[Database] Erro ao deletar livro: {e}")
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — FABRICA DE CURSOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_course(title: str, topic: str, description: str = "",
+                     difficulty: str = "iniciante", price_cents: int = 0) -> dict:
+    db = SessionLocal()
+    try:
+        course = Course(
+            id=f"crs_{uuid.uuid4().hex[:8]}", title=title, topic=topic,
+            description=description, difficulty=difficulty,
+            price_cents=price_cents, status="draft",
+        )
+        db.add(course)
+        db.commit()
+        return {"id": course.id, "title": course.title, "topic": course.topic,
+                "status": course.status, "difficulty": course.difficulty,
+                "created_at": course.created_at.isoformat() if course.created_at else None}
+    finally:
+        db.close()
+
+
+def get_db_courses(limit: int = 50) -> list:
+    db = SessionLocal()
+    try:
+        courses = db.query(Course).order_by(Course.created_at.desc()).limit(limit).all()
+        result = []
+        for c in courses:
+            modules_count = db.query(CourseModule).filter(CourseModule.course_id == c.id).count()
+            lessons_count = db.query(CourseLesson).join(CourseModule).filter(
+                CourseModule.course_id == c.id
+            ).count() if modules_count > 0 else 0
+            result.append({
+                "id": c.id, "title": c.title, "subtitle": c.subtitle,
+                "description": c.description, "topic": c.topic,
+                "keywords": c.keywords, "status": c.status,
+                "total_modules": modules_count,
+                "total_lessons": lessons_count,
+                "difficulty": c.difficulty,
+                "price_cents": c.price_cents,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            })
+        return result
+    finally:
+        db.close()
+
+
+def get_db_course(course_id: str) -> dict:
+    db = SessionLocal()
+    try:
+        c = db.query(Course).filter(Course.id == course_id).first()
+        if not c:
+            return None
+        modules = db.query(CourseModule).filter(
+            CourseModule.course_id == course_id
+        ).order_by(CourseModule.module_number).all()
+        result = {
+            "id": c.id, "title": c.title, "subtitle": c.subtitle,
+            "description": c.description, "topic": c.topic,
+            "keywords": c.keywords, "status": c.status,
+            "total_modules": len(modules),
+            "difficulty": c.difficulty, "price_cents": c.price_cents,
+            "estimated_hours": c.estimated_hours,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "published_at": c.published_at.isoformat() if c.published_at else None,
+            "modules": [],
+        }
+        for mod in modules:
+            lessons = db.query(CourseLesson).filter(
+                CourseLesson.module_id == mod.id
+            ).order_by(CourseLesson.lesson_number).all()
+            module_data = {
+                "id": mod.id, "module_number": mod.module_number,
+                "title": mod.title, "description": mod.description,
+                "lessons": [{
+                    "id": l.id, "lesson_number": l.lesson_number,
+                    "title": l.title, "content": l.content,
+                    "content_type": l.content_type,
+                    "word_count": l.word_count,
+                    "estimated_minutes": l.estimated_minutes,
+                } for l in lessons],
+            }
+            result["modules"].append(module_data)
+        return result
+    finally:
+        db.close()
+
+
+def create_db_course_module(course_id: str, module_number: int, title: str,
+                            description: str = "") -> dict:
+    db = SessionLocal()
+    try:
+        mod = CourseModule(
+            id=f"crm_{uuid.uuid4().hex[:6]}", course_id=course_id,
+            module_number=module_number, title=title, description=description,
+        )
+        db.add(mod)
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if course:
+            course.total_modules = db.query(CourseModule).filter(
+                CourseModule.course_id == course_id
+            ).count()
+        db.commit()
+        return {"id": mod.id, "module_number": mod.module_number, "title": mod.title}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def create_db_course_lesson(module_id: str, lesson_number: int, title: str,
+                            content: str = "", content_type: str = "texto",
+                            estimated_minutes: int = 10) -> dict:
+    db = SessionLocal()
+    try:
+        lesson = CourseLesson(
+            id=f"crl_{uuid.uuid4().hex[:6]}", module_id=module_id,
+            lesson_number=lesson_number, title=title,
+            content=content, content_type=content_type,
+            word_count=len(content.split()),
+            estimated_minutes=estimated_minutes,
+        )
+        db.add(lesson)
+        db.commit()
+        return {"id": lesson.id, "lesson_number": lesson.lesson_number,
+                "title": lesson.title, "word_count": lesson.word_count}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def update_db_course(course_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if course:
+            for key, value in kwargs.items():
+                if hasattr(course, key):
+                    setattr(course, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def delete_db_course(course_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        modules = db.query(CourseModule).filter(CourseModule.course_id == course_id).all()
+        for mod in modules:
+            lessons = db.query(CourseLesson).filter(CourseLesson.module_id == mod.id).all()
+            for les in lessons:
+                db.query(CourseQuiz).filter(CourseQuiz.lesson_id == les.id).delete()
+                db.query(CourseMaterial).filter(CourseMaterial.lesson_id == les.id).delete()
+            db.query(CourseLesson).filter(CourseLesson.module_id == mod.id).delete()
+        db.query(CourseModule).filter(CourseModule.course_id == course_id).delete()
+        c = db.query(Course).filter(Course.id == course_id).first()
+        if c:
+            db.delete(c)
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        db.rollback()
+        return False
     finally:
         db.close()
 

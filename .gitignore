@@ -63,6 +63,12 @@ frontend_output.txt
 =0.3.0
 server.py
 SniperVideoEngineservices__init__.py
+SniperVideoEngine/_temp_*.txt
+SniperVideoEngine/port_check.txt
+SniperVideoEngine/fix_resume.py
+SniperVideoEngine/test_extract*.py
+SniperVideoEngine/start_srv.py
+SniperVideoEngine/start_ui_server.py
 
 # Binários pesados e Mídias geradas
 *.mp4

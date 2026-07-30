@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Reino — Blog sobre os Ensinamentos de Jesus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gold: #d4a853;
+    --gold-light: #f0d68a;
+    --gold-dark: #a67c2e;
+    --cream: #faf6ef;
+    --cream-dark: #f0e8d5;
+    --dark: #1a1410;
+    --dark2: #2a2219;
+    --text: #3d3227;
+    --text-light: #7a6b5a;
+    --accent: #8b2500;
+    --accent-light: #c0392b;
+    --border: #e0d5c0;
+    --shadow: 0 2px 20px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* ═══ HEADER ═══ */
+  .blog-header {
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark2) 100%);
+    padding: 60px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .blog-header::before {
+    content: '☦';
+    position: absolute;
+    font-size: 300px;
+    opacity: 0.03;
+    top: -80px;
+    right: -40px;
+    color: var(--gold);
+  }
+  .blog-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .blog-header .container { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+  .blog-header .brand { font-family: 'Playfair Display', serif; font-size: 52px; font-weight: 800; color: var(--gold); margin-bottom: 8px; }
+  .blog-header .subtitle { font-size: 17px; color: var(--gold-light); opacity: 0.85; font-weight: 300; letter-spacing: 0.05em; }
+  .blog-header .description { font-size: 14px; color: #8a7a6a; margin-top: 12px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+
+  /* ═══ SEARCH BAR ═══ */
+  .search-bar {
+    max-width: 500px;
+    margin: 16px auto 0;
+    position: relative;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    border-radius: 25px;
+    border: 1px solid rgba(212,168,83,0.3);
+    background: rgba(255,255,255,0.08);
+    color: #e0d5c0;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: all .3s;
+  }
+  .search-bar input:focus { border-color: var(--gold); background: rgba(255,255,255,0.12); }
+  .search-bar input::placeholder { color: #6a5a4a; }
+  .search-bar .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    opacity: 0.5;
+  }
+
+  /* ═══ NAV ═══ */
+  .blog-nav {
+    background: var(--dark);
+    border-bottom: 1px solid rgba(212,168,83,0.15);
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .blog-nav .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 52px;
+  }
+  .blog-nav a {
+    color: #8a7a6a;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color .2s;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .blog-nav a:hover { color: var(--gold); border-bottom-color: var(--gold); }
+  .blog-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .blog-nav .spacer { flex: 1; }
+  .blog-nav .back-link { color: var(--gold); font-weight: 600; }
+
+  /* ═══ MAIN ═══ */
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+  /* ═══ CATEGORY FILTER ═══ */
+  .category-filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 0;
+  }
+  .category-filter .filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-light);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .category-filter .filter-btn:hover { border-color: var(--gold); color: var(--gold-dark); }
+  .category-filter .filter-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #fff;
+  }
+
+  /* ═══ POST LIST ═══ */
+  .post-list { padding: 40px 0; }
+  .post-list .list-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .post-list .list-header .title-group h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--dark); }
+  .post-list .list-header .title-group .subtitle { color: var(--text-light); font-size: 14px; margin-top: 4px; }
+  .post-list .list-header .post-count {
+    font-size: 13px;
+    color: var(--text-light);
+    background: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .post-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: all .25s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+  }
+  .post-card:hover {
+    border-color: var(--gold);
+    box-shadow: 0 4px 24px rgba(212,168,83,0.12);
+    transform: translateY(-2px);
+  }
+  .post-card .card-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    background: var(--cream-dark);
+    display: block;
+  }
+  .post-card .card-image-placeholder {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, var(--dark), var(--dark2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    opacity: 0.3;
+  }
+  .post-card .card-body { padding: 24px 28px; }
+  .post-card .card-body .post-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .post-card .card-body .post-excerpt {
+    font-size: 14px;
+    color: var(--text-light);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .post-card .card-body .post-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-light);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .post-card .card-body .post-meta span { display: flex; align-items: center; gap: 4px; }
+  .post-card .card-body .post-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .post-card .card-body .post-tags .tag {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--cream-dark);
+    color: var(--text-light);
+  }
+  .post-card .card-body .read-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-dark);
+    margin-top: 12px;
+    transition: gap .2s;
+  }
+  .post-card:hover .card-body .read-more { gap: 8px; }
+
+  /* ═══ AD BANNERS ═══ */
+  .ad-banner-top, .ad-banner-bottom {
+    margin: 24px 0;
+    display: flex;
+    justify-content: center;
+  }
+  .ad-placeholder-horizontal {
+    width: 100%;
+    max-width: 728px;
+    min-height: 90px;
+    background: rgba(26,20,16,0.03);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    color: var(--text-light);
+    font-size: 12px;
+    transition: all .3s;
+  }
+  .ad-placeholder-horizontal:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,83,0.04);
+  }
+  .ad-placeholder-horizontal .ad-icon { font-size: 20px; opacity: 0.4; }
+  .ad-placeholder-horizontal .ad-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+  }
+  .ad-placeholder-horizontal .ad-note {
+    font-size: 10px;
+    opacity: 0.3;
+  }
+
+  /* ═══ NO RESULTS ═══ */
+  .no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
+  }
+  .no-results .icon { font-size: 48px; margin-bottom: 12px; opacity: .5; }
+
+  /* ═══ POST VIEWER ═══ */
+  .post-viewer { padding: 40px 0; }
+  .post-viewer .post-header { margin-bottom: 32px; }
+  .post-viewer .post-header .post-breadcrumb {
+    font-size: 13px; color: var(--text-light); margin-bottom: 12px;
+  }
+  .post-viewer .post-header .post-breadcrumb a { color: var(--gold-dark); text-decoration: none; font-weight: 500; }
+  .post-viewer .post-header .post-breadcrumb a:hover { text-decoration: underline; }
+  .post-viewer .post-header .featured-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    background: var(--cream-dark);
+  }
+  .post-viewer .post-header .featured-image-placeholder {
+    width: 100%;
+    height: 300px;
+    background: linear-gradient(135deg, var(--dark), var(--dark2));
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    opacity: 0.15;
+  }
+  .post-viewer .post-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--dark);
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+  .post-viewer .post-header .post-meta-bar {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    color: var(--text-light);
+    flex-wrap: wrap;
+  }
+
+  /* ═══ SHARE BUTTONS ═══ */
+  .share-buttons {
+    display: flex;
+    gap: 8px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-light);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: inherit;
+    text-decoration: none;
+  }
+  .share-btn:hover { border-color: var(--gold); color: var(--gold-dark); }
+
+  /* ═══ ARTICLE LAYOUT WITH ADS ═══ */
+  .article-layout {
+    display: flex;
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    align-items: flex-start;
+  }
+  .article-layout .article-main {
+    flex: 1;
+    min-width: 0;
+    max-width: 720px;
+  }
+  .article-layout .ad-slot {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 20px;
+  }
+  .article-layout .ad-slot .ad-placeholder {
+    width: 160px;
+    min-height: 600px;
+    background: rgba(26,20,16,0.03);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    color: var(--text-light);
+    font-size: 11px;
+    text-align: center;
+    transition: all .3s;
+  }
+  .article-layout .ad-slot .ad-placeholder:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,83,0.04);
+  }
+  .article-layout .ad-slot .ad-placeholder .ad-icon {
+    font-size: 24px;
+    opacity: 0.4;
+  }
+  .article-layout .ad-slot .ad-placeholder .ad-label {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+  }
+  .post-viewer .post-content {
+    font-size: 17px;
+    line-height: 1.85;
+    color: var(--text);
+    max-width: 720px;
+  }
+  .post-viewer .post-content h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--dark);
+    margin: 40px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--cream-dark);
+  }
+  .post-viewer .post-content h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--dark2);
+    margin: 28px 0 12px;
+  }
+  .post-viewer .post-content p { margin-bottom: 16px; }
+  .post-viewer .post-content blockquote {
+    border-left: 3px solid var(--gold);
+    padding: 12px 20px;
+    margin: 20px 0;
+    background: rgba(212,168,83,0.06);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-style: italic;
+    color: var(--dark2);
+  }
+
+  /* ═══ FOOTER ═══ */
+  .blog-footer {
+    background: var(--dark);
+    color: #8a7a6a;
+    text-align: center;
+    padding: 40px 24px;
+    font-size: 13px;
+    margin-top: 40px;
+  }
+  .blog-footer .footer-brand { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--gold); margin-bottom: 8px; }
+  .blog-footer a { color: var(--gold-light); text-decoration: none; }
+
+  /* ═══ STATES ═══ */
+  .loading-state { display: flex; align-items: center; justify-content: center; padding: 60px 20px; gap: 12px; color: var(--text-light); }
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-state { text-align: center; padding: 60px 20px; color: var(--accent); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .hidden { display: none !important; }
+
+  /* ═══ RESPONSIVE ═══ */
+  @media (max-width: 900px) {
+    .article-layout .ad-slot { display: none; }
+    .article-layout { max-width: 720px; }
+  }
+  @media (max-width: 768px) {
+    .blog-header .brand { font-size: 32px; }
+    .blog-header { padding: 40px 16px 30px; }
+    .post-viewer .post-header h1 { font-size: 26px; }
+    .post-viewer .post-content { font-size: 15px; }
+    .post-card .card-image { height: 160px; }
+    .post-card .card-body { padding: 18px 20px; }
+    .post-card .card-body .post-title { font-size: 18px; }
+    .blog-nav .container { gap: 12px; font-size: 12px; overflow-x: auto; }
+    .article-layout .ad-slot { display: none; }
+  }
+  @media (max-width: 480px) {
+    .blog-header .brand { font-size: 26px; }
+    .post-viewer .post-header h1 { font-size: 22px; }
+    .post-card .card-image { height: 140px; }
+    .post-list .list-header { flex-direction: column; align-items: flex-start; }
+    .article-layout .ad-slot { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="blog-header">
+  <div class="container">
+    <div class="brand">✝ O Reino</div>
+    <div class="subtitle">Ensinamentos de Jesus para a Vida</div>
+    <div class="description">Reflexões, estudos e meditações sobre as palavras e o exemplo de Cristo — aplicados ao dia a dia</div>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Buscar artigos..." oninput="filterPosts()">
+    </div>
+  </div>
+</header>
+
+<nav class="blog-nav">
+  <div class="container">
+    <a href="#" onclick="showListView()" class="back-link">📖 Artigos</a>
+    <span style="color:#5c5040;opacity:0.4">|</span>
+    <a href="#" onclick="showListView();setFilter('')" class="active" id="navAll">Todos</a>
+    <a href="#" onclick="showListView();setFilter('fé')" id="navFe">Fé</a>
+    <a href="#" onclick="showListView();setFilter('amor')" id="navAmor">Amor</a>
+    <a href="#" onclick="showListView();setFilter('oração')" id="navOracao">Oração</a>
+    <a href="#" onclick="showListView();setFilter('perdão')" id="navPerdao">Perdão</a>
+    <div class="spacer"></div>
+    <a href="/" style="font-size:12px;opacity:0.5">⚙ Admin</a>
+  </div>
+</nav>
+
+<main class="container">
+  <!-- Post List View -->
+  <div id="postListView" class="post-list">
+    <div class="list-header">
+      <div class="title-group">
+        <h1>📖 Todos os Artigos</h1>
+        <div class="subtitle" id="postsSubtitle">Estudos e reflexões sobre os ensinamentos de Jesus Cristo</div>
+      </div>
+      <span class="post-count" id="postCount">Carregando...</span>
+    </div>
+    <!-- Banner de anuncio no topo da lista -->
+    <div class="ad-banner-top">
+      <div class="ad-placeholder-horizontal">
+        <span class="ad-icon">📢</span>
+        <span class="ad-label">Publicidade</span>
+        <span class="ad-note">Espaço reservado para Google AdSense</span>
+      </div>
+    </div>
+    <div id="postsContainer"></div>
+    <!-- Banner de anuncio no final da lista -->
+    <div class="ad-banner-bottom">
+      <div class="ad-placeholder-horizontal">
+        <span class="ad-icon">📢</span>
+        <span class="ad-label">Publicidade</span>
+        <span class="ad-note">Espaço reservado para Google AdSense</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post Viewer -->
+  <div id="postViewerView" class="post-viewer hidden">
+    <div class="post-header">
+      <div class="post-breadcrumb"><a href="#" onclick="showListView()">← Todos os Artigos</a></div>
+      <img id="postFeaturedImage" class="featured-image hidden" alt="" onerror="this.classList.add('hidden');document.getElementById('postFeaturedPlaceholder').classList.remove('hidden');">
+      <div class="featured-image-placeholder hidden" id="postFeaturedPlaceholder">✝</div>
+      <h1 id="postTitle"></h1>
+      <div class="post-meta-bar">
+        <span id="postMetaDate"></span>
+        <span id="postMetaWords"></span>
+        <span id="postMetaStatus"></span>
+      </div>
+      <div class="share-buttons" id="shareButtons"></div>
+    </div>
+    <div class="article-layout">
+      <div class="ad-slot">
+        <div class="ad-placeholder">
+          <div class="ad-icon">📢</div>
+          <div class="ad-label">Anúncio</div>
+          <div style="font-size:10px;opacity:0.4">Espaço reservado</div>
+        </div>
+      </div>
+      <div class="article-main">
+        <div class="post-content" id="postContent"></div>
+      </div>
+      <div class="ad-slot">
+        <div class="ad-placeholder">
+          <div class="ad-icon">📢</div>
+          <div class="ad-label">Anúncio</div>
+          <div style="font-size:10px;opacity:0.4">Espaço reservado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="blog-footer">
+  <div class="footer-brand">✝ O Reino</div>
+  <p style="margin-bottom:8px">"Buscai primeiro o Reino de Deus, e todas estas coisas vos serão acrescentadas." — Mateus 6:33</p>
+  <p>© 2026 · <a href="https://dezafira.com.br">Dezafira</a> · Fábrica de Conteúdo com IA</p>
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════════
+
+const API_BASE = '/api/v1';
+const SLUG = 'o-reino';
+let allPosts = [];
+let currentFilter = '';
+
+// ════════════════════════════════════════════════════════════════════════
+// VIEW
+// ════════════════════════════════════════════════════════════════════════
+
+function showListView() {
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('postListView').classList.remove('hidden');
+  document.getElementById('postViewerView').classList.add('hidden');
+  window.scrollTo(0, 0);
+  renderPosts();
+}
+
+function showPostView(postId) {
+  document.getElementById('postListView').classList.add('hidden');
+  document.getElementById('postViewerView').classList.remove('hidden');
+  window.scrollTo(0, 0);
+  loadPost(postId);
+}
+
+function setFilter(keyword) {
+  currentFilter = keyword;
+  document.querySelectorAll('.category-filter .filter-btn').forEach(b => b.classList.remove('active'));
+  if (keyword) {
+    document.querySelectorAll('.category-filter .filter-btn').forEach(b => {
+      if (b.textContent.toLowerCase().includes(keyword)) b.classList.add('active');
+    });
+  }
+  renderPosts();
+}
+
+function filterPosts() {
+  renderPosts();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// API
+// ════════════════════════════════════════════════════════════════════════
+
+async function api(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// POST LIST
+// ════════════════════════════════════════════════════════════════════════
+
+function renderPosts() {
+  const container = document.getElementById('postsContainer');
+  const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+
+  let filtered = allPosts;
+
+  // Apply search filter
+  if (searchTerm) {
+    filtered = filtered.filter(p =>
+      (p.title || '').toLowerCase().includes(searchTerm) ||
+      (p.excerpt || '').toLowerCase().includes(searchTerm) ||
+      (p.keywords || '').toLowerCase().includes(searchTerm)
+    );
+  }
+
+  // Apply category filter
+  if (currentFilter) {
+    filtered = filtered.filter(p =>
+      (p.title || '').toLowerCase().includes(currentFilter) ||
+      (p.excerpt || '').toLowerCase().includes(currentFilter) ||
+      (p.keywords || '').toLowerCase().includes(currentFilter)
+    );
+  }
+
+  document.getElementById('postCount').textContent = `${filtered.length} artigo${filtered.length !== 1 ? 's' : ''}`;
+
+  if (allPosts.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>Nenhum artigo publicado ainda. Volte em breve!</p></div>';
+    return;
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="no-results"><div class="icon">🔍</div><p>Nenhum artigo encontrado para "${searchTerm || currentFilter}"</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const excerpt = p.excerpt || '';
+    const wordCount = p.word_count ? `${p.word_count} palavras` : '';
+    const date = p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    const tags = (p.keywords || '').split(',').slice(0, 4).map(k => k.trim()).filter(Boolean).map(k => `<span class="tag">${k}</span>`).join('');
+    const hasImage = p.featured_image_url ? true : false;
+    const readingTime = p.word_count ? Math.ceil(p.word_count / 200) : '';
+
+    return `<div class="post-card" onclick="showPostView('${p.id}')">
+      ${hasImage
+        ? `<img class="card-image" src="${p.featured_image_url}" alt="${p.title}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="card-image-placeholder" style="display:none">✝</div>`
+        : `<div class="card-image-placeholder">✝</div>`
+      }
+      <div class="card-body">
+        <div class="post-title">${p.title}</div>
+        <div class="post-excerpt">${excerpt}</div>
+        <div class="post-meta">
+          <span>📅 ${date}</span>
+          <span>📄 ${wordCount}</span>
+          ${readingTime ? `<span>⏱️ ${readingTime} min</span>` : ''}
+          <span class="tag" style="background:rgba(245,158,11,0.12);color:#d97706;border:none">Rascunho</span>
+        </div>
+        ${tags ? `<div class="post-tags">${tags}</div>` : ''}
+        <div class="read-more">Ler artigo →</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadPosts() {
+  const container = document.getElementById('postsContainer');
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div> Carregando artigos...</div>';
+
+  const data = await api(`${API_BASE}/blog/${SLUG}/posts`);
+  if (data.error) {
+    container.innerHTML = `<div class="error-state">❌ Erro ao carregar: ${data.error}</div>`;
+    return;
+  }
+
+  allPosts = data.posts || [];
+  renderPosts();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SINGLE POST
+// ════════════════════════════════════════════════════════════════════════
+
+async function loadPost(postId) {
+  document.getElementById('postTitle').textContent = 'Carregando...';
+  document.getElementById('postContent').innerHTML = '<div class="loading-state"><div class="spinner"></div> Carregando...</div>';
+  document.getElementById('postFeaturedImage').classList.add('hidden');
+  document.getElementById('postFeaturedPlaceholder').classList.add('hidden');
+
+  const data = await api(`${API_BASE}/blog/${SLUG}/posts/${postId}`);
+  if (data.error) {
+    document.getElementById('postContent').innerHTML = `<div class="error-state">❌ Erro: ${data.error}</div>`;
+    return;
+  }
+
+  const title = data.title || 'Artigo';
+  document.title = `${title} — O Reino`;
+  document.getElementById('postTitle').textContent = title;
+
+  const date = data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const wordCount = data.word_count ? `${data.word_count} palavras` : '';
+  const readingTime = data.word_count ? `~${Math.ceil(data.word_count / 200)} min de leitura` : '';
+
+  document.getElementById('postMetaDate').textContent = `📅 ${date}`;
+  document.getElementById('postMetaWords').textContent = `📄 ${wordCount} · ${readingTime}`;
+  document.getElementById('postMetaStatus').textContent = data.status === 'published' ? '✅ Publicado' : '📝 Rascunho';
+
+  // Featured image: mostra se existir, senão mostra placeholder
+  if (data.featured_image_url) {
+    const img = document.getElementById('postFeaturedImage');
+    img.src = data.featured_image_url;
+    img.alt = title;
+    img.classList.remove('hidden');
+  } else {
+    document.getElementById('postFeaturedPlaceholder').classList.remove('hidden');
+  }
+
+  // Share buttons — URL específica do artigo
+  const baseUrl = window.location.origin + window.location.pathname;
+  const articleUrl = `${baseUrl}?post=${postId}`;
+  document.getElementById('shareButtons').innerHTML = `
+    <a class="share-btn" href="https://wa.me/?text=${encodeURIComponent(title + ' - ' + articleUrl)}" target="_blank" rel="noopener">📱 WhatsApp</a>
+    <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}" target="_blank" rel="noopener">📘 Facebook</a>
+    <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(articleUrl)}" target="_blank" rel="noopener">🐦 Twitter</a>
+    <button class="share-btn" onclick="navigator.clipboard.writeText('${articleUrl}').then(() => this.textContent='✅ Copiado!').catch(() => {})">🔗 Copiar Link</button>
+  `;
+
+  // Process content
+  let content = data.content || '<p>Conteúdo em desenvolvimento...</p>';
+  document.getElementById('postContent').innerHTML = content;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('keydown', (e) => {
+  // Escape to go back to list
+  if (e.key === 'Escape' && !document.getElementById('postListView').classList.contains('hidden')) {
+    const searchInput = document.getElementById('searchInput');
+    if (document.activeElement === searchInput) {
+      searchInput.blur();
+    }
+  }
+  if (e.key === 'Escape' && !document.getElementById('postViewerView').classList.contains('hidden')) {
+    showListView();
+  }
+  // Ctrl+/ or Cmd+/ to focus search
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const postId = params.get('post');
+  if (postId) {
+    showPostView(postId);
+  } else {
+    loadPosts();
+  }
+});
+</script>
+</body>
+</html>

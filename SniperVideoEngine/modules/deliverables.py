@@ -6,12 +6,11 @@ import sys
 # Garante que podemos importar do diretório pai
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from modules.brain import SniperBrain
 from modules.database import create_db_deliverable_app, get_db_deliverable_app_by_slug
+from modules.blog_writer import _call_llm
 
-def generate_pwa_content(nicho: str) -> dict:
-    """Usa o SniperBrain para gerar toda a cópia, perguntas, estilo e depoimentos de um quiz viral."""
-    brain = SniperBrain()
+async def generate_pwa_content(nicho: str) -> dict:
+    """Usa o LLM para gerar toda a cópia, perguntas, estilo e depoimentos de um quiz viral."""
     
     system_prompt = """
     Você é um Engenheiro de Growth e Especialista em Funis de Conversão (Quiz Funnels).
@@ -105,7 +104,7 @@ def generate_pwa_content(nicho: str) -> dict:
     }
 
     try:
-        raw_response = brain._call_llm(system_prompt, user_prompt, temperature=0.7)
+        raw_response = await _call_llm(system_prompt, user_prompt, temperature=0.7)
         # Limpa possíveis blocos de código markdown que a IA possa ter retornado por engano
         cleaned = raw_response.strip()
         if cleaned.startswith("```json"):
@@ -120,7 +119,7 @@ def generate_pwa_content(nicho: str) -> dict:
         print(f"[Deliverables] Erro ao obter/decodificar conteúdo do LLM: {e}. Usando fallback...")
         return fallback_data
 
-def create_deliverable_app_for_channel(channel_id: str, name: str, nicho: str, slug: str) -> dict:
+async def create_deliverable_app_for_channel(channel_id: str, name: str, nicho: str, slug: str) -> dict:
     """Gera o conteúdo da IA e salva no banco de dados."""
     import uuid
     # Gera slug limpo se não fornecido
@@ -132,7 +131,7 @@ def create_deliverable_app_for_channel(channel_id: str, name: str, nicho: str, s
     if existing:
         slug = f"{slug}-{channel_id[:4]}"
         
-    config = generate_pwa_content(nicho)
+    config = await generate_pwa_content(nicho)
     
     app_data = create_db_deliverable_app(
         channel_id=channel_id,

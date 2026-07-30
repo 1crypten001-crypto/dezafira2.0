@@ -1,529 +1,440 @@
 # SPEC.md — Dezafira Pipeline Specification
 
-> **Versão:** 1.0
-> **Data:** 2026-06-30
-> **Status:** Especificação para Refactor
+> **Versão:** 4.0
+> **Data:** 2026-07-30
+> **Status:** Ecossistema de 4 Fábricas + Analista de Monetização
 
 ---
 
 ## 1. Visão Geral
 
-Dezafira é uma fábrica autônoma de canais YouTube. A pipeline gera vídeos verticais (Shorts) de forma 100% automatizada, desde a garimpagem de tendências até a publicação no YouTube.
+Dezafira é um ecossistema de automação de conteúdo digital com **4 fábricas integradas** e **Seu Pereira** como analista de monetização.
+
+| # | Fábrica | Motor | Status |
+|---|---------|-------|--------|
+| 1 | 📝 **Fábrica de Blogs** | Macro-esteira 5 estágios + LLM cascade | ✅ Produção |
+| 2 | 📗 **Fábrica de Livros** | BookWriterAgent (LLM) | ✅ Produção |
+| 3 | 🎓 **Fábrica de Cursos** | CourseWriterAgent (LLM) | ✅ Produção |
+| 4 | 🎨 **Fábrica de Imagens** | FLUX.1 (HF) + Pexels API | ✅ Produção |
+| — | 🔍 **RAG Bíblico** | Sentence-Transformers + LLM cascade | ✅ Beta |
+| — | 👴 **Seu Pereira** | Analista de Monetização AdSense | ✅ Beta |
 
 ### Restrições de Infraestrutura
-- **Plataforma:** Railway (Docker containers)
+- **Plataforma:** Railway (Docker containers) / Local (Windows/Linux)
 - **Hardware:** CPU only (sem GPU)
-- **Orçamento:** $0 (todas as ferramentas devem ser gratuitas)
-- **Licença:** Apache 2.0 ou MIT (ou equivalente permissivo)
+- **Banco:** SQLite (dev) / PostgreSQL (production)
+- **LLM Cascade:** NVIDIA NIM → OpenRouter → Gemini → DeepSeek
 
 ---
 
-## 2. Ferramentas Definidas
-
-| # | Etapa | Ferramenta | Licença | Tipo | Arquivo Atual | Status |
-|---|-------|-----------|---------|------|---------------|--------|
-| 1 | Tendências | **Scrapling** (DeczafiraTrendHunter) | Apache 2.0 | Local | `scrapling_agent.py` | 🟡 Integrar na esteira |
-| 2 | Roteiro IA | **Nvidia NIM** (Llama 3.3 70B) | API Free Tier | Cloud API | `brain.py` | 🟢 Manter |
-| 3 | Locução | **Kokoro TTS** | Apache 2.0 | Local (CPU) | Novo (substitui `voice_gen.py`) | 🔴 Criar |
-| 4 | Vídeo | **Pexels API** + **MoviePy** | Gratuito / MIT | API + Local | Novo (substitui `video_agent.py`) | 🔴 Criar |
-| 5 | Legendas | **Whisper** (whisper_timestamped) | MIT | Local (CPU) | `orchestrator.py` | 🟢 Manter |
-| 6 | Montagem | **MoviePy** + **FFmpeg** | MIT / LGPL | Local | `orchestrator.py` | 🟢 Manter |
-| 7 | Upload | **Playwright Stealth** | Apache 2.0 | Local | `uploader.py` | 🟢 Manter |
-| 8 | DB | **SQLAlchemy** + **SQLite** | MIT | Local | `database.py` | 🟢 Manter |
-| 9 | Notificações | **Telegram Bot** (pyTelegramBotAPI) | GPL | Local | `telegram_bot.py` | 🟢 Manter |
-| 10 | Frontend | **Next.js 15** | MIT | Local | `open-generative-ai/` | 🟢 Manter |
-| 11 | Imagem (IA) | **Google Flow (ELTON FLOW via Obscura)** | Gratuito | Browser | `modules/obscura_image_gen.py` | 🟢 Integrado (default grátis) |
-| 12 | Estilos/Locks | **Presets ELTON VIDEO MAKER** | Gratuito | Local | `modules/styles.py` | 🟢 Integrado |
-
-### Ferramentas REMOVIDAS da stack
-
-| Ferramenta | Motivo |
-|-----------|--------|
-| OmniVoice | Precisa de GPU para rodar local |
-| LTX-2 | Precisa de GPU + licença restritiva (não Apache 2.0) |
-| InfiniteTalk | Precisa de GPU (14B parâmetros) |
-| ComfyUI | Precisa de GPU |
-| Edge-TTS | Não é open-source (serviço Microsoft, pode mudar terms) |
-| DeepSeek | Não necessário (Nvidia NIM já cobre) |
-| Gradio (ui.py) | Legado — Next.js é o frontend |
-
----
-
-## 3. Arquitetura da Pipeline
+## 2. Arquitetura
 
 ```
+┌────────────────────────────────────────────────────────────────────┐
+│                        CLIENTE (Browser)                           │
+│         UI Dashboard SPA + Blog Viewer + Pipeline Animado          │
+└────────────────────────────┬───────────────────────────────────────┘
+                             │ HTTP REST API
+┌────────────────────────────▼───────────────────────────────────────┐
+│                        SERVER (FastAPI)                             │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │  🏭 Macro-Pipeline (blog_pipeline.py)                        │  │
+│  │  5 estágios: Fundação → Arquitetura → Produção → Refino →   │  │
+│  │  → Entrega. Produção em massa de N artigos por blog.        │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
+│  │ 📝 Blog  │ │ 📗 Book  │ │ 🎓 Course │ │ 🎨 Image │              │
+│  │ Factory  │ │ Factory  │ │ Factory   │ │ Factory  │              │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘              │
+│                                                                     │
+│  ┌──────────────┐ ┌─────────────────────────────────────────────┐  │
+│  │ 👴 Seu       │ │  LLM Cascade                                │  │
+│  │  Pereira     │ │  NVIDIA NIM → OpenRouter → Gemini → DeepSeek│  │
+│  │  19 critérios│ │  Fallback automático em cada chamada        │  │
+│  └──────────────┘ └─────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Macro-Esteira de Blogs
+
+### 3.1 Fluxo Completo
+
+```
+Usuário define: Nome do Blog + Nicho + N artigos
+         │
+         ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ESTEIRA DEZAFIRA v2.0                         │
-│                                                                  │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐ │
-│  │    1     │   │    2     │   │    3     │   │      4       │ │
-│  │ SCRAPLING│──▶│  HERMES  │──▶│  KOKORO  │──▶│  PEXELS API  │ │
-│  │ (Trends) │   │  (LLM)  │   │  (Voz)   │   │  (Vídeos)    │ │
-│  └──────────┘   └──────────┘   └──────────┘   └──────┬───────┘ │
-│                                                        │         │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐          │         │
-│  │    7     │◀──│    6     │◀──│    5     │◀─────────┘         │
-│  │PLAYWRIGHT│   │  MOVIEPY │   │ WHISPER  │                     │
-│  │ (Upload) │   │ (Monta)  │   │(Legendas)│                     │
-│  └──────────┘   └──────────┘   └──────────┘                     │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  8. TELEGRAM BOT — Notificações em tempo real            │   │
-│  └──────────────────────────────────────────────────────────┘   │
+│ 🏗️ FUNDAÇÃO (Hermes + Dona Célia)                              │
+│ • Cria canal no banco (BlogChannel)                            │
+│ • Define identidade visual e tom de voz                        │
+│ • Gera N topics únicos para os artigos                          │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ 📋 ARQUITETURA (Joaquim)                                        │
+│ • Pesquisa palavras-chave para cada topic                       │
+│ • Analisa concorrência e tendências                             │
+│ • Gera estrutura de SEO para cada artigo                        │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ 📝 PRODUÇÃO (Carlão + Dona Rosa)                                │
+│ • Gera artigo completo via LLM cascade (1100-1500 palavras)     │
+│ • Título, slug, conteúdo HTML, excerpt, keywords                │
+│ • Revisão de similaridade e qualidade                           │
+│ • LOOP: repete para cada um dos N artigos                       │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ 🎨 REFINO (Tatiana + Seu Zé + Ricardo)                          │
+│ • Tatiana busca imagens no Pexels para cada artigo              │
+│ • Ricardo gera/refina imagens se necessário                     │
+│ • Seu Zé programa agendamento de publicação                     │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────────┐
+│ ✅ ENTREGA (Seu Francisco)                                      │
+│ • Verifica qualidade: todos os artigos têm imagem?             │
+│ • Conferência final da produção                                │
+│ • Sinal verde: blog completo com N artigos                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
----
+### 3.2 Arquitetura do Pipeline
 
-## 4. Detalhes Técnicos por Ferramenta
+**Arquivo:** `modules/blog_pipeline.py`
+**Classe:** `BlogPipeline`
+**WebSocket:** comunicação em tempo real com UI
 
-### 4.1 Scrapling (Trend Hunter)
-
-**Arquivo:** `modules/scrapling_agent.py`
-
-**O que faz:** Garimpa tendências virais no YouTube para embasar os roteiros.
-
-**Integração na esteira:** O Scrapling deve ser chamado ANTES do Hermes para fornecer dados de trending ao roteirista.
-
-**Busca atual:** Usa fallback HTTP+Regex (Scrapling real pode não estar instalado).
-
-**Ação necessária:**
-- Instalar `scrapling` no `requirements.txt`
-- Integrar na pipeline principal (`manager.py`)
-- Hermes recebe os trending topics como contexto para gerar roteiro
-
----
-
-### 4.2 Nvidia NIM (LLM / Roteirista)
-
-**Arquivo:** `modules/brain.py`
-
-**O que faz:** Gera roteiros, títulos, prompts visuais, CTAs via LLM.
-
-**Modelo:** `meta/llama-3.3-70b-instruct`
-
-**Endpoint:** `https://integrate.api.nvidia.com/v1/chat/completions`
-
-**Env var:** `NVIDIA_API_KEY`
-
-**Ação necessária:**
-- Manter como está (funcional)
-- Remover fallback DeepSeek (não necessário)
-- Simplificar `brain.py` para usar apenas Nvidia NIM
-
----
-
-### 4.3 Kokoro TTS (Locução)
-
-**Arquivo NOVO:** `modules/voice_gen.py` (substituir atual)
-
-**O que faz:** Converte texto em fala de alta qualidade em PT-BR.
-
-**Licença:** Apache 2.0
-
-**Instalação:**
-```bash
-pip install kokoro>=0.9.4 soundfile pydub
-apt-get install -y espeak-ng  # dependency do sistema
-```
-
-**Código de integração:**
 ```python
-from kokoro import KPipeline
-import soundfile as sf
-
-def generate_voice(text, output_path, voice="pt_br_female1"):
-    pipeline = KPipeline(lang_code='p')  # 'p' = Portuguese
-    
-    generator = pipeline(text, voice=voice, speed=1)
-    
-    for i, (gs, ps, audio) in enumerate(generator):
-        sf.write(output_path, audio, 24000)
+class BlogPipeline:
+    async def run_macro(self):
+        # 5 fases, N artigos cada
+        await self._phase_fundacao()     # 1x por blog
+        await self._phase_arquitetura()  # N vezes (1 por artigo)
+        await self._phase_producao()     # N vezes
+        await self._phase_refino()       # N vezes
+        await self._phase_entrega()      # 1x no final
 ```
 
-**Vozes PT-BR disponíveis:**
-- `pt_br_female1` — Voz feminina padrão
-- `pt_br_male1` — Voz masculina padrão
-- (outras vozes disponíveis — verificar `VOICES.md` no repo)
+### 3.3 UI (Conveyor Belt)
 
-**Performance CPU:** 3x–5x real-time (gera 3-5s de áudio por 1s de processamento)
+- **5 estágios visuais** com animação de esteira
+- Conectores que acendem quando o estágio é concluído
+- Barra de progresso global (artigos concluídos / total)
+- Log em tempo real via WebSocket
+- Histórico de pipelines executadas
 
-**Saída:** WAV (24000 Hz). Para MP3, usar `pydub`:
+### 3.4 Modelo de Dados
+
 ```python
-from pydub import AudioSegment
-audio_segment = AudioSegment.from_wav(output_path)
-audio_segment.export(output_path.replace('.wav', '.mp3'), format='mp3')
+class BlogChannel(Base):
+    __tablename__ = "blog_channels"
+    id, name, nicho, lang, platform, site_url, banner_url, status, frequency
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+    id, channel_id, title, slug, content, excerpt, keywords,
+    featured_image_url, status, word_count, topic, created_at, published_at
+
+class BlogSection(Base):
+    __tablename__ = "blog_sections"
+    id, channel_id, name, slug, keywords, target_articles
+
+class BlogPipelineRun(Base):
+    __tablename__ = "blog_pipeline_runs"
+    id, channel_id, phase, status, total_articles_target,
+    articles_generated, current_round, pipeline_data
 ```
-
-**Timestamps:** Kokoro NÃO gera word-level timestamps. Para legendas, usar Whisper no áudio gerado.
-
-**Dockerfile:**
-```dockerfile
-RUN apt-get update && apt-get install -y espeak-ng libstdc++6
-```
-
-**Ação necessária:**
-- Substituir `voice_gen.py` atual (Edge-TTS/gTTS) por Kokoro
-- Manter Edge-TTS como fallback opcional
-- Gerar áudio WAV, depois converter para MP3 se necessário
 
 ---
 
-### 4.4 Pexels API + MoviePy (Geração de Vídeo)
+## 4. Seu Pereira — Analista de Monetização
 
-**Arquivos NOVOS:** `modules/video_agent.py` (substituir atual)
+**Arquivo:** `modules/seu_pereira.py`
+**Classe:** `SeuPereira`
 
-**O que faz:** Busca vídeos stock verticais no Pexels e monta o vídeo final com MoviePy.
+### 4.1 Critérios de Avaliação (19)
 
-**Pexels API:**
-- **Site:** pexels.com/api
-- **Obter API key:** Criar conta → pexels.com/api → "Request your API key"
-- **Env var:** `PEXELS_API_KEY`
-- **Rate limit:** 200 requests/hora, 20.000/mês
-- **Licença:** Gratuito, uso comercial (atribuição obrigatória)
+| ID | Categoria | Critério | Peso | Depende |
+|----|-----------|----------|------|---------|
+| content_articles_count | 📝 Conteúdo | 20+ artigos publicados | 8 | — |
+| content_word_count | 📝 Conteúdo | 800+ palavras por artigo | 8 | — |
+| content_images | 📝 Conteúdo | Imagens em todos os artigos | 5 | — |
+| content_originality | 📝 Conteúdo | Conteúdo 100% original | 10 | articles_count |
+| content_niche_allowed | 📝 Conteúdo | Nicho permitido pelo AdSense | 10 | — |
+| pages_privacy | 📄 Páginas Obrig. | Política de Privacidade (LGPD) | 10 | — |
+| pages_about | 📄 Páginas Obrig. | Página Sobre Nós | 6 | — |
+| pages_contact | 📄 Páginas Obrig. | Página de Contato | 6 | — |
+| design_responsive | 🎨 Design & UX | Design responsivo (mobile) | 7 | — |
+| design_navigation | 🎨 Design & UX | Navegação limpa e funcional | 5 | — |
+| design_speed | 🎨 Design & UX | Velocidade de carregamento | 6 | — |
+| tech_domain | 🔧 Técnico | Domínio próprio configurado | 9 | — |
+| tech_ssl | 🔧 Técnico | SSL/HTTPS ativo | 8 | domain |
+| tech_search_console | 🔧 Técnico | Google Search Console | 7 | domain |
+| tech_robots_txt | 🔧 Técnico | robots.txt configurado | 4 | domain |
+| tech_ads_txt | 🔧 Técnico | ads.txt configurado | 5 | domain |
+| seo_indexed | 🔍 Indexação | Páginas indexadas no Google | 8 | search_console, articles |
+| seo_sitemap | 🔍 Indexação | Sitemap XML configurado | 5 | domain |
+| authority_eeat | 🏛️ Autoridade | Credibilidade E-E-A-T | 6 | about |
 
-**Código de integração:**
+**Score máximo:** 133 pontos
+
+### 4.2 Status
+
+| Pontuação | Status | Label |
+|-----------|--------|-------|
+| ≥ 80% | ✅ ready | Pronto para solicitar o AdSense |
+| ≥ 50% | 🟡 almost | Quase lá! Faltam requisitos prioritários |
+| ≥ 20% | 🟠 progress | Em progresso |
+| < 20% | 🔴 starting | Precisa de muito trabalho |
+
+---
+
+## 5. LLM Cascade
+
+**Arquivo:** `agents/llm.py`
+
+### 5.1 Ordem de Tentativa
+
+```
+1. NVIDIA NIM (Llama 3.3 70B) — query_llm()
+   → Se falhar (timeout, erro de API, etc.)
+2. OpenRouter (Llama 3.3 via API)
+   → Se falhar
+3. Google Gemini (Gemini 1.5 Pro/Flash)
+   → Se falhar
+4. DeepSeek (DeepSeek V3)
+   → Único pago, nunca falha
+```
+
+### 5.2 Configuração
+
 ```python
-import requests
-import os
-
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
-
-def search_vertical_videos(query, count=5):
-    """Busca vídeos verticais (9:16) no Pexels"""
-    headers = {"Authorization": PEXELS_API_KEY}
-    params = {
-        "query": query,
-        "orientation": "portrait",  # Filtra verticais
-        "per_page": count
-    }
-    response = requests.get(
-        "https://api.pexels.com/v1/videos/search",
-        headers=headers,
-        params=params
-    )
-    return response.json().get("videos", [])
-
-def download_video(video_data, output_dir="outputs/temp"):
-    """Baixa o melhor link HD de um vídeo"""
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Pegar versão HD
-    hd_file = next(
-        (f for f in video_data["video_files"] if f["quality"] == "hd"),
-        video_data["video_files"][0]
-    )
-    
-    video_url = hd_file["link"]
-    output_path = os.path.join(output_dir, f"stock_{video_data['id']}.mp4")
-    
-    response = requests.get(video_url)
-    with open(output_path, "wb") as f:
-        f.write(response.content)
-    
-    return output_path
+LLM_CASCADE = [
+    {"provider": "nvidia",    "model": "meta/llama-3.3-70b-instruct",   "api_key": "NVIDIA_API_KEY"},
+    {"provider": "openrouter","model": "meta-llama/llama-3.3-70b-instruct","api_key": "OPENROUTER_API_KEY"},
+    {"provider": "gemini",    "model": "gemini-1.5-pro",               "api_key": "GEMINI_API_KEY"},
+    {"provider": "deepseek",  "model": "deepseek-chat",                "api_key": "DEEPSEEK_API_KEY"},
+]
 ```
 
-**MoviePy (montagem):**
+---
+
+## 6. Fábrica de Livros 📗
+
+### 6.1 Fluxo
+```
+Tema → BookWriterAgent → Capítulos com conteúdo → Capa (FLUX/Pexels) → Livro salvo
+```
+
+### 6.2 Modelos
 ```python
-from moviepy import VideoFileClip, AudioFileClip, CompositeVideoClip, TextClip
+class Book(Base):
+    id, title, subtitle, author, description, cover_url, topic,
+    keywords, status, total_chapters, total_words, price_cents
 
-def assemble_short(video_paths, voice_path, output_path, subtitles=None):
-    """Monta um Short vertical (1080x1920)"""
-    # 1. Concatenar clipes stock
-    clips = [VideoFileClip(v) for v in video_paths]
-    # Ajustar cada clipe para 9:16 (1080x1920)
-    for clip in clips:
-        clip = clip.resized(height=1920)
-        # Crop central se necessário
-    
-    # 2. Concatenar
-    from moviepy import concatenate_videoclips
-    video = concatenate_videoclips(clips)
-    
-    # 3. Adicionar voz
-    voice = AudioFileClip(voice_path)
-    video = video.with_duration(voice.duration)
-    video = video.with_audio(voice)
-    
-    # 4. Exportar
-    video.write_videofile(output_path, codec="libx264", fps=24)
-```
-
-**Ação necessária:**
-- Substituir `video_agent.py` e `comfy_agent.py` por integração Pexels + MoviePy
-- Criar `modules/pexels_client.py` para busca e download
-- Adaptar `orchestrator.py` para usar clipes stock
-
----
-
-### 4.5 Whisper (Legendas)
-
-**Arquivo:** `orchestrator.py` (já integrado)
-
-**O que faz:** Transcreve o áudio gerado para criar legendas palavra por palavra (estilo TikTok).
-
-**Modelo recomendado para CPU:** `tiny` ou `base`
-
-**Performance:** `tiny` é rápido em CPU. `base` é mais lento mas mais preciso.
-
-**Ação necessária:**
-- Manter como está (funcional)
-- Considerar usar modelo `base` se `tiny` não for preciso o suficiente
-
----
-
-### 4.6 Playwright (Upload)
-
-**Arquivo:** `modules/uploader.py` (já integrado)
-
-**O que faz:** Upload automático no YouTube Studio via browser headless.
-
-**Ação necessária:**
-- Manter como está (funcional)
-
----
-
-### 4.7 Banco de Dados
-
-**Arquivo:** `modules/database.py`
-
-**Modelos ORM:** Channel, Prediction, AiCreatedChannel
-
-**Ação necessária:**
-- Manter como está (funcional)
-- SQLite para dev, PostgreSQL para produção (Railway)
-
----
-
-### 4.8 Telegram Bot
-
-**Arquivo:** `modules/telegram_bot.py`
-
-**Env vars:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-
-**Ação necessária:**
-- Manter como está (funcional)
-
----
-
-## 5. Fluxo da Pipeline (Detalhado)
-
-```
-1. DISPARO
-   POST /api/v1/predictions { prompt: "tema", brand: "canal" }
-   ou /produzir [tema] via Telegram
-   ou chat com Hermes detecta "produzir/iniciar"
-
-2. TREND HUNTING (Scrapling)
-   ScraplingAgent.fetch_youtube_trends(tema)
-   → Retorna top 5 trending topics relacionados
-   → Passa como contexto para o Hermes
-
-3. ROTEIRO (Hermes + Nvidia NIM)
-   Brain.generate_script(tema, trends_context)
-   → LLM gera JSON com:
-     • title (título viral, <60 chars)
-     • script (narração, ~120 palavras, ~45s)
-     • visual_keywords (3-5 keywords para busca Pexels)
-     • music_prompt (clima musical)
-     • target_duration
-
-4. LOCUÇÃO (Kokoro TTS)
-   generate_voice(script, output.wav, voice="pt_br_female1")
-   → Gera WAV 24000Hz
-   → Converte para MP3 via pydub
-
-5. VÍDEO (Pexels API)
-   search_vertical_videos(visual_keywords)
-   → Busca 3-5 vídeos verticais relevantes
-   → Baixa HD
-
-6. MONTAGEM (MoviePy + Whisper)
-   a) Whisper transcreve áudio → timestamps palavra por palavra
-   b) MoviePy:
-      - Concatena clipes stock
-      - Ajusta duração = duração da voz
-      - Adiciona voz como áudio
-      - Adiciona legendas dinâmicas (TextClip por palavra)
-      - Exporta: {id}_preview.mp4 (1080x1920, 24fps)
-
-7. CURADORIA HUMANA
-   → Vídeo disponível na UI
-   → Jonatas aprova (✅) ou rejeita (❌)
-
-8. UPLOAD (Playwright)
-   → Se aprovado: YouTubeUploader.upload_video()
-   → Injeta cookies, preenche metadados, publica
+class BookChapter(Base):
+    id, book_id, chapter_number, title, content, word_count
 ```
 
 ---
 
-## 6. Variáveis de Ambiente
+## 7. Fábrica de Cursos 🎓
+
+### 7.1 Fluxo
+```
+Tema → CourseWriterAgent → Módulos → Aulas + Quizzes → Curso salvo
+```
+
+### 7.2 Modelos
+```python
+class Course(Base):
+    id, title, subtitle, description, cover_url, topic, keywords,
+    status, total_modules, total_lessons, difficulty, price_cents
+
+class CourseModule(Base): ...
+class CourseLesson(Base): ...
+class CourseQuiz(Base): ...
+```
+
+---
+
+## 8. Fábrica de Imagens 🎨
+
+### 8.1 Fluxo
+```
+Descrição → FLUX.1 (Hugging Face) → Imagem Gerada
+         → Pexels API (fallback) → URL da imagem stock
+```
+
+### 8.2 Funções
+- `generate_blog_image(topic)` → Imagem para artigo
+- `generate_cover(title, topic)` → Capa de livro
+- `generate_course_thumbnail(title, topic)` → Thumbnail de curso
+
+---
+
+## 9. Páginas de Sistema
+
+Todas servidas como endpoints FastAPI para qualquer blog:
+
+| Rota | Descrição |
+|------|-----------|
+| `/blog/{slug}/privacidade` | Política de Privacidade com LGPD |
+| `/blog/{slug}/sobre` | Sobre Nós com autoridade no nicho |
+| `/blog/{slug}/contato` | Formulário de contato |
+| `/robots.txt` | Permite Googlebot, bloqueia /api/ |
+| `/sitemap.xml` | Dinâmico com todos os artigos |
+| `/ads.txt` | Placeholder para Google AdSense |
+
+---
+
+## 10. Banco de Dados
+
+**ORM:** SQLAlchemy com fallback resiliente:
+1. Tenta SQLite no caminho do projeto
+2. Se falhar (Windows path), fallback para `:memory:`
+
+### Todos os Modelos
+
+| Modelo | Tabela | Descrição |
+|--------|--------|-----------|
+| `BlogChannel` | `blog_channels` | Canais de blog |
+| `BlogPost` | `blog_posts` | Artigos do blog |
+| `BlogSection` | `blog_sections` | Seções/micro-nichos |
+| `BlogPipelineRun` | `blog_pipeline_runs` | Execuções da esteira |
+| `Book` | `books` | Livros digitais |
+| `BookChapter` | `book_chapters` | Capítulos dos livros |
+| `Course` | `courses` | Cursos |
+| `CourseModule` | `course_modules` | Módulos dos cursos |
+| `CourseLesson` | `course_lessons` | Aulas |
+| `Channel` | `channels` | (Legado) |
+| `Prediction` | `predictions` | (Legado) |
+| `DeliverableApp` | `deliverable_apps` | Mini Apps |
+
+---
+
+## 11. API Endpoints Completos
+
+### 11.1 Health & Geral
+| Método | Rota |
+|--------|------|
+| `GET` | `/health` |
+| `GET` | `/api/v1/factory/dashboard` |
+| `GET` | `/api/v1/logs` |
+
+### 11.2 Monetização (Seu Pereira)
+| Método | Rota |
+|--------|------|
+| `GET` | `/api/v1/monetization/status` |
+
+### 11.3 Pipeline
+| Método | Rota |
+|--------|------|
+| `POST` | `/api/v1/pipeline/run-blog-factory` |
+| `GET` | `/api/v1/pipeline/blog-factory/history` |
+| `POST` | `/api/v1/pipeline/generate-images` |
+
+### 11.4 Blog
+| Método | Rota |
+|--------|------|
+| `GET` | `/api/v1/blog/{slug}/info` |
+| `GET` | `/api/v1/blog/{slug}/posts` |
+| `GET` | `/api/v1/blog/{slug}/post/{post_id}` |
+| `GET` | `/blog/{slug}` |
+| `GET` | `/blog/{slug}/privacidade` |
+| `GET` | `/blog/{slug}/sobre` |
+| `GET` | `/blog/{slug}/contato` |
+| `GET` | `/robots.txt` |
+| `GET` | `/sitemap.xml` |
+| `GET` | `/ads.txt` |
+
+### 11.5 Books & Courses
+| Método | Rota |
+|--------|------|
+| `GET` | `/api/v1/books` |
+| `GET` | `/api/v1/books/{id}` |
+| `POST` | `/api/v1/books/generate` |
+| `GET` | `/api/v1/courses` |
+| `GET` | `/api/v1/courses/{id}` |
+| `POST` | `/api/v1/courses/generate` |
+
+### 11.6 Images & Hermes
+| Método | Rota |
+|--------|------|
+| `POST` | `/api/v1/images/generate-blog-image` |
+| `POST` | `/api/v1/images/generate-cover` |
+| `POST` | `/api/v1/hermes/chat` |
+| `GET` | `/api/v1/hermes/history` |
+
+---
+
+## 12. Variáveis de Ambiente
 
 ```bash
-# LLM (obrigatório)
-NVIDIA_API_KEY=seu-api-key
+# ─── LLM Cascade (pelo menos 1) ───
+NVIDIA_API_KEY=
+OPENROUTER_API_KEY=
+GEMINI_API_KEY=
+DEEPSEEK_API_KEY=
 
-# TTS (obrigatório)
-# Nenhuma — Kokoro roda local
+# ─── Imagens (pelo menos 1) ───
+HUGGINGFACE_TOKEN=
+PEXELS_API_KEY=
 
-# Vídeo (obrigatório)
-PEXELS_API_KEY=seu-api-key  # Gratuito em pexels.com/api
+# ─── Banco ───
+DATABASE_URL=sqlite:///./dezafira.db
 
-# Upload YouTube
-GOOGLE_CLIENT_ID=client-id
-GOOGLE_CLIENT_SECRET=client-secret
-
-# Telegram (opcional)
-TELEGRAM_BOT_TOKEN=token
-TELEGRAM_CHAT_ID=chat-id
-
-# Banco de dados
-DATABASE_URL=sqlite:///./dezafira.db  # ou postgresql://...
+# ─── Deploy ───
+SITE_URL=https://dezafira.com.br
 ```
 
 ---
 
-## 7. Arquivos a Criar/Modificar
+## 13. Agentes do Sistema
 
-### Arquivos a CRIAR
-| Arquivo | Descrição |
-|---------|-----------|
-| `modules/pexels_client.py` | Cliente para API do Pexels (busca + download de vídeos) |
-| `modules/voice_gen.py` (substituir) | Kokoro TTS integrado |
-
-### Arquivos a MODIFICAR
-| Arquivo | Mudança |
-|---------|---------|
-| `manager.py` | Integrar Scrapling + Pexels no pipeline |
-| `server.py` | Remover referências DeepSeek, simplificar LLM |
-| `orchestrator.py` | Adaptar para vídeos stock + Kokoro audio |
-| `requirements.txt` | Atualizar dependências |
-| `Dockerfile` (novo) | Instalar espeak-ng + ffmpeg |
-
-### Arquivos a DELETAR
-| Arquivo | Motivo |
-|---------|--------|
-| `modules/comfy_agent.py` | Substituído por Pexels API |
-| `modules/video_agent.py` (atual) | Substituído por Pexels + MoviePy |
-| `modules/music_agent.py` | Pode ser integrado ou simplificado |
-| `ui.py` | Legado (Next.js é o frontend) |
-| `open-generative-ai/packages/` | Subpacotes não utilizados |
-
-### requirements.txt (novo)
-```
-fastapi==0.110.0
-uvicorn==0.28.0
-pydantic==2.6.4
-httpx==0.27.0
-playwright==1.42.0
-SQLAlchemy==2.0.28
-python-dotenv==1.0.1
-requests==2.31.0
-pyTelegramBotAPI==4.18.0
-kokoro>=0.9.4
-soundfile>=0.12.0
-pydub>=0.25.1
-whisper-timestamped>=1.14.4
-moviepy>=2.0.0
-google-auth==2.28.1
-google-auth-oauthlib==1.2.0
-google-api-python-client==2.122.0
-```
-
-### Dockerfile (novo)
-```dockerfile
-FROM python:3.11-slim
-
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    espeak-ng \
-    libstdc++6 \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+| Nome | Nome Real | Arquivo | Função |
+|------|-----------|---------|--------|
+| Hermes | Seu Hermes | server.py | Orquestrador |
+| Joaquim | Joaquim | blog_pipeline.py | Pesquisador |
+| Carlão | Carlão | blog_writer.py | Redator |
+| Dona Rosa | Dona Rosa | blog_pipeline.py | Revisora |
+| Dona Célia | Dona Célia | blog_pipeline.py | Designer |
+| Tatiana | Tatiana | blog_pipeline.py | Fotógrafa |
+| Seu Zé | Seu Zé | seu_ze.py | Agendador |
+| Ricardo | Ricardo | ricardo.py | Especialista Imagens |
+| Seu Francisco | Seu Francisco | blog_pipeline.py | Supervisor |
+| Seu Pereira | Seu Pereira | seu_pereira.py | Monetização |
 
 ---
 
-## 8. Brand Config (templates existentes — manter)
+## 14. Roadmap
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `brand_config/brand_bible.md` | Identidade visual/tonal do canal |
-| `brand_config/target_audience.md` | Público-alvo |
-| `brand_config/voice_guide.md` | Guia de voz e estilo |
-| `brand_config/ctas.md` | Calls to action |
+### ✅ Implementado v2.0
+- [x] Macro-esteira de Blogs com 5 estágios (conveyor belt UI)
+- [x] 9 agentes com nomes brasileiros na pipeline
+- [x] Seu Pereira — 19 critérios de monetização
+- [x] LLM Cascade com 4 provedores
+- [x] Blog viewer público com páginas de sistema
+- [x] Fábrica de Livros (completa)
+- [x] Fábrica de Cursos (módulos + aulas + quizzes)
+- [x] Fábrica de Imagens (FLUX + Pexels)
+- [x] Dashboard SPA com métricas em tempo real
+- [x] Sistema de dependências entre critérios
 
-Estes templates são lidos pelo Brain (Hermes) para contextualizar os roteiros.
-
----
-
-## 9. Orçamento
-
-| Item | Custo |
-|------|-------|
-| Kokoro TTS | $0 (open-source, local) |
-| Pexels API | $0 (free tier generoso) |
-| MoviePy + Whisper | $0 (open-source, local) |
-| Playwright | $0 (open-source, local) |
-| Nvidia NIM | $0 (free tier) |
-| Telegram Bot | $0 (gratuito) |
-| Railway | Pago (infraestrutura) |
-| **TOTAL por vídeo** | **$0 em APIs** |
+### 🔜 Planejado
+- [ ] Deploy Railway com domínio real
+- [ ] Google Search Console integrado
+- [ ] Solicitação Google AdSense
+- [ ] Página de Vendas 1Convite
+- [ ] Blog to Podcast (artigos → áudio)
+- [ ] Expansão para múltiplos nichos
 
 ---
 
-*SPEC v1.0 — Baseado em pesquisa realizada em 2026-06-30.*
-
----
-
-## 10. Integração ELTON FLOW (2026-07-09)
-
-**Objetivo:** produzir vídeos **originais e monetizáveis** a custo **$0** usando o
-Google Flow (gratuito) como gerador de imagens, com consistência visual de canal
-via o sistema de *consistency locks* do ELTON VIDEO MAKER. Substitui a dependência
-de API paga (OpenRouter/Gemini) como caminho padrão de imagens.
-
-### 10.1 Arquivos criados/modificados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `modules/styles.py` | **NOVO.** Presets visuais (boneco_palito, storybook, 3d_pixar, realista, anime, aquarela, minimalista, personalizado) + builder de locks (`STYLE_LOCK`, `CHARACTER_LOCK`, `WORLD_LOCK`, `COMPOSITION_LOCK`, `NEGATIVE_LOCK`). |
-| `modules/prompt_engine.py` | `generate_scene_plan`/`generate_full_video_plan` aceitam `style_id`, `style_custom`, `character`, `world`; injetam os locks no roteirista e ancoram o `master` do estilo em todas as cenas. Mantém compat com `style_hint` legado. |
-| `modules/obscura_image_gen.py` | **REWRITE.** Automação Google Flow via Playwright (main world) portando do ELTON FLOW: anti-pause shim + keep-alive (30Hz), **React fiber submit** (`onSubmit(true)` bypass isTrusted), detecção/download via API `flow.projectInitialData` + `getMediaUrlRedirect?name=` (com **fallback DOM**), wait com settle + dedup por `name`, retries no CDN 500, nome `[MM-SS]`. |
-| `server.py` | Endpoints `/api/v1/ai-video/plan` e `/generate` aceitam `style_id`/`character`/`world`; `/generate` agora gera por **default grátis** (`method=imagefx` → Google Flow); novo endpoint `/api/v1/ai-video/styles` lista os presets. |
-
-### 10.2 Fluxo de geração (padrão grátis)
-
-```
-tema + style_id ─▶ PromptEngine (locks) ─▶ plano cenas
-                                      │
-                                      ▼
-                         ObscuraImageGen (Google Flow)
-                         anti-pause + fiber submit + API fetch
-                                      │
-                                      ▼
-                       imagens [MM-SS].png  ($0.00)
-                                      │
-                                      ▼
-              narração (Kokoro/Edge) + montagem → vídeo
-```
-
-### 10.3 Próximos passos (ver `CAPCUT_AGENT_PLAN.md`)
-
-- Exportar **draft editável do CapCut** (cena-por-cena) a partir das imagens geradas.
-- **Agente de finalização**: abre o CapCut, aplica ações (legendas auto, transições,
-  ajustes) e clica em *Export* para renderizar o vídeo final.
-
-*Adicionado em 2026-07-09.*
+*SPEC v4.0 — Ecossistema Dezafira — 2026-07-30*

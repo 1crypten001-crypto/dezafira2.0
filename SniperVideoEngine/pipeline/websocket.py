@@ -67,7 +67,7 @@ class WebSocketHub:
         message = json.dumps({
             "type": event_type,
             "data": data,
-        })
+        }, default=str)
         
         targets = set()
         

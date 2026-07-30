@@ -1,290 +1,603 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dezafira - Fábrica de Canais</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            min-height: 100vh;
-        }
-        .header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            padding: 24px 32px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-        .header .tag {
-            font-size: 10px;
-            font-weight: 800;
-            color: #1ed760;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        .header h1 {
-            font-size: 32px;
-            font-weight: 900;
-            letter-spacing: -0.02em;
-        }
-        .header p { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 4px; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 32px; }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-        .stat-card {
-            background: #141414;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 20px;
-        }
-        .stat-card .label {
-            font-size: 10px;
-            font-weight: 700;
-            color: rgba(255,255,255,0.4);
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-        }
-        .stat-card .value {
-            font-size: 28px;
-            font-weight: 900;
-            margin-top: 4px;
-        }
-        .stat-card .value.green { color: #1ed760; }
-        .stat-card .value.yellow { color: #f5a623; }
-        .stat-card .value.blue { color: #3498db; }
-        .section-title {
-            font-size: 18px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .video-card {
-            background: #141414;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 20px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .video-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-        }
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 9/16;
-            max-height: 360px;
-            background: #000;
-        }
-        .video-wrapper video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .video-info { padding: 16px; }
-        .video-info h3 {
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .video-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .badge {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-        .badge.approved { background: rgba(30,215,96,0.15); color: #1ed760; }
-        .badge.pending { background: rgba(245,166,35,0.15); color: #f5a623; }
-        .badge.rejected { background: rgba(231,76,60,0.15); color: #e74c3c; }
-        .badge.completed { background: rgba(52,152,219,0.15); color: #3498db; }
-        .date { font-size: 11px; color: rgba(255,255,255,0.3); }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: rgba(255,255,255,0.3);
-        }
-        .empty-state svg { opacity: 0.2; margin-bottom: 16px; }
-        .refresh-btn {
-            background: #1ed760;
-            color: #000;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 12px;
-            cursor: pointer;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            transition: background 0.2s;
-        }
-        .refresh-btn:hover { background: #1db954; }
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-        .api-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.5);
-        }
-        .api-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: #1ed760;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dezafira &mdash; Fabrica de Conteudo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  html{font-size:16px;scroll-behavior:smooth}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#07080b;color:#e8edf2;min-height:100vh;overflow-x:hidden}
+  ::selection{background:rgba(99,102,241,.3);color:#fff}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:#0d0e14}
+  ::-webkit-scrollbar-thumb{background:#1e2030;border-radius:3px}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:260px;background:#0b0c12;border-right:1px solid #14161f;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s ease}
+  .sidebar-brand{padding:24px 20px 20px;border-bottom:1px solid #14161f}
+  .sidebar-brand .logo{display:flex;align-items:center;gap:12px}
+  .sidebar-brand .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
+  .sidebar-brand h1{font-size:18px;font-weight:800;color:#f0f2f5}
+  .sidebar-brand .tagline{font-size:11px;color:#5c6370;letter-spacing:.08em;margin-top:2px}
+  .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+  .nav-section{padding:8px 20px 4px;font-size:10px;font-weight:700;color:#3b4050;letter-spacing:.1em;text-transform:uppercase}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;margin:2px 8px;border-radius:8px;color:#8a91a5;text-decoration:none;font-size:14px;font-weight:500;transition:all .15s ease;cursor:pointer}
+  .nav-item:hover{background:#12141e;color:#e8edf2}
+  .nav-item.active{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1));color:#a5b4fc;font-weight:600}
+  .nav-item .icon{font-size:18px;width:24px;text-align:center}
+  .nav-item .badge{margin-left:auto;background:#1e2030;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#8a91a5}
+  .nav-item .pipeline-dot{width:8px;height:8px;border-radius:50%;margin-left:auto;flex-shrink:0;background:#1e2030;transition:all .3s ease}
+  .nav-item .pipeline-dot.running{background:#f59e0b;animation:dotPulse 1.5s ease-in-out infinite}
+  .nav-item .pipeline-dot.done{background:#22c55e}
+  @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.4)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
+  .sidebar-footer{padding:16px 20px;border-top:1px solid #14161f;font-size:11px;color:#3b4050;text-align:center}
+  .main{margin-left:260px;flex:1;padding:24px 32px;max-width:1400px}
+  @media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0;padding:16px}}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+  .topbar h2{font-size:22px;font-weight:800}
+  .topbar .status{display:flex;align-items:center;gap:6px;font-size:12px;color:#5c6370}
+  .topbar .status .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .btn{padding:8px 16px;border-radius:8px;border:1px solid #1e2030;background:#0d0e14;color:#e8edf2;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s ease;font-family:inherit}
+  .btn:hover{background:#14161f;border-color:#2a2d3e}
+  .btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff}
+  .btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn-sm{padding:4px 10px;font-size:12px}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+  .stat-card{background:#0b0c12;border:1px solid #14161f;border-radius:12px;padding:16px 20px}
+  .stat-card .label{font-size:12px;color:#5c6370;font-weight:500;margin-bottom:4px}
+  .stat-card .value{font-size:28px;font-weight:800;color:#f0f2f5;line-height:1.2}
+  .stat-card .sub{font-size:12px;color:#5c6370;margin-top:2px}
+  .section{margin-bottom:28px}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .section-header h3{font-size:16px;font-weight:700}
+  .card-table{background:#0b0c12;border:1px solid #14161f;border-radius:12px;overflow:hidden}
+  .table-row{display:grid;gap:12px;padding:12px 20px;border-bottom:1px solid #14161f;align-items:center}
+  .table-row:last-child{border-bottom:none}
+  .table-row .title{font-weight:600;font-size:14px;color:#e8edf2}
+  .table-row .meta{font-size:12px;color:#5c6370}
+  .cols-3{grid-template-columns:1fr auto auto}
+  .cols-4{grid-template-columns:1fr auto auto auto}
+  .tag{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+  .tag-green{background:rgba(34,197,94,.12);color:#4ade80}
+  .tag-blue{background:rgba(59,130,246,.12);color:#60a5fa}
+.tag-yellow{background:rgba(245,158,11,.12);color:#fbbf24}
+.tag-purple{background:rgba(139,92,246,.12);color:#a78bfa}
+  .page{display:none}.page.active{display:block}
+  .page-header{margin-bottom:20px}
+  .page-header h2{font-size:22px;font-weight:800;margin-bottom:4px}
+  .page-header p{color:#5c6370;font-size:14px}
+  .empty{padding:32px;text-align:center;color:#5c6370;font-size:14px}
+  .spinner{width:18px;height:18px;border:2px solid #1e2030;border-top-color:#6366f1;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;right:24px;background:#0b0c12;border:1px solid #1e2030;padding:12px 20px;border-radius:10px;font-size:13px;color:#e8edf2;transform:translateY(100px);opacity:0;transition:all .3s ease;z-index:300}
+  .toast.show{transform:translateY(0);opacity:1}
+  .pipeline-input-area{background:#0b0c12;border:1px solid #14161f;border-radius:14px;padding:20px 24px;margin-bottom:24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .pipeline-input-area label{font-size:13px;font-weight:600;color:#8a91a5}
+  .pipeline-input-area input{flex:1;min-width:200px;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#e8edf2;font-size:14px;font-family:inherit}
+  .pipeline-input-area input:focus{outline:none;border-color:#6366f1}
+  .pipeline-controls{display:flex;gap:8px}
+  .macro-global-progress{background:#0b0c12;border:1px solid #1e2030;border-radius:14px;padding:20px 24px;margin-bottom:24px}
+  .macro-global-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:15px;font-weight:700;color:#e8edf2}
+  .macro-article-counter{font-size:13px;font-weight:600;color:#a5b4fc;background:rgba(99,102,241,.1);padding:3px 10px;border-radius:8px}
+  .macro-global-bar-bg{width:100%;height:10px;background:#14161f;border-radius:5px;overflow:hidden}
+  .macro-global-bar-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa);border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1);width:0%;position:relative}
+  .macro-global-bar-fill::after{content:'';position:absolute;right:0;top:0;width:20px;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3));border-radius:0 5px 5px 0}
+  .macro-global-stats{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#5c6370}
+  .conveyor-belt{position:relative;background:#090a0e;border-radius:16px;border:1px solid #14161f;overflow:hidden;margin-bottom:20px}
+  .conveyor-belt::before{content:'';position:absolute;bottom:12px;left:30px;right:30px;height:6px;background:repeating-linear-gradient(90deg,#1e2030 0px,#1e2030 12px,transparent 12px,transparent 16px);border-radius:3px;opacity:.5;z-index:0}
+  .conveyor-track{display:flex;align-items:flex-start;justify-content:center;gap:0;position:relative;padding:24px 20px 30px;overflow-x:auto;overflow-y:visible;min-height:260px;z-index:1}
+  .conveyor-stage-wrapper{display:flex;align-items:center;flex-shrink:0}
+  .conveyor-stage{width:170px;padding:18px 14px;background:#0b0c12;border:1px solid #14161f;border-radius:14px;text-align:center;transition:all .5s cubic-bezier(.4,0,.2,1);position:relative;z-index:2;cursor:default}
+  .conveyor-stage.idle{opacity:.45;border-color:#14161f}
+  .conveyor-stage.active{border-color:#f59e0b;background:linear-gradient(135deg,#0b0c12 0%,rgba(245,158,11,.1) 100%);box-shadow:0 0 40px rgba(245,158,11,.1),0 4px 24px rgba(0,0,0,.4);transform:translateY(-6px)}
+  .conveyor-stage.active .cs-border{position:absolute;inset:-1px;border-radius:15px;padding:1.5px;background:linear-gradient(135deg,#f59e0b,#fbbf24,#f59e0b,#fb923c,#f59e0b);background-size:300% 300%;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borderDance 3s ease-in-out infinite;pointer-events:none}
+  @keyframes borderDance{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+
+  .conveyor-stage.completed{border-color:#22c55e;background:linear-gradient(135deg,#0b0c12 0%,rgba(34,197,94,.1) 100%);box-shadow:0 0 24px rgba(34,197,94,.08)}
+  .conveyor-stage.completed .cs-check{display:flex;align-items:center;justify-content:center;width:22px;height:22px;background:#22c55e;border-radius:50%;color:#fff;font-size:12px;font-weight:700;margin:0 auto 6px;animation:checkPop .4s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes checkPop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  .cs-name{font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:2px}
+
+  .cs-status{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;margin-bottom:4px}
+  .cs-status.idle{background:rgba(255,255,255,.04);color:#5c6370}
+  .cs-status.active{background:rgba(245,158,11,.15);color:#fbbf24}
+  .cs-status.completed{background:rgba(34,197,94,.15);color:#4ade80}
+  .cs-status.failed{background:rgba(239,68,68,.15);color:#f87171}
+  .cs-progress{width:100%;height:4px;background:#1e2030;border-radius:2px;overflow:hidden;margin-top:6px}
+  .cs-progress-bar{height:100%;border-radius:2px;transition:width .5s ease;width:0%}
+  .cs-progress-bar.active{background:linear-gradient(90deg,#f59e0b,#fbbf24);width:60%}
+  .cs-progress-bar.completed{background:linear-gradient(90deg,#22c55e,#4ade80);width:100%}
+  .cs-progress-bar.failed{background:#ef4444;width:100%}
+  .cs-message{font-size:10px;color:#5c6370;margin-top:4px;min-height:14px}
+  .conveyor-connector{width:40px;height:4px;position:relative;flex-shrink:0;margin:0 -2px;z-index:1}
+  .conveyor-connector .cc-base{position:absolute;top:50%;left:0;right:0;height:2px;background:#14161f;transform:translateY(-50%)}
+  .conveyor-connector .cc-glow{position:absolute;top:50%;left:0;height:3px;background:linear-gradient(90deg,#22c55e,#4ade80,#6ee7b7,#22c55e);background-size:200% 100%;transform:translateY(-50%);width:0%;transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(34,197,94,.5),0 0 24px rgba(34,197,94,.2);border-radius:2px}
+  .conveyor-connector .cc-glow.lit{width:100%;animation:ccGlow 2s ease-in-out infinite}
+  @keyframes ccGlow{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
+  .conveyor-connector .cc-dot{position:absolute;top:50%;left:-4px;width:6px;height:6px;background:#22c55e;border-radius:50%;transform:translateY(-50%) scale(0);transition:transform .4s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 8px rgba(34,197,94,.6)}
+  .conveyor-connector .cc-dot.lit{transform:translateY(-50%) scale(1)}
+  .macro-current-article{background:linear-gradient(135deg,#0b0c12 0%,rgba(99,102,241,.06) 100%);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden}
+  .macro-current-article::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#6366f1,#8b5cf6,#a78bfa)}
+  .macro-current-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+  .macro-current-badge{background:rgba(99,102,241,.15);color:#a5b4fc;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700}
+  .macro-current-title{font-size:15px;font-weight:600;color:#e8edf2}
+  .macro-current-phase-label{font-size:12px;color:#8a91a5;animation:pulse 2s infinite}
+  .pipeline-log-container{margin-bottom:20px}
+  .pipeline-log-header{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#8a91a5;margin-bottom:8px}
+  .pipeline-log-count{font-size:11px;color:#5c6370;background:#0b0c12;padding:2px 8px;border-radius:6px}
+  .pipeline-log{background:#0b0c12;border:1px solid #14161f;border-radius:12px;padding:16px;max-height:200px;overflow-y:auto;font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;line-height:1.6}
+  .pipeline-log .log-entry{display:flex;gap:8px;padding:2px 0;opacity:.7}
+  .pipeline-log .log-time{color:#3b4050;flex-shrink:0;width:60px}
+  .pipeline-log .log-icon{flex-shrink:0;width:16px;text-align:center}
+  .pipeline-log .log-msg{color:#8a91a5;flex:1}
+  .pipeline-log .log-msg.info{color:#60a5fa}
+  .pipeline-log .log-msg.success{color:#4ade80}
+  .pipeline-log .log-msg.error{color:#f87171}
+  .pipeline-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;color:#5c6370;text-align:center}
+  .pipeline-empty .big-icon{font-size:48px;margin-bottom:16px;opacity:.5}
+  .pipeline-empty h3{font-size:16px;color:#8a91a5;margin-bottom:8px}
+  .pipeline-empty p{font-size:13px;max-width:400px;line-height:1.5}
+  .pipeline-history{margin-top:24px}
+  .pipeline-history .history-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #14161f;font-size:13px}
+  .pipeline-history .history-item:last-child{border-bottom:none}
+  .pipeline-history .history-topic{font-weight:600;flex:1}
+  .pipeline-history .history-time{color:#5c6370;font-size:11px}
+</style>
 </head>
 <body>
-    <div class="header">
-        <div class="tag">Automation Engine</div>
-        <h1>Fábrica de Canais</h1>
-        <p>Gere roteiros, narração, legendagem dinâmica e publique no YouTube automaticamente.</p>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo"><div class="logo-icon">D</div><div><h1>Dezafira</h1><div class="tagline">FABRICA DE CONTEUDO</div></div></div>
     </div>
-    <div class="container">
-        <div class="top-bar">
-            <div class="api-status">
-                <div class="api-dot"></div>
-                <span>Backend conectado em <strong>127.0.0.1:8000</strong></span>
-            </div>
-            <button class="refresh-btn" onclick="loadHistory()">Atualizar ↻</button>
-        </div>
-
-        <div class="stats" id="stats"></div>
-
-        <div class="section-title">🎬 Histórico de Vídeos</div>
-        <div class="video-grid" id="videoGrid">
-            <div class="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="2" y="2" width="20" height="20" rx="4"/>
-                    <path d="M12 18V6l-5 4 5-4 5 4"/>
-                </svg>
-                <p>Carregando vídeos...</p>
-            </div>
-        </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Visao Geral</div>
+      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</a>
+      <div class="nav-section" style="margin-top:8px">Fabricas</div>
+      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs <span class="badge" id="blogCount">-</span></a>
+      <div class="nav-section" style="margin-top:4px">Producao</div>
+      <a class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">🏭</span> Pipeline <span class="pipeline-dot" id="pipelineDot"></span></a>
+      <div class="nav-section" style="margin-top:8px">Conteudo</div>
+      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">📗</span> Livros <span class="badge" id="bookCount">-</span></a>
+      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
+      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">🎨</span> Imagens</a>
+      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🗣️</span> Hermes</a>
+    </nav>
+    <div class="sidebar-footer">Dezafira v1.0</div>
+  </aside>
+  <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <main class="main">
+    <div class="topbar">
+      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">☰</button><h2 id="pageTitle">Dashboard</h2></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="status"><span class="dot"></span>Online</div>
+        <button class="btn btn-sm" onclick="location.reload()">⟳ Atualizar</button>
+      </div>
     </div>
 
-    <script>
-        const API = '';
+    <div class="page active" id="page-dashboard">
+      <div class="page-header"><p>Visao geral de todas as fabricas</p></div>
+      <div class="stats-grid" id="dashStats"></div>
+      <div class="section"><div class="section-header"><h3>📋 Resumo das Fabricas</h3></div><div class="card-table" id="factorySummary"></div></div>
+      <div class="section"><div class="section-header"><h3>📡 Canais</h3></div><div class="card-table" id="dashChannels"></div></div>
+    <div class="section" id="monetizationSection">
+      <div class="section-header">
+        <h3>👴 Seu Pereira — Analista de Monetizacao</h3>
+        <span class="tag tag-blue" id="monetizationScore">Carregando...</span>
+      </div>
+      <div class="card-table" id="monetizationPanel">
+        <div class="empty" style="padding:20px"><div class="spinner" style="margin:0 auto 8px"></div>Avaliando blog para Google AdSense...</div>
+      </div>
+    </div>
 
-        async function loadHistory() {
-            try {
-                const res = await fetch(`${API}/api/v1/predictions/history`);
-                const data = await res.json();
-                const videos = data.history || [];
+    </div>
 
-                // Update stats
-                const approved = videos.filter(v => v.approval_status === 'approved').length;
-                const pending = videos.filter(v => v.approval_status === 'pending').length;
-                const total = videos.length;
+    <div class="page" id="page-pipeline">
+      <div class="page-header"><h2>🏭 Pipeline &mdash; Fabrica de Blogs</h2><p>Esteira unica: criacao do blog + producao em massa de artigos</p></div>
+      <div id="pipelineContent">
+        <div class="pipeline-input-area">
+          <label>🏗️ Novo Blog:</label>
+          <input type="text" id="macroBlogName" placeholder='Nome (ex: "O Reino")' style="flex:1;min-width:150px">
+          <input type="text" id="macroNiche" placeholder='Nicho (ex: "Ensinamentos de Jesus")' style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter') startMacroPipeline()">
+          <input type="number" id="macroTargetArticles" value="30" min="1" max="100" style="width:80px" placeholder="Qtd">
+          <div class="pipeline-controls">
+            <button class="btn btn-primary" id="startMacroBtn" onclick="startMacroPipeline()">🏗️ Iniciar</button>
+            <button class="btn btn-sm" id="resetMacroBtn" onclick="resetMacroPipeline()" style="display:none">⟳ Novo</button>
+          </div>
+        </div>
+        <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
+          <div class="macro-global-header">
+            <span id="macroBlogLabel">O Reino</span>
+            <span class="macro-article-counter" id="macroArticleCounter">0 / 30 artigos</span>
+          </div>
+          <div class="macro-global-bar-bg"><div class="macro-global-bar-fill" id="macroGlobalFill"></div></div>
+          <div class="macro-global-stats">
+            <span>⏱️ <span id="macroElapsedTime">00:00</span></span>
+            <span>🎯 <span id="macroTargetLabel">30 artigos</span></span>
+          </div>
+        </div>
+        <div class="conveyor-belt">
+          <div class="conveyor-track" id="macroPipelineTrack">
+            <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
+          </div>
+        </div>
+        <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
+          <div class="macro-current-header">
+            <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
+            <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
+          </div>
+          <div class="macro-current-phase-label" id="macroCurrentPhase">⏳ Iniciando pipeline...</div>
+        </div>
+        <div class="pipeline-log-container">
+          <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
+          <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
+        </div>
+        <div class="pipeline-history">
+          <div class="section-header"><h3>📜 Histórico</h3></div>
+          <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
+        </div>
+      </div>
+    </div>
 
-                document.getElementById('stats').innerHTML = `
-                    <div class="stat-card">
-                        <div class="label">Total de Vídeos</div>
-                        <div class="value blue">${total}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">Aprovados</div>
-                        <div class="value green">${approved}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">Pendentes</div>
-                        <div class="value yellow">${pending}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">Taxa de Aprovação</div>
-                        <div class="value green">${total > 0 ? Math.round((approved/total)*100) : 0}%</div>
-                    </div>
-                `;
+    <div class="page" id="page-blogs">
+      <div class="page-header"><h2>📝 Fabrica de Blogs</h2><p>Gerencie canais e artigos</p></div>
+      <div class="stats-grid" id="blogStats"></div>
+      <div class="section"><div class="section-header"><h3>📄 Artigos</h3></div><div class="card-table" id="blogPosts"></div></div>
+      <div class="section"><div class="section-header"><h3>📡 Canais</h3></div><div class="card-table" id="blogChannels"></div></div>
+    </div>
 
-                // Render video cards
-                const grid = document.getElementById('videoGrid');
-                if (videos.length === 0) {
-                    grid.innerHTML = `
-                        <div class="empty-state" style="grid-column: 1/-1">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <rect x="2" y="2" width="20" height="20" rx="4"/>
-                                <path d="M12 18V6l-5 4 5-4 5 4"/>
-                            </svg>
-                            <p>Nenhum vídeo gerado ainda.<br>Inicie uma automação para começar!</p>
-                        </div>
-                    `;
-                    return;
-                }
+    <div class="page" id="page-books"><div class="page-header"><h2>📗 Livros</h2></div><div class="stats-grid" id="bookStats"></div></div>
+    <div class="page" id="page-courses"><div class="page-header"><h2>🎓 Cursos</h2></div><div class="stats-grid" id="courseStats"></div></div>
+    <div class="page" id="page-images"><div class="page-header"><h2>🎨 Imagens</h2></div></div>
+    <div class="page" id="page-hermes"><div class="page-header"><h2>🗣️ Hermes</h2></div></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes"};
+const STAGES=[
+  {id:"fundacao",name:"Fundacao",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
+    agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
+  {id:"arquitetura",name:"Arquitetura",icon:"📋",agent:"Joaquim",
+    agents:[{name:"Joaquim",emoji:"🔍",role:"Pesquisador",action:"Pesquisando keywords"}]},
+  {id:"producao",name:"Producao",icon:"📝",agent:"Carlao + Dona Rosa",
+    agents:[{name:"Carlao",emoji:"✍️",role:"Redator",action:"Escrevendo artigos"},{name:"Dona Rosa",emoji:"🔎",role:"Revisora",action:"Verificando similaridade"}]},
+  {id:"refino",name:"Refino",icon:"🎨",agent:"Tatiana + Seu Ze",
+    agents:[{name:"Tatiana",emoji:"📸",role:"Fotografa",action:"Buscando imagens"},{name:"Seu Ze",emoji:"📅",role:"Agendador",action:"Programando publicacao"}]},
+  {id:"entrega",name:"Entrega",icon:"✅",agent:"Seu Francisco",
+    agents:[{name:"Seu Francisco",emoji:"👴",role:"Supervisor",action:"Conferindo producao"}]}
+];
+var ms={running:false,taskId:null,stages:{},log:[],history:[],gen:0,cur:0,topic:"",target:30,start:0};
+var ws=null,tt;
 
-                grid.innerHTML = videos.map(v => {
-                    const videoUrl = v.video_url ? `${API}${v.video_url}` : '';
-                    const approval = v.approval_status || 'pending';
-                    const date = v.created_at || '';
-                    return `
-                        <div class="video-card">
-                            <div class="video-wrapper">
-                                ${videoUrl
-                                    ? `<video src="${videoUrl}" controls preload="metadata" poster="" onclick="this.play()"></video>`
-                                    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.2);font-size:12px;">Sem preview</div>`
-                                }
-                            </div>
-                            <div class="video-info">
-                                <h3>${escapeHtml(v.prompt)}</h3>
-                                <div class="video-meta">
-                                    <span class="badge ${approval}">${approval}</span>
-                                    <span class="date">${date}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+function showToast(m){var t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("show")},3500)}
+function $(id){return document.getElementById(id)}
+function escapeHtml(t){var d=document.createElement("div");d.appendChild(document.createTextNode(t||""));return d.innerHTML}
+function blogSlug(n){return "/blog/"+n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")}
 
-            } catch (err) {
-                document.getElementById('videoGrid').innerHTML = `
-                    <div class="empty-state" style="grid-column:1/-1">
-                        <p style="color:#e74c3c;">Erro ao conectar ao backend: ${err.message}<br>Verifique se o servidor está rodando em 127.0.0.1:8000</p>
-                    </div>
-                `;
-            }
-        }
+function navigate(p){
+  document.querySelectorAll(".page").forEach(function(x){x.classList.remove("active")});
+  var pg=$("page-"+p);if(pg)pg.classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(function(x){x.classList.remove("active")});
+  var n=document.querySelector('.nav-item[data-page="'+p+'"]');if(n)n.classList.add("active");
+  $("pageTitle").textContent=pageTitles[p]||p;
+  if(p==="dashboard")loadDashboard();
+  else if(p==="pipeline"){renderPipeline();loadHistory();}
+  else if(p==="blogs")loadBlogs();
+  closeSidebar();window.scrollTo(0,0);
+}
+function toggleSidebar(){$("sidebar").classList.toggle("open");}
+function closeSidebar(){$("sidebar").classList.remove("open");}
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+async function api(url,opts){
+  try{var r=await fetch(url,{headers:{"Content-Type":"application/json"},...opts});return await r.json()}
+  catch(e){return{error:e.message}}
+}
 
-        loadHistory();
-    </script>
+function renderPipeline(){
+  var t=$("macroPipelineTrack");if(!t)return;
+  t.innerHTML=STAGES.map(function(s,i){
+    var c='';if(i<STAGES.length-1)c='<div class="conveyor-connector"><div class="cc-base"></div><div class="cc-glow" id="cg_'+s.id+'"></div><div class="cc-dot" id="cd_'+s.id+'"></div></div>';
+    var av=s.agents? s.agents.map(function(a){return '<span title="'+a.name+': '+a.action+'" style="display:inline-block;margin:0 1px">'+a.emoji+'</span>';}).join(''):s.icon;
+    var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' • '+a.role;}).join('<br>'):s.agent)+'</div>';
+    return '<div class="conveyor-stage-wrapper"><div class="conveyor-stage idle" id="st_'+s.id+'"><div class="cs-border" style="display:none"></div><div class="cs-check" style="display:none">✓</div>'+
+      '<div class="cs-agent-avatar">'+av+'<span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span></div>'+
+      '<div class="cs-name">'+s.name+'</div>'+
+      '<div class="cs-agent-action" id="ac_'+s.id+'">⏳ <span id="al_'+s.id+'">Aguardando</span> <span class="cs-agent-gear">⚙</span></div>'+
+      '<div class="cs-progress"><div class="cs-progress-bar" id="cp_'+s.id+'"></div></div>'+
+      '<div class="cs-status idle" id="cs_'+s.id+'">⏳</div>'+
+      '<div class="cs-message" id="cm_'+s.id+'"></div>'+tp+'</div>'+c+'</div>';
+  }).join("");
+}
+
+function updateStage(sid,status,prog,msg,data){
+  var el=$("st_"+sid),st=$("cs_"+sid),pr=$("cp_"+sid),ms=$("cm_"+sid),al=$("al_"+sid),ac=$("ac_"+sid);
+  if(!el)return;
+  el.className="conveyor-stage "+status;
+  if(st){st.className="cs-status "+status;var lb={idle:"⏳",active:"🔄",completed:"✅",failed:"❌"};st.textContent=lb[status]||status}
+  var ck=el.querySelector(".cs-check");
+  if(ck){ck.style.display=status==="completed"?"flex":"none";if(status==="completed")ck.style.animation="checkPop .4s cubic-bezier(.34,1.56,.64,1)"}
+  if(pr){pr.className="cs-progress-bar "+status;if(status==="active"&&prog>0)pr.style.width=prog+"%"}
+  if(ms)ms.textContent=msg||"";
+  // Update agent action label
+  if(al){
+    var actions={idle:"Aguardando",active:"Trabalhando...",completed:"Concluido!",failed:"Erro"};
+    al.textContent=actions[status]||status;
+  }
+  if(ac)ac.innerHTML=(status==="active"?"🔄 ":"⏳ ")+'<span id="al_'+sid+'">'+(al?al.textContent:"")+'</span> <span class="cs-agent-gear">⚙</span>';
+  // Belt animation
+  var belt=document.querySelector(".conveyor-belt");
+  if(belt)belt.classList.toggle("running",status==="active");
+  // Connector glow
+  if(status==="active"||status==="completed"){
+    ["fundacao","arquitetura","producao","refino"].forEach(function(id){
+      var g=$("cg_"+id);if(g)g.classList.add("lit");
+      var d=$("cd_"+id);if(d)d.classList.add("lit");
+    });
+  }
+  if(data){
+    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
+    if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
+    if(data.phase_detail){$("macroCurrentPhase").textContent="🔄 "+data.phase_detail}
+  }
+}
+function updateBar(){
+  var f=$("macroGlobalFill"),c=$("macroArticleCounter");
+  if(!f||!ms.target)return;
+  var p=Math.min(100,Math.round((ms.cur/ms.target)*100));
+  f.style.width=p+"%";
+  if(c)c.textContent=ms.cur+" / "+ms.target+" artigos";
+}
+var lc=0;
+function addLog(sid,msg,type){
+  lc++;var l=$("macroPipelineLog"),c=$("pipelineLogCount");
+  if(c)c.textContent=lc;
+  if(!l)return;
+  var e=l.querySelector(".load-log");if(e)e.remove();
+  var d=new Date();var t=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  var ic={fundacao:"🏗️",arquitetura:"📋",producao:"📝",refino:"🎨",entrega:"✅"};
+  var el=document.createElement("div");el.className="log-entry";
+  el.innerHTML='<span class="log-time">'+t+'</span><span class="log-icon">'+(ic[sid]||"🔄")+'</span><span class="log-msg '+(type||"")+'">'+msg+'</span>';
+  l.appendChild(el);l.scrollTop=l.scrollHeight;
+}
+
+async function startMacroPipeline(){
+  var name=$("macroBlogName").value.trim(),niche=$("macroNiche").value.trim();
+  var target=parseInt($("macroTargetArticles").value)||30;
+  if(!name||!niche){showToast("Preencha nome e nicho!");return}
+  ms={running:true,taskId:null,stages:{},log:[],history:ms.history||[],gen:0,cur:0,topic:"",target:Math.min(target,100),start:Date.now()};
+  lc=0;
+  $("startMacroBtn").disabled=true;
+  $("startMacroBtn").innerHTML='<span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Iniciando...';
+  $("resetMacroBtn").style.display="none";
+  $("macroPipelineLog").innerHTML='<div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div>';
+  var gp=$("macroGlobalProgress");if(gp)gp.style.display="";
+  $("macroBlogLabel").textContent=name+" ("+niche+")";
+  $("macroArticleCounter").textContent="0 / "+ms.target+" artigos";
+  $("macroTargetLabel").textContent=ms.target+" artigos";
+  updateBar();renderPipeline();$("macroCurrentArticle").style.display="";
+  if(window._mt)clearInterval(window._mt);
+  window._mt=setInterval(function(){
+    if(!ms.running){clearInterval(window._mt);return}
+    var sec=Math.floor((Date.now()-ms.start)/1000);
+    $("macroElapsedTime").textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
+  },1000);
+  addLog("fundacao","\u{1F680} Macro-Esteira iniciando...");
+  addLog("fundacao","\u{1F3D7}\uFE0F Blog: "+name+" | Nicho: "+niche);
+  addLog("fundacao","\u{1F4CB} Alvo: "+ms.target+" artigos");
+  var res=await api("/api/v1/pipeline/run-blog-factory",{method:"POST",body:JSON.stringify({blog_name:name,niche:niche,language:"pt",target_articles:ms.target})});
+  if(res.error){showToast("Erro: "+res.error);ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";return}
+  ms.taskId=res.task_id;_connectWs();showToast("✅ Pipeline iniciada!");
+}
+
+function resetMacroPipeline(){
+  if(ws){try{ws.close()}catch(e){}ws=null}
+  ms={running:false,taskId:null,stages:{},log:[],history:ms.history||[],gen:0,cur:0,topic:"",target:30,start:0};
+  $("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";
+  $("resetMacroBtn").style.display="none";
+  $("macroPipelineLog").innerHTML='<div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div>';
+  var gp=$("macroGlobalProgress");if(gp)gp.style.display="none";
+  $("macroCurrentArticle").style.display="none";renderPipeline();
+}
+
+function loadHistory(){
+  api("/api/v1/pipeline/blog-factory/history").then(function(data){
+    var list=(data&&data.history)||[];
+    var el=$("macroHistory");
+    if(!el)return;
+    if(list.length){
+      el.innerHTML=list.map(function(h){
+        var st=h.status||"completed";
+        return '<div class="history-item"><span class="history-status '+st+'"></span><span class="history-topic">'+(h.blog_name||"")+'</span><span class="history-time">'+(h.articles||0)+" artigos</span></div>";
+      }).join("");
+    }else{
+      el.innerHTML='<div class="empty">Nenhum blog produzido</div>';
+    }
+  });
+}
+
+async function loadDashboard(){
+  var d=await api("/api/v1/factory/dashboard");
+  loadMonetization();
+  if(d.error)return;
+  var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div><div class="sub">'+(d.channels?.active||0)+' ativos</div></div>';
+  stats+='<div class="stat-card"><div class="label">Artigos</div><div class="value">'+(d.posts?.total||0)+'</div><div class="sub">'+(d.posts?.total_words||0).toLocaleString()+" palavras</div></div>";
+  stats+='<div class="stat-card"><div class="label">Livros</div><div class="value">'+(d.books_count||0)+'</div></div>';
+  stats+='<div class="stat-card"><div class="label">Cursos</div><div class="value">'+(d.courses_count||0)+'</div></div>';
+  $("dashStats").innerHTML=stats;
+  var chs=d.channels?.list||[];
+  $("dashChannels").innerHTML=chs.length?chs.map(function(c){
+    var blogUrl=c.site_url||blogSlug(c.name);
+    var withImg=c.posts_with_images||0;
+    var withoutImg=c.posts_without_images||0;
+    var total=c.post_count||(withImg+withoutImg)||0;
+    var imgPct=total>0?Math.round((withImg/total)*100):0;
+    var imgColor=imgPct>=80?'#22c55e':imgPct>=50?'#f59e0b':'#ef4444';
+    var bar='<div style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:#14161f;border-radius:2px;overflow:hidden;min-width:50px"><div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:2px"></div></div><span style="font-size:10px;color:#8a91a5">'+withImg+'/'+total+'</span></div>';
+    return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
+  }).join(""):'<div class="empty">Nenhum canal</div>';
+  var sum='<div class="table-row cols-3"><div><div class="title">📝 Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">📗 Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">🎓 Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
+  $("factorySummary").innerHTML=sum;
+}async function loadBlogs(){
+  var d=await api("/api/v1/factory/dashboard");
+  if(d.error)return;
+  var posts=d.posts?.recent||[],chs=d.channels?.list||[];
+  var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div></div>';
+  var withImg=d.channels?.list?.reduce(function(acc,c){return acc+(c.posts_with_images||0)},0)||0;
+  var totalP=(d.posts?.total||0);
+  var imgPct=totalP>0?Math.round((withImg/totalP)*100):0;
+  stats+='<div class="stat-card"><div class="label">Artigos</div><div class="value">'+(d.posts?.total||0)+'</div>';
+  stats+='<div class="sub">'+(d.posts?.total_words||0).toLocaleString()+" palavras</div></div>";
+  stats+='<div class="stat-card"><div class="label">🖼️ Com Imagem</div><div class="value">'+withImg+'/'+totalP+'</div><div class="sub">'+imgPct+'% dos artigos</div></div>';
+  $("blogStats").innerHTML=stats;
+  var plist=posts.length?posts.map(function(p){
+    var ch=(chs||[]).find(function(c){return c.id===p.channel_id});
+    var slug=ch?ch.site_url||blogSlug(ch.name):'/blog/o-reino';
+    var artUrl=slug+'?post='+p.id;
+    var hasImg=p.featured_image_url?true:false;
+    var imgBadge=hasImg
+      ?'<span class="tag tag-green" style="background:rgba(34,197,94,.12);color:#4ade80">🖼️</span>'
+      :'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171">🚫 Img</span>';
+    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div></div>';
+  }).join(""):'<div class="empty">Nenhum artigo</div>';
+  $("blogPosts").innerHTML=plist;
+    var clist=chs.length?chs.map(function(c){
+    var blogUrl=c.site_url||blogSlug(c.name);
+    var withImg=c.posts_with_images||0;
+    var withoutImg=c.posts_without_images||0;
+    var total=c.post_count||(withImg+withoutImg)||0;
+    var imgPct=total>0?Math.round((withImg/total)*100):0;
+    var imgColor=imgPct>=80?'#22c55e':imgPct>=50?'#f59e0b':'#ef4444';
+    var bar='<div style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
+      '<div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px">'+
+      '<div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:3px;transition:width .4s ease"></div></div>'+
+      '<span style="font-size:11px;color:#8a91a5;white-space:nowrap">'+withImg+'/'+total+' img</span></div>';
+    var tagClass=withoutImg>0?'tag-yellow':'tag-green';
+    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(c.name)+'</div><div class="meta">'+escapeHtml(c.nicho)+' &#8226; '+c.lang+'</div>'+bar+'</div><div><span class="tag '+tagClass+'">'+(c.post_count||0)+' posts</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
+  }).join(""):'<div class="empty">Nenhum canal</div>';
+  $("blogChannels").innerHTML=clist;
+}
+
+
+async function loadMonetization(){
+  var container=$("monetizationPanel");
+  var scoreEl=$("monetizationScore");
+  if(!container)return;
+  try{
+    var data=await api("/api/v1/monetization/status");
+    if(data.error||data.overall===undefined){
+      container.innerHTML='<div class="empty">Erro ao carregar avaliacao</div>';
+      return;
+    }
+    var o=data.overall;
+    if(scoreEl){
+      scoreEl.textContent=o.progress_pct+"% ("+o.items_pass+"/"+o.items_total+")";
+      scoreEl.style.background=o.progress_pct>=80?"rgba(34,197,94,.12)":o.progress_pct>=50?"rgba(245,158,11,.12)":"rgba(239,68,68,.12)";
+      scoreEl.style.color=o.progress_pct>=80?"#4ade80":o.progress_pct>=50?"#fbbf24":"#f87171";
+    }
+    var html='<div style="padding:16px 20px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
+        '<div><strong style="font-size:15px">'+data.blog_name+'</strong><div style="font-size:12px;color:#5c6370">'+data.niche+'</div></div>'+
+        '<div style="text-align:right"><div style="font-size:24px;font-weight:800;color:'+(o.progress_pct>=80?"#4ade80":o.progress_pct>=50?"#fbbf24":"#f87171")+'">'+o.progress_pct+'%</div><div style="font-size:11px;color:#5c6370">'+o.label.slice(0,60)+'</div></div>'+
+      '</div>'+
+      '<div style="margin-bottom:16px;background:#14161f;border-radius:6px;height:10px;overflow:hidden">'+
+        '<div style="height:100%;width:'+o.progress_pct+'%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa);border-radius:6px;transition:width .8s ease"></div></div>';
+    
+    // Categories
+    var cats=Object.keys(data.categories||{});
+    cats.forEach(function(cat){
+      var c=data.categories[cat];
+      var pct=c.total>0?Math.round((c.pass/c.total)*100):0;
+      var color=pct>=80?"#22c55e":pct>=50?"#f59e0b":"#ef4444";
+      
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #14161f">'+
+        '<div style="flex:1;font-size:12px;color:#8a91a5">'+cat+'</div>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+          '<div style="width:60px;height:4px;background:#14161f;border-radius:2px;overflow:hidden">'+
+            '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:2px"></div></div>'+
+          '<span style="font-size:11px;color:'+color+';font-weight:600">'+c.pass+'/'+c.total+'</span></div></div>';
+    });
+    
+    // Recommendations
+    if(data.recommendations&&data.recommendations.length>0){
+      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #14161f">'+
+        '<div style="font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:8px">📋 Proximos Passos:</div>';
+      data.recommendations.forEach(function(r){
+        var pColor=r.prioridade==="alta"?"#f87171":r.prioridade==="media"?"#fbbf24":"#8a91a5";
+        html+='<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">'+
+          '<span style="width:8px;height:8px;border-radius:50%;background:'+pColor+';flex-shrink:0"></span>'+
+          '<span style="flex:1;color:#e8edf2">'+r.titulo+'</span>'+
+          '<span style="color:'+pColor+';font-size:10px;font-weight:600">'+r.prioridade.toUpperCase()+'</span></div>';
+      });
+      html+='</div>';
+    }
+    
+    html+='<div style="margin-top:12px;padding-top:8px;text-align:right;font-size:10px;color:#3b4050">'+
+      'Ultima avaliacao: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
+    '</div>';
+    
+    container.innerHTML=html;
+  }catch(e){
+    if(container)container.innerHTML='<div class="empty">Erro: '+e.message+'</div>';
+  }
+}
+
+function _connectWs(){
+  if(ws){try{ws.close()}catch(e){}}
+  // Start polling fallback immediately
+  if(ms&&ms.taskId)_startPolling(ms.taskId);
+  try{
+    var proto=location.protocol==="https:"?"wss:":"ws:";
+    ws=new WebSocket(proto+"//"+location.host+"/ws");
+    ws.onmessage=function(e){try{var msg=JSON.parse(e.data);handleWsMessage(msg)}catch(ex){}};
+    ws.onopen=function(){if(window._pollTimer){clearInterval(window._pollTimer);window._pollTimer=null}};
+    ws.onclose=function(){if(ms&&ms.running)setTimeout(_connectWs,5000)};
+    ws.onerror=function(){};
+  }catch(e){}
+}
+function _startPolling(tid){
+  if(window._pollTimer)clearInterval(window._pollTimer);
+  window._pollTimer=setInterval(function(){
+    if(!ms||!ms.running||!tid){clearInterval(window._pollTimer);return}
+    fetch("/api/v1/pipeline/blog-factory/status/"+tid).then(function(r){return r.json()}).then(function(data){
+      if(data&&data.status==="completed"&&data.data){
+        handleWsMessage({type:"pipeline_complete",data:data.data});
+        clearInterval(window._pollTimer);
+      }else if(data&&data.status==="failed"){
+        handleWsMessage({type:"pipeline_failed",data:{error:data.error||"Pipeline falhou"}});
+        clearInterval(window._pollTimer);
+      }else if(data&&data.phase){
+        handleWsMessage({type:"pipeline_progress",data:{stage_id:data.phase,progress:data.progress||50,message:data.phase,status:data.status||"active",current_article:data.data?.current_article,article_topic:data.data?.article_topic,phase_detail:data.phase}});
+      }
+    }).catch(function(){});
+  },8000);
+}
+function handleWsMessage(msg){
+  var t=msg.type||"",d=msg.data||{};
+  if(t==="pipeline_progress"){
+    var sid=d.stage_id||"",prog=d.progress||0,m=d.message||"",st=d.status||"active";
+    if(!sid)return;
+    addLog(sid,m,st==="completed"?"success":"info");
+    updateStage(sid,st,prog,m,d);
+    if(d&&d.articles_generated!==undefined)ms.gen=d.articles_generated;
+  }else if(t==="pipeline_complete"){
+    var gen=d.articles_generated||ms.gen||0;
+    addLog("entrega","\uD83C\uDF89 Blog COMPLETO! "+gen+" artigos!","success");
+    ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";$("resetMacroBtn").style.display="";
+    showToast("Blog completo!");
+  }else if(t==="pipeline_failed"){
+    addLog("fundacao","Erro: "+(d.error||""),"error");
+    ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";$("resetMacroBtn").style.display="";
+  }
+}
+
+loadDashboard();
+</script>
 </body>
 </html>

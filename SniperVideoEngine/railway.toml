@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "SniperVideoEngine/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+# startCommand removido — usa o CMD do Dockerfile

@@ -1,0 +1,37 @@
+# ============================================================================
+# DEZAFIRA — Fábrica de Blogs & Mini Apps
+# Dependências Python
+# ============================================================================
+
+# ─── Web ──────────────────────────────────────────────────────────────
+fastapi==0.110.0
+uvicorn==0.28.0
+pydantic==2.6.4
+httpx==0.27.0
+python-dotenv==1.0.1
+
+# ─── Database ─────────────────────────────────────────────────────────
+SQLAlchemy==2.0.28
+
+# ─── HTTP ─────────────────────────────────────────────────────────────
+requests==2.31.0
+
+# ─── Telegram Bot ─────────────────────────────────────────────────────
+pyTelegramBotAPI==4.18.0
+
+# ─── Google APIs (Indexing + Blogger) ─────────────────────────────────
+google-auth==2.28.1
+google-auth-oauthlib==1.2.0
+google-api-python-client==2.122.0
+
+# ─── Document Parsing (Blog content) ─────────────────────────────────
+# markitdown opcional para conversão de documentos
+
+# ─── SEO / Blog ───────────────────────────────────────────────────────
+# Sem dependências extras — tudo via LLM
+
+# ─── Scheduler ────────────────────────────────────────────────────────
+apscheduler>=3.10.0
+
+# ─── Obscura Bridge (headless browser via CDP) ───────────────────────
+websockets>=13.0
