@@ -73,6 +73,13 @@ a{color:var(--gold);text-decoration:none}a:hover{color:var(--gold-dark,#a67c2e)}
 .empty-state,.error-state{text-align:center;padding:60px 20px;color:var(--text-light)}
 .empty-state .icon,.error-state .icon{font-size:3rem;margin-bottom:12px}
 
+/* ===== FOOTER ===== */
+.blog-footer{background:var(--dark);color:var(--text-light);padding:40px 24px;margin-top:40px;text-align:center}
+.blog-footer a{color:var(--gold);text-decoration:none;margin:0 12px;font-size:.9rem}
+.blog-footer a:hover{color:var(--gold-light)}
+.blog-footer p{font-size:.8rem;margin-top:12px;color:#6a5a4a}
+.footer-links{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:.85rem}
+
 /* ===== ADMIN LINK ===== */
 .admin-link{position:fixed;bottom:20px;right:20px;background:var(--dark);color:var(--gold);padding:10px 18px;border-radius:var(--radius);font-size:.85rem;text-decoration:none;opacity:.7;z-index:100;transition:opacity .2s}
 .admin-link:hover{opacity:1}"""
@@ -140,6 +147,14 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
   <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:20px;color:var(--dark)">&#128214; Todos os Artigos</h2>
   {posts_html}
 </main>
+<footer class=blog-footer>
+  <div class=footer-links>
+    <a href="/blog/o-reino/sobre">Sobre</a>
+    <a href="/blog/o-reino/privacidade">Privacidade</a>
+    <a href="/blog/o-reino/contato">Contato</a>
+  </div>
+  <p>&copy; 2026 O Reino &mdash; Todos os direitos reservados</p>
+</footer>
 <a href="/" class="admin-link">&#9881; Admin</a>"""
 
     return _page_frame(f"{blog_name} &mdash; Blog sobre {blog_niche}", body)
@@ -181,6 +196,14 @@ def generate_article_view(slug: str, blog_info: dict, post: dict) -> str:
     </div>
   </article>
 </main>
+<footer class=blog-footer>
+  <div class=footer-links>
+    <a href="/blog/o-reino/sobre">Sobre</a>
+    <a href="/blog/o-reino/privacidade">Privacidade</a>
+    <a href="/blog/o-reino/contato">Contato</a>
+  </div>
+  <p>&copy; 2026 O Reino &mdash; Todos os direitos reservados</p>
+</footer>
 <a href="/" class="admin-link">&#9881; Admin</a>"""
 
     return _page_frame(f"{title} &mdash; {blog_name}", body)

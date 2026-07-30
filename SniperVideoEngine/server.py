@@ -1229,11 +1229,19 @@ async def rag_index():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/v1/monetization/status")
-async def get_monetization_status(channel_id: str = "blg_50e26e"):
+async def get_monetization_status(channel_id: str = None):
     """
     Retorna avaliacao completa de monetizacao para um blog.
     Usa o agente Seu Pereira para analisar 19 criterios do Google AdSense.
+    Se channel_id nao for fornecido, descobre automaticamente o primeiro blog.
     """
+    if not channel_id:
+        from modules.database import get_db_blog_channels
+        channels = get_db_blog_channels()
+        if channels and len(channels) > 0:
+            channel_id = channels[0]["id"]
+        else:
+            channel_id = "default"
     from modules.seu_pereira import avaliar_monetizacao
     return avaliar_monetizacao(channel_id=channel_id)
 
@@ -2083,6 +2091,21 @@ async def generate_blog_post_image(slug: str, post_id: str):
         return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
 
     return {"success": False, "error": "Nenhuma imagem encontrada"}
+
+
+@app.post("/api/v1/blog/{slug}/posts/{post_id}/update")
+async def update_blog_post(slug: str, post_id: str, payload: dict):
+    """Atualiza campos de um post do blog (content, title, excerpt, etc).
+    Recebe um JSON body com os campos a serem atualizados.
+    Exemplo: {"content": "<html>..."}
+    """
+    from modules.database import update_db_blog_post
+    
+    success = update_db_blog_post(post_id, **payload)
+    if success:
+        return {"success": True, "message": "Post atualizado"}
+    return {"success": False, "error": "Post nao encontrado"}
+
 
     # Fallback: generic blog template
     return HTMLResponse(content=f"""<!DOCTYPE html>
