@@ -833,35 +833,40 @@ class BlogMacroPipeline:
                             article_result["success"] = False
                             continue
 
-                    # ─── LILI: Revisar artigo recém-gerado ────────────
+                    # ─── LILI: Revisar artigo recém-gerado (BLOQUEANTE) ────
                     if post_id:
                         try:
                             from modules.lili import lili_review_after_generation
+                            from modules.database import delete_db_blog_post
                             lili_result = await lili_review_after_generation(post_id)
                             if lili_result.get("status") != "erro":
                                 lili_approved = lili_result.get("approved", False)
                                 lili_score = lili_result.get("overall_score", 0)
                                 lili_corrected = lili_result.get("auto_corrected", False)
                                 title_preview = (article_result.get("title") or "")[:40]
-                                if lili_corrected:
-                                    self._update_macro(
-                                        sid, "active", overall_progress,
-                                        f"🌸 LiLi corrigiu auto: '{title_preview}' score {lili_score}/100")
-                                    await asyncio.sleep(0.2)
-                                elif lili_approved:
+
+                                if lili_approved:
                                     self._update_macro(
                                         sid, "active", overall_progress,
                                         f"🌸 LiLi aprovou: score {lili_score}/100")
+                                    if lili_corrected:
+                                        self._update_macro(
+                                            sid, "active", overall_progress,
+                                            f"🌸 LiLi corrigiu e aprovou: '{title_preview}' score {lili_score}/100")
+                                    article_result["lili_review"] = {
+                                        "approved": True,
+                                        "score": lili_score,
+                                        "auto_corrected": lili_corrected,
+                                    }
                                 else:
+                                    # BLOQUEANTE: artigo reprovado mesmo apos correcao
                                     self._update_macro(
                                         sid, "active", overall_progress,
-                                        f"🌸 LiLi: score {lili_score}/100, correcoes manuais necessarias")
-                                # Registrar resultado da revisão no article_result
-                                article_result["lili_review"] = {
-                                    "approved": lili_approved,
-                                    "score": lili_score,
-                                    "auto_corrected": lili_corrected,
-                                }
+                                        f"🚫 LiLi REPROVOU: '{title_preview}' score {lili_score}/100. Deletando...")
+                                    delete_db_blog_post(post_id)
+                                    article_result["success"] = False
+                                    print(f"[Pipeline] BLOQUEADO: LiLi reprovou artigo {post_id[:12]}... (score {lili_score}/100). Artigo deletado.")
+                                    continue
                             await asyncio.sleep(0.1)
                         except ImportError:
                             pass  # Lili não disponível
