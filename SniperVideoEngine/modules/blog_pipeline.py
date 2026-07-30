@@ -444,7 +444,7 @@ class BlogMacroPipeline:
 
             # Salva brand bible via update (em channel_knowledge ou no próprio canal)
             from modules.database import get_db_blog_by_subdomain
-            update_db_blog_channel(channel["id"], site_url=f"/blog/{blog_name.lower().replace(' ', '-')}")
+            update_db_blog_channel(channel["id"], site_url=f"https://dezafira.com.br/blog/{blog_name.lower().replace(' ', '-')}")
 
             # 3. Criar registro do pipeline run com dados completos
             self._update_macro(sid, "active", 70,
