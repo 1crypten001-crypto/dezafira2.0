@@ -3308,7 +3308,7 @@ async def generate_batch_articles(payload: dict):
                 title = result.get("title", topic)
                 word_count = result.get("word_count", 0)
                 
-                # Gerar imagem
+                # Gerar imagem (OBRIGATORIO — falha = artigo descartado)
                 img_url = None
                 if post_id:
                     try:
@@ -3317,6 +3317,8 @@ async def generate_batch_articles(payload: dict):
                         if img.get("image_url"):
                             update_db_blog_post(post_id, featured_image_url=img["image_url"])
                             img_url = img["image_url"]
+                        else:
+                            raise RuntimeError("Nenhuma imagem gerada (nem fallback SVG)")
                     except Exception as e_img:
                         print(f"[Batch] Image error for {topic[:30]}: {e_img}")
                 
