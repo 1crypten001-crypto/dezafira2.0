@@ -105,9 +105,9 @@ BAD_PATTERNS = {
         "fix": "Remover o fragmento corrompido.",
     },
     "backslash_garbage_block": {
-        "pattern": r"[<>\]{4,}.*?(?:\{2,}|<\d+[:.]\d+>).*?[<>\]{2,}",
+        "pattern": r"\{2,}.*?(?:<\d+[:.]\d+>|>.*?<.*?\{2,})",
         "severity": "alta",
-        "message": "Bloco de texto com barras invertidas e caracteres especiais (garbage do LLM)",
+        "message": "Bloco de texto com barras invertidas e numeros entre colchetes (garbage do LLM)",
         "fix": "Remover o bloco corrompido.",
     },
 }
@@ -456,7 +456,7 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         content_html
     )
 
-    # 9. Remover 3+ barras invertidas consecutivas (backslash_dominated)
+    # 9. Remover 2+ barras invertidas consecutivas (backslash_dominated)
     content_html = re.sub(r'\\\\{3,}', '', content_html)
 
     # 10. Remover padrao <numero:numero\\> (angle_bracket_number_slash)
@@ -464,7 +464,7 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     content_html = re.sub(r'<\d+[:.]\d+>', '', content_html)  # sem backslash tambem
 
     # 11. Remover paragrafos <p> inteiros que contenham garbage text
-    # Remove <p> com 3+ barras invertidas consecutivas (backslash_dominated)
+    # Remove <p> com 2+ barras invertidas consecutivas (backslash_dominated)
     content_html = re.sub(
         r'<p>.*?\\\\{3,}.*?</p>',
         '',
