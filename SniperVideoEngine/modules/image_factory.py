@@ -12,6 +12,7 @@ Uso:
     print(img["image_url"])
 """
 import os
+import base64
 import httpx
 import random
 import re

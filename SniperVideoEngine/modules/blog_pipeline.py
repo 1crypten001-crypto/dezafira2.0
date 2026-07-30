@@ -809,8 +809,31 @@ class BlogMacroPipeline:
                     total_words += article_result.get("word_count", 0)
                     self.state.articles_generated = total_articles
 
-                    # ─── LILI: Revisar artigo recém-gerado ────────────
+                    # ─── IMAGEM: Gerar IMEDIATAMENTE após o artigo ────
                     post_id = article_result.get("post_id")
+                    if post_id and not article_result.get("featured_image_url"):
+                        try:
+                            from modules.image_factory import ImageGeneratorAgent
+                            from modules.database import update_db_blog_post
+                            img_agent = ImageGeneratorAgent()
+                            img = await img_agent.generate_for_article(
+                                title=article_result.get("title", ""),
+                                keywords=article_result.get("keywords", ""),
+                                topic=article_result.get("topic", ""),
+                            )
+                            if img.get("image_url"):
+                                update_db_blog_post(post_id, featured_image_url=img["image_url"])
+                                print(f"[Pipeline] Imagem gerada para artigo {post_id[:12]}... ({img.get('provider')})")
+                            else:
+                                print(f"[Pipeline] BLOQUEADO: Artigo {post_id[:12]}... sem imagem. Artigo nao contado.")
+                                article_result["success"] = False
+                                continue
+                        except Exception as e_img:
+                            print(f"[Pipeline] BLOQUEADO: Falha ao gerar imagem: {e_img}. Artigo nao contado.")
+                            article_result["success"] = False
+                            continue
+
+                    # ─── LILI: Revisar artigo recém-gerado ────────────
                     if post_id:
                         try:
                             from modules.lili import lili_review_after_generation

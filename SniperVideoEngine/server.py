@@ -3135,7 +3135,7 @@ async def generate_single_article(payload: dict):
         title = result.get("title", topic)
         word_count = result.get("word_count", 0)
 
-        # Generate image for the article
+        # Generate image for the article (OBRIGATORIO — falha deleta o artigo)
         img_url = None
         if post_id:
             try:
@@ -3146,11 +3146,15 @@ async def generate_single_article(payload: dict):
                     keywords=keywords,
                     topic=topic,
                 )
-                if img.get("image_url"):
-                    update_db_blog_post(post_id, featured_image_url=img["image_url"])
-                    img_url = img["image_url"]
+                img_url = img.get("image_url", "")
+                if img_url:
+                    update_db_blog_post(post_id, featured_image_url=img_url)
+                else:
+                    raise RuntimeError("Nenhuma imagem retornada pelo ImageGeneratorAgent (nem fallback SVG)")
             except Exception as e_img:
-                print(f"[GenerateArticle] Image error: {e_img}")
+                from modules.database import delete_db_blog_post
+                delete_db_blog_post(post_id)
+                return {"success": False, "error": f"Falha ao gerar imagem: {str(e_img)}"}
 
         # Lili review
         lili_review = None
