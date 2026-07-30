@@ -369,19 +369,17 @@ class BlogMacroPipeline:
             existing_channels = get_db_blog_channels()
             for ch in (existing_channels or []):
                 if ch.get("name", "").strip().lower() == blog_name.strip().lower():
+                    # target_articles = quantos NOVOS artigos gerar (nao total)
                     existing_posts = get_db_blog_posts(channel_id=ch["id"], limit=1000)
                     existing_count = len(existing_posts) if existing_posts else 0
-                    if existing_count > 0:
-                        ajustado = max(0, self.state.target_articles - existing_count)
-                        print(f"[Pipeline] Blog '{blog_name}' ja tem {existing_count} artigos. "
-                              f"Target ajustado de {self.state.target_articles} para {ajustado}")
-                        if ajustado <= 0:
-                            print(f"[Pipeline] Blog ja tem {existing_count} >= {self.state.target_articles} artigos. Nada a gerar.")
-                            self.state.status = "completed"
-                            self.state.completed_at = datetime.utcnow()
-                            self._emit("pipeline_completed", self.state.to_dict())
-                            return self.state
-                        self.state.target_articles = ajustado
+                    print(f"[Pipeline] Blog '{blog_name}' ja tem {existing_count} artigos. "
+                          f"Target de {self.state.target_articles} NOVOS artigos.")
+                    if self.state.target_articles <= 0:
+                        print(f"[Pipeline] Target = 0. Nada a gerar.")
+                        self.state.status = "completed"
+                        self.state.completed_at = datetime.utcnow()
+                        self._emit("pipeline_completed", self.state.to_dict())
+                        return self.state
                     break
         except Exception as e:
             print(f"[Pipeline] Erro ao verificar artigos existentes: {e}")
