@@ -2263,88 +2263,64 @@ async def get_blog_pipeline_history():
     return {"pipelines": []}
 
 @app.post("/api/v1/pipeline/run-blog-factory")
-async def run_blog_factory_endpoint(payload: dict, background_tasks: BackgroundTasks):
+async def run_blog_factory_endpoint(payload: dict):
     blog_name = payload.get("blog_name", "")
     niche = payload.get("niche", "")
     language = payload.get("language", "pt")
-    target_articles = payload.get("target_articles", 3)  # Padrão: 3 artigos profundos
+    target_articles = payload.get("target_articles", 3)
     if not blog_name or not niche:
         raise HTTPException(status_code=400, detail="blog_name and niche are required")
     import uuid
     task_id = f"mblog_{uuid.uuid4().hex[:8]}"
 
-    # Armazena estado para consulta via GET
     _macro_results[task_id] = {"status": "starting", "blog_name": blog_name, "niche": niche, "data": None}
 
-    async def _run_macro_with_ws(tid, bname, nic, lang, tgt):
-        import traceback
+    def _run_macro_thread(tid, bname, nic, lang, tgt):
+        import asyncio, traceback
         try:
-            print(f"[PIPELINE] Macro task starting: {tid} blog={bname}")
+            print(f"[PIPELINE-THREAD] Starting: {tid} blog={bname}")
             from modules.blog_pipeline import run_blog_macro_pipeline as _run_macro
-        hub = _ws_hub
-        import asyncio
-        def on_progress(pid, stage_id, progress, message, data):
-            # Atualiza _macro_results em tempo real para o polling
-            try:
-                if pid in _macro_results:
-                    real_stage = data.get("stage_id", stage_id) if isinstance(data, dict) else stage_id
-                    real_prog = data.get("progress", progress) if isinstance(data, dict) else progress
-                    real_msg = data.get("message", message) if isinstance(data, dict) else message
-                    real_status = data.get("status", "running") if isinstance(data, dict) else "running"
-                    _macro_results[pid]["status"] = real_status
-                    _macro_results[pid]["phase"] = real_stage
-                    _macro_results[pid]["progress"] = real_prog
-                    _macro_results[pid]["message"] = real_msg
-                    _macro_results[pid]["data"] = data
-            except Exception as e_on:
-                print(f"[PIPELINE] on_progress error: {e_on}")
-            if stage_id == "__broadcast__":
+            
+            def on_progress(pid, stage_id, progress, message, data):
                 try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(hub.broadcast(message, data))
-                except Exception as e:
-                    print(f"[WS] broadcast error: {e}")
-                return
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(hub.broadcast("pipeline_progress", {
-                    "task_id": pid, "stage_id": stage_id,
-                    "progress": progress, "message": message,
-                    "status": "completed" if progress >= 100 else "active",
-                    "data": data,
-                }))
-            except Exception as e:
-                print(f"[WS] progress error: {e}")
-        try:
-            result = await _run_macro(blog_name=bname, niche=nic, language=lang, task_id=tid,
-                                      target_articles=tgt, on_progress=on_progress)
+                    if pid in _macro_results:
+                        real_stage = data.get("stage_id", stage_id) if isinstance(data, dict) else stage_id
+                        real_prog = data.get("progress", progress) if isinstance(data, dict) else progress
+                        real_msg = data.get("message", message) if isinstance(data, dict) else message
+                        real_status = data.get("status", "running") if isinstance(data, dict) else "running"
+                        _macro_results[pid]["status"] = real_status
+                        _macro_results[pid]["phase"] = real_stage
+                        _macro_results[pid]["progress"] = real_prog
+                        _macro_results[pid]["message"] = real_msg
+                        _macro_results[pid]["data"] = data
+                except Exception as e_on:
+                    print(f"[PIPELINE] on_progress error: {e_on}")
+            
+            # Executa a pipeline async dentro de um event loop novo
+            result = asyncio.run(_run_macro(blog_name=bname, niche=nic, language=lang, task_id=tid,
+                                            target_articles=tgt, on_progress=on_progress))
+            
+            _macro_results[tid] = {"status": result.get("status", "completed"), "blog_name": bname,
+                                   "niche": nic, "data": result}
+            print(f"[PIPELINE-THREAD] Complete: {tid} status={result.get('status')}")
+            
         except Exception as e:
-            import traceback
-            print(f"[PIPELINE] ERRO na execucao: {e}")
+            print(f"[PIPELINE-THREAD] FATAL: {e}")
             traceback.print_exc()
-            _macro_results[tid] = {"status": "failed", "blog_name": bname,
-                                   "niche": nic, "data": None, "error": str(e)}
-            return
-        _macro_results[tid] = {"status": result.get("status", "completed"), "blog_name": bname,
-                               "niche": nic, "data": result}
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(hub.broadcast("pipeline_complete", result))
-        except Exception as e:
-            print(f"[WS] complete error: {e}")
-    except Exception as outer_e:
-        print(f"[PIPELINE] FATAL error in _run_macro_with_ws: {outer_e}")
-        traceback.print_exc()
-        _macro_results[tid] = {"status": "failed", "blog_name": bname, "niche": nic, "error": str(outer_e)}
+            _macro_results[tid] = {"status": "failed", "blog_name": bname, "niche": nic, "error": str(e)}
 
-    background_tasks.add_task(_run_macro_with_ws, task_id, blog_name, niche, language, target_articles)
+    import threading
+    t = threading.Thread(target=_run_macro_thread, args=(task_id, blog_name, niche, language, target_articles), daemon=True)
+    t.start()
+    print(f"[PIPELINE] Thread started for {task_id}")
+    
     return {
         "task_id": task_id, "blog_name": blog_name, "niche": niche,
         "status": "starting", "target_articles": target_articles,
         "message": f"Macro-Esteira iniciada! Blog: {blog_name} (nicho: {niche}). {target_articles} artigos profundos planejados.",
     }
 
-@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")
+@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")
 async def get_blog_factory_status(task_id: str):
     """Retorna o status real de uma pipeline de blog."""
     result = _macro_results.get(task_id)
