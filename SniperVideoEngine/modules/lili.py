@@ -92,6 +92,24 @@ BAD_PATTERNS = {
         "message": "Garbage text LLM com sequencia de palavras aleatorias (Aerial, Aalar, etc.)",
         "fix": "Remover a secao corrompida. Regenerar via LLM.",
     },
+    "backslash_dominated": {
+        "pattern": r"(?<!\\)\\\\{3,}",
+        "severity": "alta",
+        "message": "Texto com 3+ barras invertidas consecutivas (garbage do LLM)",
+        "fix": "Remover barras invertidas extras.",
+    },
+    "angle_bracket_number_slash": {
+        "pattern": r"<\d+[:.]\d+\\{1,}>",
+        "severity": "alta",
+        "message": "Padrao <numero:numero\\> com barra invertida (garbage do LLM)",
+        "fix": "Remover o fragmento corrompido.",
+    },
+    "backslash_garbage_block": {
+        "pattern": r"[<>\]{4,}.*?(?:\{2,}|<\d+[:.]\d+>).*?[<>\]{2,}",
+        "severity": "alta",
+        "message": "Bloco de texto com barras invertidas e caracteres especiais (garbage do LLM)",
+        "fix": "Remover o bloco corrompido.",
+    },
 }
 
 
@@ -436,6 +454,36 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         r'<([^>]+)>',
         lambda m: '<' + ''.join(c for c in m.group(1) if c not in '&$#@\\') + '>',
         content_html
+    )
+
+    # 9. Remover 3+ barras invertidas consecutivas (backslash_dominated)
+    content_html = re.sub(r'\\\\{3,}', '', content_html)
+
+    # 10. Remover padrao <numero:numero\\> (angle_bracket_number_slash)
+    content_html = re.sub(r'<\d+[:.]\d+\\{1,2}>', '', content_html)
+    content_html = re.sub(r'<\d+[:.]\d+>', '', content_html)  # sem backslash tambem
+
+    # 11. Remover paragrafos <p> inteiros que contenham garbage text
+    # Remove <p> com 3+ barras invertidas consecutivas (backslash_dominated)
+    content_html = re.sub(
+        r'<p>.*?\\\\{3,}.*?</p>',
+        '',
+        content_html,
+        flags=re.DOTALL
+    )
+    # Remove <p> com padrao <numero:numero> (angle_bracket_number_slash)
+    content_html = re.sub(
+        r'<p>.*?<\d+[:.]\d+>.*?</p>',
+        '',
+        content_html,
+        flags=re.DOTALL
+    )
+    # Remove blocos de texto solto (fora de tags <p>) com 3+ barras invertidas
+    content_html = re.sub(
+        r'(?:^|(?<=</p>))[^<]*?\\\\{3,}[^<]*(?=<p>|$)',
+        '',
+        content_html,
+        flags=re.DOTALL
     )
 
     return content_html
