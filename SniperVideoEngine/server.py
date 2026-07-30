@@ -2033,23 +2033,33 @@ async def redirect_oreino():
     return RedirectResponse(url="/blog/o-reino")
 
 @app.get("/blog/{slug}", response_class=HTMLResponse)
-async def serve_blog_frontend(slug: str):
-    """Serve o frontend publico do blog com artigos renderizados no servidor (SEO-friendly)."""
+async def serve_blog_frontend(slug: str, post: str = None):
+    """Serve o frontend publico do blog com artigos renderizados no servidor.
+    Suporta ?post=post_id para visualizar artigo individual.
+    """
     from modules.blog_viewer import generate_blog_html
-    from modules.database import get_db_blog_info, get_db_blog_posts
+    from modules.database import get_db_blog_info, get_db_blog_posts, get_db_blog_post
 
     blog_info = get_db_blog_info(slug)
     posts = []
+    individual_post = None
+
     if blog_info:
+        if post:
+            individual_post = get_db_blog_post(post)
+            if not individual_post:
+                individual_post = {"error": "not found"}
         posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
     else:
         from modules.database import get_db_blog_channels
         channels = get_db_blog_channels()
         if channels:
             blog_info = channels[0]
+            if post:
+                individual_post = get_db_blog_post(post)
             posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
 
-    html = generate_blog_html(slug, blog_info, posts)
+    html = generate_blog_html(slug, blog_info, posts, post=individual_post)
     return HTMLResponse(content=html)
 @app.post("/api/v1/blog/{slug}/posts/{post_id}/generate-image")
 async def generate_blog_post_image(slug: str, post_id: str):
