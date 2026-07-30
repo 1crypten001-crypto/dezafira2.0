@@ -3040,6 +3040,97 @@ async def lili_correct_post(post_id: str):
     }
 
 
+@app.post("/api/v1/blog/generate-article")
+async def generate_single_article(payload: dict):
+    """Gera um artigo completo de forma direta (sem pipeline em background).
+
+    Args:
+        topic: Tema do artigo
+        channel_id: ID do canal (opcional, usa o primeiro se nao fornecida)
+        keywords: Keywords separadas por virgula (opcional)
+        target_words: Palavras alvo (opcional, padrao 1000)
+
+    Returns:
+        Dict com o artigo gerado e revisao Lili
+    """
+    topic = payload.get("topic", "")
+    if not topic:
+        return {"error": "topic is required"}
+
+    channel_id = payload.get("channel_id", "")
+    if not channel_id:
+        from modules.database import get_db_blog_channels
+        channels = get_db_blog_channels()
+        if channels and len(channels) > 0:
+            channel_id = channels[0]["id"]
+        else:
+            return {"error": "No channel found. Create a blog first."}
+
+    keywords = payload.get("keywords", topic)
+    target_words = payload.get("target_words", 1000)
+    language = payload.get("language", "pt")
+
+    try:
+        from modules.blog_writer import write as blog_write
+        from modules.database import get_db_blog_post, update_db_blog_post
+
+        result = await blog_write(
+            topic=topic,
+            channel_id=channel_id,
+            language=language,
+            target_words=target_words,
+            keywords=keywords,
+        )
+
+        if not result.get("success"):
+            return {"success": False, "error": result.get("error", "Unknown error")}
+
+        post_id = result.get("post_id")
+        title = result.get("title", topic)
+        word_count = result.get("word_count", 0)
+
+        # Generate image for the article
+        img_url = None
+        if post_id:
+            try:
+                from modules.image_factory import ImageGeneratorAgent
+                agent = ImageGeneratorAgent()
+                img = await agent.generate_for_article(
+                    title=title,
+                    keywords=keywords,
+                    topic=topic,
+                )
+                if img.get("image_url"):
+                    update_db_blog_post(post_id, featured_image_url=img["image_url"])
+                    img_url = img["image_url"]
+            except Exception as e_img:
+                print(f"[GenerateArticle] Image error: {e_img}")
+
+        # Lili review
+        lili_review = None
+        if post_id:
+            try:
+                from modules.lili import lili_review_after_generation
+                lili_review = await lili_review_after_generation(post_id)
+            except Exception as e_lili:
+                print(f"[GenerateArticle] Lili error: {e_lili}")
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "title": title,
+            "word_count": word_count,
+            "topic": topic,
+            "featured_image_url": img_url,
+            "lili_review": lili_review,
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
+
 @app.get("/api/v1/pipeline/macro-result/{task_id}")
 async def get_macro_result(task_id: str):
     """Retorna o resultado de uma execução de macro pipeline."""
