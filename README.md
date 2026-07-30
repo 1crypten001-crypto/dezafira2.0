@@ -1,8 +1,12 @@
 # DEZAFIRA — Ecossistema de Fábricas de Conteúdo
 
 > **Automação de Conteúdo Digital com IA — 100% CPU, sem GPU**
+> 
+> **Produção:** https://dezafira.com.br
+> 
+> **Status atual:** 77 artigos publicados em 2 blogs, 100% com imagem, score LiLi médio 99.1/100
 
-Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Livros, Cursos, Imagens** e **RAG Bíblico** — tudo orquestrado por agentes inteligentes com nomes brasileiros e monitorado pelo **Seu Pereira**, o analista de monetização.
+Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Livros, Cursos, Imagens** — tudo orquestrado por agentes inteligentes com nomes brasileiros e monitorado pelo **Seu Pereira**, o analista de monetização.
 
 ---
 
@@ -27,28 +31,26 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 │  Seu Hermes  Joaquim      Carlão       Tatiana     Seu Francisco │
 │  Dona Célia               Dona Rosa    Seu Zé                   │
 │                                                    Ricardo      │
+│                                                    LiLi         │
 │                                                                   │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
 │  │ 📝 Fábrica   │ │ 📗 Fábrica   │ │ 🎓 Fábrica   │              │
 │  │ de Blogs     │ │ de Livros    │ │ de Cursos    │              │
-│  │              │ │              │ │              │              │
-│  │ BlogWriter   │ │ BookWriter   │ │ CourseWriter │              │
-│  │ SEO Optimizer│ │ BookCover    │ │ Module Gen   │              │
-│  │ Publisher    │ │ Chapter Gen  │ │ Quiz Gen     │              │
+│  │  2 blogs     │ │              │ │              │              │
+│  │  77 artigos  │ │              │ │              │              │
 │  └──────────────┘ └──────────────┘ └──────────────┘              │
 │                                                                   │
 │  ┌──────────────┐ ┌──────────────┐                               │
-│  │ 🎨 Fábrica   │ │ 👴 Seu       │                               │
-│  │ de Imagens   │ │ Pereira      │                               │
-│  │              │ │              │                               │
-│  │ FLUX AI      │ │ 19 critérios │                               │
-│  │ Pexels API   │ │ 6 categorias │                               │
+│  │ 🎨 Image     │ │ 👴 Seu       │                               │
+│  │ Factory      │ │ Pereira      │                               │
+│  │ Pexels + SVG │ │ 19 critérios │                               │
+│  │ fallback     │ │ 6 categorias │                               │
 │  └──────────────┘ └──────────────┘                               │
 │                                                                   │
 │  ┌──────────────────────────────────────────────────────────────┐│
-│  │              LLM Cascade (4 provedores)                      ││
-│  │  NVIDIA NIM → OpenRouter → Gemini → DeepSeek (fallback)     ││
-│  │  Database SQLite + SQLAlchemy ORM                            ││
+│  │              LLM Cascade (5 provedores)                      ││
+│  │  OpenRouter → Gemini → NVIDIA → HuggingFace → DeepSeek       ││
+│  │  Database PostgreSQL + SQLAlchemy ORM                         ││
 │  └──────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -65,30 +67,60 @@ A macro-esteira cria um blog completo com **N artigos** (configurável) em **5 e
 🏗️ Fundação → 📋 Arquitetura → 📝 Produção → 🎨 Refino → ✅ Entrega
 ```
 
-Cada artigo passa por todos os 5 estágios com qualidade e profundidade.
+Cada artigo passa por todas as etapas obrigatórias:
+
+1. **Artigo gerado** com instruções específicas do nicho via BlogWriter multiparte (8 chamadas LLM)
+2. **Imagem de destaque** gerada IMEDIATAMENTE após o artigo (Pexels → SVG fallback)
+3. **Revisão LiLi** automática com auto-correção de problemas comuns
+4. **Pipeline bloqueia** se a imagem falhar — artigo é descartado
+
+### 📊 Blogs em Produção
+
+| Blog | Nicho | Artigos | Imagens | Publicados | Score LiLi |
+|------|-------|---------|---------|------------|------------|
+| ✝️ **O Reino** | Ensinamentos de Jesus | 37 | 37 (100%) | 37 | 98.9/100 |
+| 💰 **Vida Financeira** | Finanças, Investimentos | 40 | 40 (100%) | 30 | 99.2/100 |
+| **Total** | | **77** | **77 (100%)** | **67** | **99.1/100** |
 
 ### 👥 Agentes da Pipeline
 
-| Estágio | Agente | Responsabilidade |
-|---------|--------|------------------|
-| **🏗️ Fundação** | 👴 **Seu Hermes** | Orquestrador, decide temas e estratégia |
-| | 👩‍🎨 **Dona Célia** | Designer, cria identidade visual do blog |
-| **📋 Arquitetura** | 🔍 **Joaquim** | Pesquisador de keywords e tendências |
-| **📝 Produção** | ✍️ **Carlão** | Redator, escreve artigos completos |
-| | 🔎 **Dona Rosa** | Revisora, verifica similaridade e qualidade |
-| **🎨 Refino** | 📸 **Tatiana** | Fotógrafa, busca imagens (Pexels/FLUX) |
-| | 📅 **Seu Zé** | Agendador, programa publicação |
-| | 🖼️ **Ricardo** | Especialista em imagens Pexels |
-| **✅ Entrega** | 👴 **Seu Francisco** | Supervisor, confere produção e dá sinal verde |
+| Estágio | Agente | Nome | Responsabilidade |
+|---------|--------|------|------------------|
+| **🏗️ Fundação** | Orquestrador | **Seu Hermes** | Decide temas e estratégia |
+| | Designer | **Dona Célia** | Identidade visual do blog |
+| **📋 Arquitetura** | Pesquisador | **Joaquim** | Keywords e tendências |
+| **📝 Produção** | Redator | **Carlão** | Escreve artigos via 8 chamadas LLM |
+| | Revisora | **Dona Rosa → LiLi** | Verifica similaridade e qualidade |
+| **🎨 Refino** | Fotógrafa | **Tatiana** | Busca imagens Pexels |
+| | Agendador | **Seu Zé** | Programa publicação |
+| | Imagens | **Ricardo** | Gera imagens para artigos |
+| **✅ Entrega** | Supervisor | **Seu Francisco** | Confere produção e dá sinal verde |
+| **👴 Análise** | Monetização | **Seu Pereira** | 19 critérios Google AdSense |
 
-### 📊 Seu Pereira — Analista de Monetização
+### 🔧 Últimas Correções (Julho 2026)
+
+| Correção | O que resolveu |
+|----------|---------------|
+| **Import base64** no image_factory.py | Placeholder SVG quebrava silenciosamente → artigos sem imagem |
+| **Imagem obrigatória** no generate-article | Se imagem falha, artigo é deletado + erro retornado |
+| **Pipeline bloqueante** em _phase_producao | Se imagem falha, article_result["success"] = False + continue |
+| **LiLi auto-corrige html_garbage** | Remove & $ # @ \\ dentro de tags HTML automaticamente |
+| **Pipeline respeita artigos existentes** | Conta artigos no DB antes de gerar, ajusta target_articles |
+| **Instruções de redação por nicho** | 5 nichos (finanças, cristão, saúde, tecnologia, casa) com prompts específicos |
+| **Tópicos dinâmicos** | Gera tópicos variados via LLM por nicho (não mais fixo "Jesus") |
+
+---
+
+## 📋 Seu Pereira — Analista de Monetização
 
 Agente especialista que avalia se cada blog está no caminho certo para o **Google AdSense**:
 
 - **19 critérios** em **6 categorias** (Conteúdo, Páginas, Design, Técnico, SEO, Autoridade)
-- Pontuação automática com recomendações priorizadas
+- Pontuação automática com recomendações priorizadas (peso ALTA/MÉDIA/BAIXA)
 - Painel no Dashboard mostrando progresso e próximos passos
 - Sistema de dependências entre critérios
+
+**Estado atual:** 68.4% (13/19 critérios atendidos)
 
 ---
 
@@ -97,9 +129,9 @@ Agente especialista que avalia se cada blog está no caminho certo para o **Goog
 | Camada | Tecnologias |
 |--------|-------------|
 | **Backend** | FastAPI (Python 3.11+), Uvicorn |
-| **ORM** | SQLAlchemy + SQLite (dev) / PostgreSQL (prod) |
-| **LLM Cascade** | NVIDIA NIM → OpenRouter → Gemini → DeepSeek |
-| **Imagens** | FLUX.1 (Hugging Face) + Pexels API |
+| **ORM** | SQLAlchemy + PostgreSQL (prod) / SQLite (dev) |
+| **LLM Cascade** | OpenRouter → Gemini → NVIDIA → HuggingFace → DeepSeek |
+| **Imagens** | Pexels API (primário) + SVG placeholder (fallback absoluto) |
 | **Frontend** | HTML + CSS + JavaScript SPA (vanilla) |
 | **Infraestrutura** | Railway (Docker), CPU-only |
 
@@ -126,17 +158,17 @@ Abra **http://localhost:8000** no navegador
 
 ```bash
 # ─── LLM Cascade (pelo menos 1 obrigatório) ───
-NVIDIA_API_KEY=nvapi-...              # Tenta primeiro
-OPENROUTER_API_KEY=sk-or-...          # Fallback 2
-GEMINI_API_KEY=AI...                  # Fallback 3
-DEEPSEEK_API_KEY=sk-...               # Fallback 4 (nunca falha)
+OPENROUTER_API_KEY=sk-or-...          # Tenta primeiro (gratuito)
+GEMINI_API_KEY=AI...                  # Fallback 2 (gratuito)
+NVIDIA_API_KEY=nvapi-...              # Fallback 3
+HUGGINGFACE_TOKEN=hf_...              # Fallback 4 (gratuito)
+DEEPSEEK_API_KEY=sk-...               # Fallback 5 (pago, nunca falha)
 
-# ─── Imagens (recomendado pelo menos um) ───
-HUGGINGFACE_TOKEN=hf_...              # FLUX.1 (geração AI)
-PEXELS_API_KEY=...                    # Pexels (stock photos)
+# ─── Imagens (recomendado) ───
+PEXELS_API_KEY=...                    # Pexels (stock photos, gratuita)
 
-# ─── Opcional ───
-DATABASE_URL=sqlite:///./dezafira.db  # Caminho do banco
+# ─── Banco ───
+DATABASE_URL=postgresql://...         # PostgreSQL (produção)
 ```
 
 ---
@@ -149,99 +181,36 @@ dezafira/
 │   ├── server.py                  # API principal (100+ endpoints)
 │   ├── modules/
 │   │   ├── database.py            # SQLAlchemy ORM
-│   │   ├── blog_writer.py         # Geração de artigos via LLM
+│   │   ├── blog_writer.py         # Geração de artigos via LLM multiparte
 │   │   ├── blog_pipeline.py       # Macro-esteira com 5 estágios
-│   │   ├── blog_publisher.py      # Publicação em plataformas
+│   │   ├── blog_viewer.py         # Blog viewer público dinâmico
+│   │   ├── brand_themes.py        # Temas visuais por nicho
+│   │   ├── image_factory.py       # Geração de imagens (Pexels + SVG)
+│   │   ├── lili.py                # Revisora de qualidade auto-corretiva
 │   │   ├── seu_pereira.py         # Analista de monetização
-│   │   ├── seu_ze.py              # Agendador de produção
-│   │   ├── ricardo.py             # Especialista em imagens
-│   │   └── telegram_bot.py        # Bot Telegram (opcional)
-│   ├── agents/
-│   │   ├── book_factory.py        # Fábrica de Livros
-│   │   ├── course_factory.py      # Fábrica de Cursos
-│   │   ├── image_factory.py       # Fábrica de Imagens
-│   │   └── llm.py                 # LLM compartilhado com cascade
+│   │   └── seu_ze.py              # Agendador de produção
 │   ├── static/
-│   │   ├── index.html             # UI Dashboard SPA
-│   │   └── o-reino.html           # Blog viewer público
+│   │   └── index.html             # UI Dashboard SPA
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── railway.toml
-└── README.md
+├── README.md
+└── SPEC.md
 ```
 
 ---
 
-### 🔍 RAG Bíblico
-Busca semântica inteligente nos artigos, livros e cursos usando **Sentence-Transformers** para embeddings e **LLM cascade** para respostas com citações.
+## 📋 Commits em Produção
 
 ```
-Pergunta → Embeddings (all-MiniLM-L6-v2) → Cosine Similarity → Contexto → LLM → Resposta + Fontes
+3977c2b fix: LiLi auto-corrige html_garbage (& $ # @ dentro de tags)
+0dd448b fix: batch endpoint tambem exige imagem
+2b83ec7 fix: imagem obrigatoria em cada artigo — pipeline bloqueia se falhar
+130b653 feat: instrucoes de redacao especificas por nicho no BlogWriter
+5f477bc fix: pipeline respeita artigos existentes, LiLi detecta garbage
+f1a5e01 feat: topicos dinâmicos por nicho + LiLi revisando cada artigo
+bab06f4 fix: Seu Pereira reconhece dominio real dezafira.com.br
 ```
-
----
-
-## 📋 API Endpoints (102 endpoints)
-
-### Dashboard & Geral
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/health` | Health check |
-| `GET` | `/api/v1/factory/dashboard` | Dashboard consolidado |
-| `GET` | `/api/v1/monetization/status` | Avaliação Seu Pereira |
-
-### Fábrica de Blogs
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/v1/pipeline/run-blog-factory` | Iniciar macro-esteira |
-| `GET` | `/api/v1/blog/{slug}/posts` | Listar artigos do blog |
-| `GET` | `/api/v1/blog/{slug}/info` | Info do blog |
-| `GET` | `/blog/{slug}` | Blog viewer público |
-| `GET` | `/blog/{slug}/privacidade` | Política de Privacidade |
-| `GET` | `/blog/{slug}/sobre` | Sobre Nós |
-| `GET` | `/blog/{slug}/contato` | Contato |
-| `GET` | `/robots.txt` | Robots.txt |
-| `GET` | `/sitemap.xml` | Sitemap XML |
-| `GET` | `/ads.txt` | Ads.txt |
-
-### Fábrica de Livros
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/v1/books` | Listar livros |
-| `POST` | `/api/v1/books/generate` | Gerar novo livro |
-
-### Fábrica de Cursos
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/v1/courses` | Listar cursos |
-| `POST` | `/api/v1/courses/generate` | Gerar novo curso |
-
-### Imagens & Hermes
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `POST` | `/api/v1/images/generate-blog-image` | Gerar imagem para blog |
-| `POST` | `/api/v1/hermes/chat` | Chat com Hermes |
-
----
-
-## 🤖 Todos os Agentes
-
-| Agente | Nome | Fábrica | Função |
-|--------|------|---------|--------|
-| **Hermes** | Seu Hermes | 🏭 Orquestrador | Comanda todas as fábricas |
-| **Joaquim** | Joaquim | 🔍 Pesquisa | Pesquisa keywords e tendências |
-| **Carlão** | Carlão | 📝 Blogs | Redator de artigos |
-| **Dona Rosa** | Dona Rosa | 📝 Blogs | Revisora de conteúdo |
-| **Dona Célia** | Dona Célia | 🎨 Design | Designer de identidade visual |
-| **Tatiana** | Tatiana | 🎨 Imagens | Fotógrafa (busca imagens) |
-| **Seu Zé** | Seu Zé | ⏰ Scheduler | Agendador de produção |
-| **Ricardo** | Ricardo | 🖼️ Imagens | Especialista em imagens Pexels |
-| **Seu Francisco** | Seu Francisco | ✅ Entrega | Supervisor de qualidade |
-| **Seu Pereira** | Seu Pereira | 👴 Monetização | Analista de AdSense |
-| **BlogWriter** | — | 📝 Blogs | Motor de geração de artigos |
-| **BookWriterAgent** | — | 📗 Livros | Motor de geração de livros |
-| **CourseWriterAgent** | — | 🎓 Cursos | Motor de geração de cursos |
-| **ImageGeneratorAgent** | — | 🎨 Imagens | Motor de geração de imagens |
 
 ---
 
@@ -250,24 +219,28 @@ Pergunta → Embeddings (all-MiniLM-L6-v2) → Cosine Similarity → Contexto �
 ### ✅ Implementado
 - [x] Macro-esteira de Blogs com 5 estágios e 9 agentes
 - [x] Conveyor belt UI animado na interface
-- [x] Blog viewer público com espaços para anúncios
-- [x] Fábrica de Livros (e-books completos)
-- [x] Fábrica de Cursos (módulos, aulas, quizzes)
-- [x] Fábrica de Imagens (FLUX + Pexels)
-- [x] Seu Pereira — Analista de Monetização AdSense
-- [x] LLM Cascade (4 provedores com fallback automático)
-- [x] Páginas obrigatórias (Privacidade, Sobre, Contato)
-- [x] Arquivos técnicos (robots.txt, sitemap.xml, ads.txt)
+- [x] Blog viewer público com páginas de sistema (privacidade, sobre, contato)
+- [x] Temas visuais por nicho (brand_themes.py)
+- [x] Instruções de redação específicas por nicho (finanças, cristão, saúde, tecnologia, casa)
+- [x] LiLi — revisora automática com auto-correção de conteúdo e HTML
+- [x] Imagem obrigatória em cada artigo (Pexels → SVG fallback)
+- [x] Pipeline respeita artigos existentes (não gera duplicatas)
+- [x] Tópicos dinâmicos gerados por LLM por nicho
+- [x] Seu Pereira — Analista de Monetização (19 critérios)
+- [x] LLM Cascade (5 provedores com fallback automático)
+- [x] Páginas obrigatórias (Privacidade, Sobre, Contato, robots.txt, sitemap.xml, ads.txt)
 - [x] Dashboard SPA com métricas em tempo real
+- [x] Deploy Railway com domínio próprio (dezafira.com.br)
+- [x] Banco PostgreSQL em produção
 
 ### 🔜 Próximos Passos
-- [ ] **Deploy Railway** — Configurar domínio real e SSL
 - [ ] Google Search Console — Verificação e monitoramento
-- [ ] Indexação Google — Acompanhar artigos indexados
+- [ ] Indexação Google — Solicitar indexação dos artigos
 - [ ] Google AdSense — Solicitar aprovação
+- [ ] Fábrica de Livros e Cursos — Integrar na UI principal
 - [ ] Página de Vendas 1Convite — Mini App com checkout
-- [ ] Fábrica de Blogs expandir — Mais nichos
+- [ ] Blog to Podcast — Artigos → Áudio
 
 ---
 
-*Dezafira — Ecossistema de Fábricas de Conteúdo v2.0*
+*Dezafira — Ecossistema de Fábricas de Conteúdo v2.1*

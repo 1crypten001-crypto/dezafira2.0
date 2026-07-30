@@ -1,61 +1,56 @@
 # SPEC.md — Dezafira Pipeline Specification
 
-> **Versão:** 4.0
+> **Versão:** 4.1
 > **Data:** 2026-07-30
-> **Status:** Ecossistema de 4 Fábricas + Analista de Monetização
+> **Status:** Fábrica de Blogs em produção com 77 artigos, 2 blogs, 100% imagens
+> **Produção:** https://dezafira.com.br
 
 ---
 
 ## 1. Visão Geral
 
-Dezafira é um ecossistema de automação de conteúdo digital com **4 fábricas integradas** e **Seu Pereira** como analista de monetização.
+Dezafira é um ecossistema de automação de conteúdo digital com foco atual na **Fábrica de Blogs** e **Seu Pereira** como analista de monetização.
 
 | # | Fábrica | Motor | Status |
 |---|---------|-------|--------|
-| 1 | 📝 **Fábrica de Blogs** | Macro-esteira 5 estágios + LLM cascade | ✅ Produção |
-| 2 | 📗 **Fábrica de Livros** | BookWriterAgent (LLM) | ✅ Produção |
-| 3 | 🎓 **Fábrica de Cursos** | CourseWriterAgent (LLM) | ✅ Produção |
-| 4 | 🎨 **Fábrica de Imagens** | FLUX.1 (HF) + Pexels API | ✅ Produção |
-| — | 🔍 **RAG Bíblico** | Sentence-Transformers + LLM cascade | ✅ Beta |
-| — | 👴 **Seu Pereira** | Analista de Monetização AdSense | ✅ Beta |
+| 1 | 📝 **Fábrica de Blogs** | Macro-esteira 5 estágios + LLM cascade | ✅ Produção (77 artigos) |
+| 2 | 📗 **Fábrica de Livros** | BookWriterAgent (LLM) | ⏳ Em espera |
+| 3 | 🎓 **Fábrica de Cursos** | CourseWriterAgent (LLM) | ⏳ Em espera |
+| 4 | 🎨 **Fábrica de Imagens** | Pexels API + SVG fallback | ✅ Produção |
+| — | 👴 **Seu Pereira** | Analista de Monetização AdSense | ✅ Ativo (68.4%) |
 
 ### Restrições de Infraestrutura
 - **Plataforma:** Railway (Docker containers) / Local (Windows/Linux)
 - **Hardware:** CPU only (sem GPU)
-- **Banco:** SQLite (dev) / PostgreSQL (production)
-- **LLM Cascade:** NVIDIA NIM → OpenRouter → Gemini → DeepSeek
+- **Banco:** PostgreSQL (produção) / SQLite (desenvolvimento)
+- **LLM Cascade:** OpenRouter → Gemini → NVIDIA → HuggingFace → DeepSeek
 
 ---
 
-## 2. Arquitetura
+## 2. Estado Atual da Fábrica de Blogs
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                        CLIENTE (Browser)                           │
-│         UI Dashboard SPA + Blog Viewer + Pipeline Animado          │
-└────────────────────────────┬───────────────────────────────────────┘
-                             │ HTTP REST API
-┌────────────────────────────▼───────────────────────────────────────┐
-│                        SERVER (FastAPI)                             │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  🏭 Macro-Pipeline (blog_pipeline.py)                        │  │
-│  │  5 estágios: Fundação → Arquitetura → Produção → Refino →   │  │
-│  │  → Entrega. Produção em massa de N artigos por blog.        │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
-│  │ 📝 Blog  │ │ 📗 Book  │ │ 🎓 Course │ │ 🎨 Image │              │
-│  │ Factory  │ │ Factory  │ │ Factory   │ │ Factory  │              │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘              │
-│                                                                     │
-│  ┌──────────────┐ ┌─────────────────────────────────────────────┐  │
-│  │ 👴 Seu       │ │  LLM Cascade                                │  │
-│  │  Pereira     │ │  NVIDIA NIM → OpenRouter → Gemini → DeepSeek│  │
-│  │  19 critérios│ │  Fallback automático em cada chamada        │  │
-│  └──────────────┘ └─────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### 2.1 Blogs em Produção
+
+| Blog | Nicho | Artigos | C/Imagem | Publicados | Score LiLi | URL |
+|------|-------|---------|----------|------------|------------|-----|
+| ✝️ O Reino | Ensinamentos de Jesus | 37 | 37 (100%) | 37 | 98.9/100 | /blog/o-reino |
+| 💰 Vida Financeira | Finanças, Investimentos | 40 | 40 (100%) | 30 | 99.2/100 | /blog/vida-financeira |
+| **Total** | | **77** | **77 (100%)** | **67** | **99.1/100** | |
+
+### 2.2 Temas Visuais
+
+Cada blog tem identidade visual própria via `brand_themes.py`:
+
+| Nicho | Tema | Cores | Fonte |
+|-------|------|-------|-------|
+| Cristão | Dourado/tradição | `#d4a853`, `#1a1410`, `#8b2500` | Playfair Display |
+| Finanças | Verde/prosperidade | `#059669`, `#022c22`, `#0d9488` | Inter |
+
+### 2.3 Seu Pereira — Score Atual
+
+**68.4% (13/19)** — Critérios atendidos: domínio próprio ✅, SSL ✅, 20+ artigos ✅, 800+ palavras ✅, imagens 100% ✅.
+
+**Pendentes:** Google Search Console, Indexação Google.
 
 ---
 
@@ -68,68 +63,58 @@ Usuário define: Nome do Blog + Nicho + N artigos
          │
          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 🏗️ FUNDAÇÃO (Hermes + Dona Célia)                              │
+│ 🏗️ FUNDAÇÃO (Seu Hermes + Dona Célia)                          │
 │ • Cria canal no banco (BlogChannel)                            │
-│ • Define identidade visual e tom de voz                        │
-│ • Gera N topics únicos para os artigos                          │
+│ • Verifica se blog já existe (evita duplicatas)                │
+│ • Gera brand bible via LLM                                     │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │ 📋 ARQUITETURA (Joaquim)                                        │
-│ • Pesquisa palavras-chave para cada topic                       │
-│ • Analisa concorrência e tendências                             │
-│ • Gera estrutura de SEO para cada artigo                        │
+│ • Pesquisa palavras-chave (Obscura ou fallback)                 │
+│ • Identifica seções e micro-nichos                              │
+│ • Busca "frutas baixas" (baixa concorrência)                   │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│ 📝 PRODUÇÃO (Carlão + Dona Rosa)                                │
-│ • Gera artigo completo via LLM cascade (1100-1500 palavras)     │
-│ • Título, slug, conteúdo HTML, excerpt, keywords                │
-│ • Revisão de similaridade e qualidade                           │
-│ • LOOP: repete para cada um dos N artigos                       │
+│ 📝 PRODUÇÃO (Carlão + LiLi)                                     │
+│ • Gera tópicos dinâmicos ESPECÍFICOS do nicho via LLM          │
+│ • Gera artigo completo via 8 chamadas LLM (multiparte)         │
+│   - Planejamento → Introdução → 5 Seções → Conclusão           │
+│ • Cada seção com instruções de redação específicas do nicho    │
+│ • Gera imagem IMEDIATAMENTE após o artigo (obrigatório)        │
+│ • LiLi revisa e auto-corrige o artigo                          │
+│ • Se imagem falhar → artigo descartado + pipeline continua     │
+│ • LOOP: repete para cada um dos N artigos                      │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│ 🎨 REFINO (Tatiana + Seu Zé + Ricardo)                          │
-│ • Tatiana busca imagens no Pexels para cada artigo              │
-│ • Ricardo gera/refina imagens se necessário                     │
-│ • Seu Zé programa agendamento de publicação                     │
+│ 🎨 REFINO (Tatiana + Seu Zé)                                    │
+│ • Links internos entre artigos                                  │
+│ • Seu Zé agenda publicação diária (1 artigo/dia às 08:00)      │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │ ✅ ENTREGA (Seu Francisco)                                      │
-│ • Verifica qualidade: todos os artigos têm imagem?             │
-│ • Conferência final da produção                                │
-│ • Sinal verde: blog completo com N artigos                     │
+│ • Seu Francisco confere a produção                              │
+│ • LiLi faz revisão final de todos os artigos                   │
+│ • Ricardo gera imagens pendentes (retry)                        │
+│ • Relatório final: N artigos, ~X palavras                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Arquitetura do Pipeline
+### 3.2 Pipeline — Correções Implementadas (Julho 2026)
 
-**Arquivo:** `modules/blog_pipeline.py`
-**Classe:** `BlogPipeline`
-**WebSocket:** comunicação em tempo real com UI
+| Problema | Causa Raiz | Correção |
+|----------|-----------|----------|
+| 108 artigos em vez de 30 | Pipeline não verificava artigos existentes | Contar artigos existentes no DB antes de gerar, ajustar target_articles |
+| Garbage text (`Aerial: "The:"`) não detectado | LiLi sem padrão para dois-pontos após aspas | 2 novos BAD_PATTERNS: colon_quote_colon_garbage + repeat_word_colon_quote |
+| Viés cristão no conteúdo de finanças | Prompt de seções com "inclua citações bíblicas" | Prompt neutro + instruções específicas por nicho |
+| Artigos sem imagem | `import base64` faltando (placeholder SVG quebrava) | Adicionado `import base64` |
+| Imagem não era obrigatória | try/except silencioso na geração de imagem | Imagem agora é obrigatória - falha deleta o artigo |
+| HTML garbage não auto-corrigido | LiLi detectava mas não limpava | Adicionado passo 8: limpa & $ # @ \\ dentro de tags |
 
-```python
-class BlogPipeline:
-    async def run_macro(self):
-        # 5 fases, N artigos cada
-        await self._phase_fundacao()     # 1x por blog
-        await self._phase_arquitetura()  # N vezes (1 por artigo)
-        await self._phase_producao()     # N vezes
-        await self._phase_refino()       # N vezes
-        await self._phase_entrega()      # 1x no final
-```
-
-### 3.3 UI (Conveyor Belt)
-
-- **5 estágios visuais** com animação de esteira
-- Conectores que acendem quando o estágio é concluído
-- Barra de progresso global (artigos concluídos / total)
-- Log em tempo real via WebSocket
-- Histórico de pipelines executadas
-
-### 3.4 Modelo de Dados
+### 3.3 Modelo de Dados
 
 ```python
 class BlogChannel(Base):
@@ -137,7 +122,7 @@ class BlogChannel(Base):
     id, name, nicho, lang, platform, site_url, banner_url, status, frequency
 
 class BlogPost(Base):
-    __tablename__ = "blog_posts"
+    __tablename__ = "blog_posts"  
     id, channel_id, title, slug, content, excerpt, keywords,
     featured_image_url, status, word_count, topic, created_at, published_at
 
@@ -149,6 +134,10 @@ class BlogPipelineRun(Base):
     __tablename__ = "blog_pipeline_runs"
     id, channel_id, phase, status, total_articles_target,
     articles_generated, current_round, pipeline_data
+
+class BlogSubdomain(Base):
+    __tablename__ = "blog_subdomains"
+    id, channel_id, subdomain
 ```
 
 ---
@@ -156,135 +145,108 @@ class BlogPipelineRun(Base):
 ## 4. Seu Pereira — Analista de Monetização
 
 **Arquivo:** `modules/seu_pereira.py`
-**Classe:** `SeuPereira`
 
 ### 4.1 Critérios de Avaliação (19)
 
-| ID | Categoria | Critério | Peso | Depende |
-|----|-----------|----------|------|---------|
-| content_articles_count | 📝 Conteúdo | 20+ artigos publicados | 8 | — |
-| content_word_count | 📝 Conteúdo | 800+ palavras por artigo | 8 | — |
-| content_images | 📝 Conteúdo | Imagens em todos os artigos | 5 | — |
-| content_originality | 📝 Conteúdo | Conteúdo 100% original | 10 | articles_count |
-| content_niche_allowed | 📝 Conteúdo | Nicho permitido pelo AdSense | 10 | — |
-| pages_privacy | 📄 Páginas Obrig. | Política de Privacidade (LGPD) | 10 | — |
-| pages_about | 📄 Páginas Obrig. | Página Sobre Nós | 6 | — |
-| pages_contact | 📄 Páginas Obrig. | Página de Contato | 6 | — |
-| design_responsive | 🎨 Design & UX | Design responsivo (mobile) | 7 | — |
-| design_navigation | 🎨 Design & UX | Navegação limpa e funcional | 5 | — |
-| design_speed | 🎨 Design & UX | Velocidade de carregamento | 6 | — |
-| tech_domain | 🔧 Técnico | Domínio próprio configurado | 9 | — |
-| tech_ssl | 🔧 Técnico | SSL/HTTPS ativo | 8 | domain |
-| tech_search_console | 🔧 Técnico | Google Search Console | 7 | domain |
-| tech_robots_txt | 🔧 Técnico | robots.txt configurado | 4 | domain |
-| tech_ads_txt | 🔧 Técnico | ads.txt configurado | 5 | domain |
-| seo_indexed | 🔍 Indexação | Páginas indexadas no Google | 8 | search_console, articles |
-| seo_sitemap | 🔍 Indexação | Sitemap XML configurado | 5 | domain |
-| authority_eeat | 🏛️ Autoridade | Credibilidade E-E-A-T | 6 | about |
+| ID | Categoria | Critério | Peso | Status Atual |
+|----|-----------|----------|------|-------------|
+| content_articles_count | 📝 Conteúdo | 20+ artigos publicados | 8 | ✅ 77 artigos |
+| content_word_count | 📝 Conteúdo | 800+ palavras por artigo | 8 | ✅ Média 2.400 |
+| content_images | 📝 Conteúdo | Imagens em todos os artigos | 5 | ✅ 100% |
+| content_originality | 📝 Conteúdo | Conteúdo 100% original | 10 | ✅ |
+| content_niche_allowed | 📝 Conteúdo | Nicho permitido pelo AdSense | 10 | ✅ |
+| pages_privacy | 📄 Páginas Obrig. | Política de Privacidade | 10 | ✅ |
+| pages_about | 📄 Páginas Obrig. | Página Sobre Nós | 6 | ✅ |
+| pages_contact | 📄 Páginas Obrig. | Página de Contato | 6 | ✅ |
+| design_responsive | 🎨 Design & UX | Design responsivo | 7 | ✅ |
+| design_navigation | 🎨 Design & UX | Navegação limpa | 5 | ✅ |
+| design_speed | 🎨 Design & UX | Velocidade de carregamento | 6 | ✅ |
+| tech_domain | 🔧 Técnico | Domínio próprio | 9 | ✅ dezafira.com.br |
+| tech_ssl | 🔧 Técnico | SSL/HTTPS ativo | 8 | ✅ Railway |
+| tech_search_console | 🔧 Técnico | Google Search Console | 7 | ❌ Pendente |
+| tech_robots_txt | 🔧 Técnico | robots.txt | 4 | ✅ |
+| tech_ads_txt | 🔧 Técnico | ads.txt | 5 | ✅ |
+| seo_indexed | 🔍 Indexação | Páginas indexadas | 8 | ❌ Pendente |
+| seo_sitemap | 🔍 Indexação | Sitemap XML | 5 | ✅ |
+| authority_eeat | 🏛️ Autoridade | E-E-A-T | 6 | ✅ |
 
-**Score máximo:** 133 pontos
-
-### 4.2 Status
-
-| Pontuação | Status | Label |
-|-----------|--------|-------|
-| ≥ 80% | ✅ ready | Pronto para solicitar o AdSense |
-| ≥ 50% | 🟡 almost | Quase lá! Faltam requisitos prioritários |
-| ≥ 20% | 🟠 progress | Em progresso |
-| < 20% | 🔴 starting | Precisa de muito trabalho |
+**Score atual:** 68.4% (13/19)
 
 ---
 
 ## 5. LLM Cascade
 
-**Arquivo:** `agents/llm.py`
+**Arquivo:** `modules/blog_writer.py` (função `_call_llm`)
 
 ### 5.1 Ordem de Tentativa
 
 ```
-1. NVIDIA NIM (Llama 3.3 70B) — query_llm()
-   → Se falhar (timeout, erro de API, etc.)
-2. OpenRouter (Llama 3.3 via API)
+1. OpenRouter (Llama 3.3 70B) — gratuito, vários modelos
+   → Se falhar (402 sem créditos, timeout, etc.)
+2. Google Gemini (Gemini 2.0 Flash / 1.5 Pro) — gratuito
    → Se falhar
-3. Google Gemini (Gemini 1.5 Pro/Flash)
+3. NVIDIA NIM (Llama 3.3 70B) — se chave real disponível
    → Se falhar
-4. DeepSeek (DeepSeek V3)
-   → Único pago, nunca falha
+4. HuggingFace Inference API (Mixtral, Zephyr, Phi-3) — gratuito
+   → Se falhar
+5. DeepSeek (DeepSeek V3) — único pago, nunca falha
 ```
 
-### 5.2 Configuração
+### 5.2 Geração de Artigos (Multiparte)
 
-```python
-LLM_CASCADE = [
-    {"provider": "nvidia",    "model": "meta/llama-3.3-70b-instruct",   "api_key": "NVIDIA_API_KEY"},
-    {"provider": "openrouter","model": "meta-llama/llama-3.3-70b-instruct","api_key": "OPENROUTER_API_KEY"},
-    {"provider": "gemini",    "model": "gemini-1.5-pro",               "api_key": "GEMINI_API_KEY"},
-    {"provider": "deepseek",  "model": "deepseek-chat",                "api_key": "DEEPSEEK_API_KEY"},
-]
-```
+Cada artigo usa **8 chamadas LLM** separadas para qualidade máxima:
+
+1. **Planejamento** — Outline com título, seções, keywords
+2. **Introdução** — Gancho forte + contexto (~400-600 palavras)
+3. **Seção 1-5** — Cada seção escrita separadamente
+4. **Conclusão** — Reflexão + CTA (~300-500 palavras)
+
+As instruções de redação são **específicas do nicho** detectado automaticamente (`_detect_niche`):
+
+| Nicho | Instruções |
+|-------|-----------|
+| Finanças | Dados numéricos, comparações, fontes BR (IBGE, BC), regras práticas, passos acionáveis |
+| Cristão | Referências bíblicas com versículos, tom pastoral, aplicação prática da fé |
+| Saúde | Fontes científicas, recomendações de especialistas, dados OMS/MS |
+| Tecnologia | Benchmarks, comparações, conceitos acessíveis, tendências |
+| Casa | Passo a passo, custo-benefício, materiais acessíveis |
 
 ---
 
-## 6. Fábrica de Livros 📗
+## 6. LiLi — Revisora de Qualidade
 
-### 6.1 Fluxo
-```
-Tema → BookWriterAgent → Capítulos com conteúdo → Capa (FLUX/Pexels) → Livro salvo
-```
+**Arquivo:** `modules/lili.py`
 
-### 6.2 Modelos
-```python
-class Book(Base):
-    id, title, subtitle, author, description, cover_url, topic,
-    keywords, status, total_chapters, total_words, price_cents
+### 6.1 Padrões Detectados (15)
 
-class BookChapter(Base):
-    id, book_id, chapter_number, title, content, word_count
-```
+| Padrão | Severidade | Exemplo | Auto-corrige? |
+|--------|-----------|---------|---------------|
+| exclamacoes_em_massa | alta | `!!!!!!` | ✅ Remove |
+| micro_biologia_gibberish | alta | "micro biologia" | ✅ Substitui |
+| english_words | media | "everything", "someone" | ✅ Traduz |
+| **html_garbage** | **alta** | **& $ # @ dentro de tags** | **✅ Remove (novo!)** |
+| paragrafo_curto | media | `<p>Oi</p>` | ❌ |
+| repeticao_frase | media | Frase duplicada | ❌ |
+| encoding_quebrado | alta | \\u00ad | ✅ Corrige |
+| colon_sequence_double | alta | `Aerial: "The: "` | ❌ |
+| colon_quote_colon_garbage | alta | `Aerial: "The:"` | ❌ |
+| repeat_word_colon_quote | alta | `Aerial\\: "The":` | ❌ |
 
----
+### 6.2 Score
 
-## 7. Fábrica de Cursos 🎓
-
-### 7.1 Fluxo
-```
-Tema → CourseWriterAgent → Módulos → Aulas + Quizzes → Curso salvo
-```
-
-### 7.2 Modelos
-```python
-class Course(Base):
-    id, title, subtitle, description, cover_url, topic, keywords,
-    status, total_modules, total_lessons, difficulty, price_cents
-
-class CourseModule(Base): ...
-class CourseLesson(Base): ...
-class CourseQuiz(Base): ...
-```
+- Score = 100 - (15 × issues_alta + 5 × issues_media + 2 × issues_baixa)
+- Aprovado se score >= 70 E nenhum issue de severidade 'alta'
+- Score médio real: **99.1/100** (77 artigos revisados)
 
 ---
 
-## 8. Fábrica de Imagens 🎨
-
-### 8.1 Fluxo
-```
-Descrição → FLUX.1 (Hugging Face) → Imagem Gerada
-         → Pexels API (fallback) → URL da imagem stock
-```
-
-### 8.2 Funções
-- `generate_blog_image(topic)` → Imagem para artigo
-- `generate_cover(title, topic)` → Capa de livro
-- `generate_course_thumbnail(title, topic)` → Thumbnail de curso
-
----
-
-## 9. Páginas de Sistema
+## 7. Páginas de Sistema
 
 Todas servidas como endpoints FastAPI para qualquer blog:
 
 | Rota | Descrição |
 |------|-----------|
+| `/blog/{slug}` | Blog viewer público com tema do nicho |
 | `/blog/{slug}/privacidade` | Política de Privacidade com LGPD |
 | `/blog/{slug}/sobre` | Sobre Nós com autoridade no nicho |
 | `/blog/{slug}/contato` | Formulário de contato |
@@ -294,147 +256,67 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 
 ---
 
-## 10. Banco de Dados
+## 8. Banco de Dados
 
-**ORM:** SQLAlchemy com fallback resiliente:
-1. Tenta SQLite no caminho do projeto
-2. Se falhar (Windows path), fallback para `:memory:`
+**ORM:** SQLAlchemy com PostgreSQL (produção) / SQLite (desenvolvimento)
 
 ### Todos os Modelos
 
-| Modelo | Tabela | Descrição |
-|--------|--------|-----------|
-| `BlogChannel` | `blog_channels` | Canais de blog |
-| `BlogPost` | `blog_posts` | Artigos do blog |
-| `BlogSection` | `blog_sections` | Seções/micro-nichos |
-| `BlogPipelineRun` | `blog_pipeline_runs` | Execuções da esteira |
-| `Book` | `books` | Livros digitais |
-| `BookChapter` | `book_chapters` | Capítulos dos livros |
-| `Course` | `courses` | Cursos |
-| `CourseModule` | `course_modules` | Módulos dos cursos |
-| `CourseLesson` | `course_lessons` | Aulas |
-| `Channel` | `channels` | (Legado) |
-| `Prediction` | `predictions` | (Legado) |
-| `DeliverableApp` | `deliverable_apps` | Mini Apps |
+| Modelo | Tabela | Descrição | Registros |
+|--------|--------|-----------|-----------|
+| `BlogChannel` | `blog_channels` | Canais de blog | 2 |
+| `BlogPost` | `blog_posts` | Artigos do blog | 77 |
+| `BlogSection` | `blog_sections` | Seções/micro-nichos | ~12 |
+| `BlogPipelineRun` | `blog_pipeline_runs` | Execuções da esteira | ~20 |
+| `BlogSubdomain` | `blog_subdomains` | Subdomínios dos blogs | 2 |
+| `Book` | `books` | Livros digitais | 0 |
+| `Course` | `courses` | Cursos | 0 |
+| `Channel` | `channels` | (Legado YouTube) | 0 |
 
 ---
 
-## 11. API Endpoints Completos
+## 9. Commits em Produção
 
-### 11.1 Health & Geral
-| Método | Rota |
-|--------|------|
-| `GET` | `/health` |
-| `GET` | `/api/v1/factory/dashboard` |
-| `GET` | `/api/v1/logs` |
-
-### 11.2 Monetização (Seu Pereira)
-| Método | Rota |
-|--------|------|
-| `GET` | `/api/v1/monetization/status` |
-
-### 11.3 Pipeline
-| Método | Rota |
-|--------|------|
-| `POST` | `/api/v1/pipeline/run-blog-factory` |
-| `GET` | `/api/v1/pipeline/blog-factory/history` |
-| `POST` | `/api/v1/pipeline/generate-images` |
-
-### 11.4 Blog
-| Método | Rota |
-|--------|------|
-| `GET` | `/api/v1/blog/{slug}/info` |
-| `GET` | `/api/v1/blog/{slug}/posts` |
-| `GET` | `/api/v1/blog/{slug}/post/{post_id}` |
-| `GET` | `/blog/{slug}` |
-| `GET` | `/blog/{slug}/privacidade` |
-| `GET` | `/blog/{slug}/sobre` |
-| `GET` | `/blog/{slug}/contato` |
-| `GET` | `/robots.txt` |
-| `GET` | `/sitemap.xml` |
-| `GET` | `/ads.txt` |
-
-### 11.5 Books & Courses
-| Método | Rota |
-|--------|------|
-| `GET` | `/api/v1/books` |
-| `GET` | `/api/v1/books/{id}` |
-| `POST` | `/api/v1/books/generate` |
-| `GET` | `/api/v1/courses` |
-| `GET` | `/api/v1/courses/{id}` |
-| `POST` | `/api/v1/courses/generate` |
-
-### 11.6 Images & Hermes
-| Método | Rota |
-|--------|------|
-| `POST` | `/api/v1/images/generate-blog-image` |
-| `POST` | `/api/v1/images/generate-cover` |
-| `POST` | `/api/v1/hermes/chat` |
-| `GET` | `/api/v1/hermes/history` |
-
----
-
-## 12. Variáveis de Ambiente
-
-```bash
-# ─── LLM Cascade (pelo menos 1) ───
-NVIDIA_API_KEY=
-OPENROUTER_API_KEY=
-GEMINI_API_KEY=
-DEEPSEEK_API_KEY=
-
-# ─── Imagens (pelo menos 1) ───
-HUGGINGFACE_TOKEN=
-PEXELS_API_KEY=
-
-# ─── Banco ───
-DATABASE_URL=sqlite:///./dezafira.db
-
-# ─── Deploy ───
-SITE_URL=https://dezafira.com.br
+```
+3977c2b fix: LiLi auto-corrige html_garbage (& $ # @ dentro de tags)
+0dd448b  fix: batch endpoint tambem exige imagem (mesma correcao do generate-single)
+2b83ec7  fix: imagem obrigatoria em cada artigo — pipeline bloqueia se falhar
+130b653  feat: instrucoes de redacao especificas por nicho no BlogWriter
+5f477bc  fix: pipeline respeita artigos existentes, LiLi detecta garbage
+f1a5e01  feat: topicos dinâmicos por nicho + LiLi revisando cada artigo
+bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
+04324ef  fix: move subdomain para tabela separada blog_subdomains
 ```
 
 ---
 
-## 13. Agentes do Sistema
+## 10. Roadmap
 
-| Nome | Nome Real | Arquivo | Função |
-|------|-----------|---------|--------|
-| Hermes | Seu Hermes | server.py | Orquestrador |
-| Joaquim | Joaquim | blog_pipeline.py | Pesquisador |
-| Carlão | Carlão | blog_writer.py | Redator |
-| Dona Rosa | Dona Rosa | blog_pipeline.py | Revisora |
-| Dona Célia | Dona Célia | blog_pipeline.py | Designer |
-| Tatiana | Tatiana | blog_pipeline.py | Fotógrafa |
-| Seu Zé | Seu Zé | seu_ze.py | Agendador |
-| Ricardo | Ricardo | ricardo.py | Especialista Imagens |
-| Seu Francisco | Seu Francisco | blog_pipeline.py | Supervisor |
-| Seu Pereira | Seu Pereira | seu_pereira.py | Monetização |
-
----
-
-## 14. Roadmap
-
-### ✅ Implementado v2.0
+### ✅ Implementado v2.1
 - [x] Macro-esteira de Blogs com 5 estágios (conveyor belt UI)
 - [x] 9 agentes com nomes brasileiros na pipeline
-- [x] Seu Pereira — 19 critérios de monetização
-- [x] LLM Cascade com 4 provedores
+- [x] LiLi — revisora com auto-correção (conteúdo + HTML)
+- [x] Imagem obrigatória em cada artigo (Pexels → SVG fallback)
+- [x] Pipeline respeita artigos existentes (não gera duplicatas)
+- [x] Instruções de redação específicas por nicho (5 nichos)
+- [x] Tópicos dinâmicos gerados por LLM por nicho
+- [x] Temas visuais por nicho (brand_themes.py)
+- [x] Seu Pereira — 19 critérios de monetização (68.4%)
+- [x] LLM Cascade com 5 provedores
 - [x] Blog viewer público com páginas de sistema
-- [x] Fábrica de Livros (completa)
-- [x] Fábrica de Cursos (módulos + aulas + quizzes)
-- [x] Fábrica de Imagens (FLUX + Pexels)
 - [x] Dashboard SPA com métricas em tempo real
-- [x] Sistema de dependências entre critérios
+- [x] Deploy Railway com PostgreSQL e domínio próprio
+- [x] 77 artigos publicados, 100% com imagem
 
-### 🔜 Planejado
-- [ ] Deploy Railway com domínio real
-- [ ] Google Search Console integrado
-- [ ] Solicitação Google AdSense
-- [ ] Página de Vendas 1Convite
-- [ ] Blog to Podcast (artigos → áudio)
-- [ ] Expansão para múltiplos nichos
+### 🔜 Próximo (prioridade)
+- [ ] Google Search Console — Verificação de domínio
+- [ ] Indexação Google — Solicitar indexação dos 77 artigos
+- [ ] Google AdSense — Solicitar aprovação
+- [ ] Fábrica de Livros e Cursos — Ativar produção
+- [ ] Página de Vendas 1Convite — Mini App com checkout
+- [ ] Blog to Podcast — Artigos → Áudio
+- [ ] Expansão para mais nichos (saúde, tecnologia, casa)
 
 ---
 
-*SPEC v4.0 — Ecossistema Dezafira — 2026-07-30*
+*SPEC v4.1 — Ecossistema Dezafira — 2026-07-30*
