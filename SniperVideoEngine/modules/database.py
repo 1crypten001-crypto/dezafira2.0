@@ -887,6 +887,24 @@ def update_db_blog_post(post_id: str, **kwargs) -> bool:
         db.close()
 
 
+def delete_db_blog_post(post_id: str) -> bool:
+    """Remove um post do blog pelo ID."""
+    db = SessionLocal()
+    try:
+        post = db.query(BlogPost).filter(BlogPost.id == post_id).first()
+        if post:
+            db.delete(post)
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        print(f"[Database] Erro ao deletar post {post_id}: {e}")
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
 def update_db_blog_post_status(post_id: str, status: str) -> bool:
     """Atualiza o status de um post do blog."""
     from datetime import datetime

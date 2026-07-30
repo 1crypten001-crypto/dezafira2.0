@@ -324,7 +324,13 @@ class BlogMacroPipeline:
         self.state.status = "running"
         self.state.started_at = datetime.utcnow()
 
-        self._emit("pipeline_started", self.state.to_dict())
+        # Inclui stage_id e status no evento inicial para que a UI saia de "starting"
+        start_data = {
+            **self.state.to_dict(),
+            "stage_id": "fundacao",
+            "status": "running",
+        }
+        self._emit("pipeline_started", start_data)
 
         try:
             # ═══ FASE 1: FUNDAÇÃO ════════════════════════════════════════════
@@ -1076,7 +1082,13 @@ async def resume_blog_pipeline(
             skip_phases.add("arquitetura")
             print("[Resume] Usando secoes do checkpoint")
 
-        macro._emit("pipeline_started", macro.state.to_dict())
+        # Inclui stage_id para que a UI saia de "starting"
+        resume_data = {
+            **macro.state.to_dict(),
+            "stage_id": "fundacao",
+            "status": "running",
+        }
+        macro._emit("pipeline_started", resume_data)
 
         # Executar fases nao concluidas
         if "fundacao" not in skip_phases:

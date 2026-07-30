@@ -3131,6 +3131,16 @@ async def generate_single_article(payload: dict):
         return {"success": False, "error": str(e)}
 
 
+
+@app.delete("/api/v1/blog/post/{post_id}")
+async def delete_blog_post(post_id: str):
+    """Remove um post do blog pelo ID."""
+    from modules.database import delete_db_blog_post
+    success = delete_db_blog_post(post_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    return {"success": True, "message": f"Post {post_id} removido"}
+
 @app.get("/api/v1/pipeline/macro-result/{task_id}")
 async def get_macro_result(task_id: str):
     """Retorna o resultado de uma execução de macro pipeline."""
