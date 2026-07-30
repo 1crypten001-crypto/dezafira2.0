@@ -316,6 +316,99 @@ def _extract_json(text: str) -> dict:
     return {"error": "Falha ao extrair JSON", "raw": text[:500]}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# INSTRUCOES DE ESCRITA POR NICHO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_NICHE_INSTRUCTIONS = {
+    "financas": {
+        "keywords": ["financ","invest","econom","dinheiro","renda","orcamento","poupanca",
+                     "divida","credito","juros","aposentadoria","imposto","bolsa","CDB","Tesouro"],
+        "style": [
+            "Use dados numericos, estatisticas e exemplos concretos (ex: 'CDI esta em 13,65% aa')",
+            "Inclua comparacoes entre opcoes (CDB vs Tesouro, Renda Fixa vs Variavel)",
+            "Explique conceitos financeiros de forma simples para leigos",
+            "Use regras praticas (ex: 'regra 50/30/20', 'fundo de emergencia de 6 meses')",
+            "Cite fontes brasileiras quando possivel (IBGE, BC, ANBIMA, B3)",
+            "De passos acaoaveis: 'Passo 1: abrir conta, Passo 2: depositar R$ 100'"
+        ],
+    },
+    "cristao": {
+        "keywords": ["jesus","crist","biblic","fe","oracao","evangelho","igreja",
+                     "deus","senhor","espirito","santo","graca","salvacao","reino"],
+        "style": [
+            "Inclua referencias biblicas com livro, capitulo e versiculo (ex: 'Mateus 6:33')",
+            "Contextualize o ensinamento biblico para o dia a dia",
+            "Use tom pastoral e inspirador, mas sem ser moralista",
+            "Facilite a aplicacao pratica da fe na vida cotidiana",
+            "Inclua reflexoes que gerem conexao pessoal com o tema",
+        ],
+    },
+    "saude": {
+        "keywords": ["saude","bem-estar","aliment","exercicio","doenca","prevencao",
+                     "nutricao","suplemento","natural","bem estar"],
+        "style": [
+            "Cite fontes cientificas e estudos quando possivel",
+            "Inclua recomendacoes de especialistas (medicos, nutricionistas)",
+            "Deixe claro que nao substitui consulta medica profissional",
+            "Use dados de organizacoes de saude (OMS, ANS, MS)",
+            "Diferencie mitos de fatos sobre saude",
+        ],
+    },
+    "tecnologia": {
+        "keywords": ["tecnolog","app","digital","software","hardware","internet","ia",
+                     "inteligencia artificial","programacao","inovacao"],
+        "style": [
+            "Inclua comparacoes entre ferramentas e tecnologias",
+            "Use benchmarks e metricas de performance",
+            "Explique conceitos tecnicos de forma acessivel",
+            "De exemplos praticos de uso no dia a dia",
+            "Mencione tendencias e inovacoes do setor",
+        ],
+    },
+    "casa": {
+        "keywords": ["casa","decoracao","organizacao","limpeza","jardinagem","DIY","faça voce","reforma"],
+        "style": [
+            "Inclua dicas praticas e passo a passo",
+            "Use comparacoes de custo-beneficio",
+            "Sugira materiais e ferramentas acessiveis",
+            "Diferencie opcoes para diferentes orcamentos",
+            "Inclua fotos/videos ilustrativos quando possivel",
+        ],
+    },
+}
+
+_DEFAULT_INSTRUCTIONS = [
+    "Escreva de forma clara, direta e envolvente",
+    "Use exemplos praticos que o leitor possa aplicar",
+    "Estruture o texto com paragrafos curtos e subtitulos",
+    "Mantenha tom adequado ao tema (informativo, inspirador ou educacional)",
+]
+
+
+def _detect_niche(topic: str, keywords: str = "") -> str:
+    """Detecta o nicho com base no topico e keywords."""
+    text = (topic + " " + keywords).lower()
+    scores = {}
+    for niche, config in _NICHE_INSTRUCTIONS.items():
+        score = sum(1 for kw in config["keywords"] if kw in text)
+        if score > 0:
+            scores[niche] = score
+    if not scores:
+        return "default"
+    return max(scores, key=scores.get)
+
+
+def _get_niche_instructions(topic: str, keywords: str = "") -> str:
+    """Retorna instrucoes de escrita especificas para o nicho detectado."""
+    niche = _detect_niche(topic, keywords)
+    if niche == "default":
+        return "\n".join(f"- {inst}" for inst in _DEFAULT_INSTRUCTIONS)
+    config = _NICHE_INSTRUCTIONS[niche]
+    instructions = [f"- {inst}" for inst in config["style"]]
+    return "\n".join(instructions)
+
+
 def _slugify(text: str) -> str:
     text = text.lower().strip()
     text = re.sub(r'[^\w\s-]', '', text)
@@ -449,6 +542,7 @@ Gera de 3 a 5 seções dependendo da profundidade necessária."""
 
     # ─── ETAPA 2: INTRODUÇÃO ────────────────────────────────────────
     print("[BlogWriter] Etapa 2/5: Escrevendo introdução...")
+    niche_instructions = _get_niche_instructions(topic, keywords)
     intro_system = f"""Você é um redator SEO especialista.
 
 Escreva uma INTRODUÇÃO IMPACTANTE sobre:
@@ -460,7 +554,9 @@ Diretrizes:
 - Contextualize o tema e mostre por que o leitor deve continuar lendo
 - ~400-600 palavras
 - Use <h2>Introdução</h2> seguido de parágrafos <p>
-- Retorne APENAS o HTML da introdução (sem JSON)"""
+- Retorne APENAS o HTML da introdução (sem JSON)
+- Instrucoes especificas do nicho:
+{niche_instructions}"""
 
     print("[BlogWriter] Chamada LLM #2: Introdução...")
     intro_html = await _call_llm(intro_system, f"Escreva a introdução sobre {topic}", temperature=0.75, max_tokens=4096)
@@ -489,10 +585,13 @@ Escreva a seção "{sec_title}" para um artigo sobre "{topic}".
 
 Diretrizes:
 - Idioma: {language}
-- Contexto da seção: {sec_desc}- ~{sec_target} palavras
-                        - Aprox. 4-6 parágrafos profundos e informativos
-                        - Inclua dados, exemplos praticos e contexto do nicho
-                        - Mantenha tom adequado ao tema (informativo, inspirador, ou educacional)
+- Contexto da seção: {sec_desc}
+- ~{sec_target} palavras
+- Aprox. 4-6 parágrafos profundos e informativos
+- Inclua dados, exemplos praticos e contexto do nicho
+- Mantenha tom adequado ao tema (informativo, inspirador, ou educacional)
+- Instrucoes especificas do nicho:
+{_get_niche_instructions(topic, keywords)}
 - Use <h2>{sec_title}</h2> no início
 - Use <h3> para subseções se necessário
 - Retorne APENAS o HTML da seção (sem JSON, sem markdown)"""
@@ -524,7 +623,9 @@ Diretrizes:
 - CTA natural (convide o leitor a agir, refletir, comentar, compartilhar)
 - ~300-500 palavras
 - Use <h2>Conclusão</h2> no início
-- Retorne APENAS o HTML (sem JSON, sem markdown)"""
+- Retorne APENAS o HTML (sem JSON, sem markdown)
+- Instrucoes especificas do nicho:
+{_get_niche_instructions(topic, keywords)}"""
 
     print("[BlogWriter] Chamada LLM #{4+len(sections)}: Conclusão...")
     try:
