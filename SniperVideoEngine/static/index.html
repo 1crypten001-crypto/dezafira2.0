@@ -34,7 +34,29 @@
   @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.4)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
   .sidebar-footer{padding:16px 20px;border-top:1px solid #14161f;font-size:11px;color:#3b4050;text-align:center}
   .main{margin-left:260px;flex:1;padding:24px 32px;max-width:1400px}
-  @media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0;padding:16px}}
+  @media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:12px}
+  .stats-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .table-row{grid-template-columns:1fr!important;gap:4px;padding:10px 14px}
+  .table-row .meta{font-size:11px}
+  .macro-global-progress,.pipeline-input-area{padding:14px 16px}
+  .pipeline-input-area{flex-direction:column;align-items:stretch}
+  .pipeline-input-area input{min-width:auto}
+  .pipeline-controls{justify-content:stretch}
+  .pipeline-controls button{flex:1}
+  .conveyor-track{padding:16px 12px 24px;justify-content:flex-start}
+  .conveyor-stage{width:145px;padding:14px 10px}
+  .conveyor-connector{width:24px}
+  .page-header h2{font-size:18px}
+  .stat-card .value{font-size:22px}
+  .post-viewer h1{font-size:22px}
+  .post-content{font-size:15px}
+  .lili-article-row{grid-template-columns:1fr;gap:6px;padding:12px 14px}
+  .macro-current-article{padding:14px 16px}
+  .macro-current-title{font-size:13px}
+  #hermesChat{padding:12px!important}
+}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
   .topbar h2{font-size:22px;font-weight:800}
   .topbar .status{display:flex;align-items:center;gap:6px;font-size:12px;color:#5c6370}
@@ -72,6 +94,40 @@
   .page-header p{color:#5c6370;font-size:14px}
   .empty{padding:32px;text-align:center;color:#5c6370;font-size:14px}
   .spinner{width:18px;height:18px;border:2px solid #1e2030;border-top-color:#6366f1;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+@media(max-width:480px){
+  .sidebar{width:100%}
+  .sidebar-brand{padding:16px}
+  .nav-item{padding:12px 16px;margin:1px 4px}
+  .main{padding:8px}
+  .stat-card{padding:12px 14px}
+  .stat-card .value{font-size:18px}
+  .section-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .topbar{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:16px}
+  .macro-global-header{flex-direction:column;align-items:flex-start;gap:6px}
+  .macro-article-counter{font-size:11px}
+  .btn{padding:10px 14px;font-size:14px}
+  .conveyor-track{padding:12px 8px 20px}
+  .conveyor-stage{width:130px;padding:12px 8px}
+  .cs-agent-avatar{font-size:11px}
+  .cs-name{font-size:11px}
+}
+@media(max-width:480px){
+  .sidebar{width:100%}
+  .sidebar-brand{padding:16px}
+  .nav-item{padding:12px 16px;margin:1px 4px}
+  .main{padding:8px}
+  .stat-card{padding:12px 14px}
+  .stat-card .value{font-size:18px}
+  .section-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .topbar{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:16px}
+  .macro-global-header{flex-direction:column;align-items:flex-start;gap:6px}
+  .macro-article-counter{font-size:11px}
+  .btn{padding:10px 14px;font-size:14px}
+  .conveyor-track{padding:12px 8px 20px}
+  .conveyor-stage{width:130px;padding:12px 8px}
+  .cs-agent-avatar{font-size:11px}
+  .cs-name{font-size:11px}
+}
   @keyframes spin{to{transform:rotate(360deg)}}
   .toast{position:fixed;bottom:24px;right:24px;background:#0b0c12;border:1px solid #1e2030;padding:12px 20px;border-radius:10px;font-size:13px;color:#e8edf2;transform:translateY(100px);opacity:0;transition:all .3s ease;z-index:300}
   .toast.show{transform:translateY(0);opacity:1}
@@ -264,10 +320,49 @@
       <div class="section"><div class="section-header"><h3>📡 Canais</h3></div><div class="card-table" id="blogChannels"></div></div>
     </div>
 
-    <div class="page" id="page-books"><div class="page-header"><h2>📗 Livros</h2></div><div class="stats-grid" id="bookStats"></div></div>
-    <div class="page" id="page-courses"><div class="page-header"><h2>🎓 Cursos</h2></div><div class="stats-grid" id="courseStats"></div></div>
-    <div class="page" id="page-images"><div class="page-header"><h2>🎨 Imagens</h2></div></div>
-    <div class="page" id="page-hermes"><div class="page-header"><h2>🗣️ Hermes</h2></div></div>
+    <div class="page" id="page-books">
+      <div class="page-header"><h2>📗 Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
+      <div class="stats-grid" id="bookStats"></div>
+      <div class="section">
+        <div class="section-header"><h3>📚 Biblioteca</h3></div>
+        <div class="card-table" id="bookList"><div class="empty">Nenhum livro cadastrado</div></div>
+      </div>
+    </div>
+    <div class="page" id="page-courses">
+      <div class="page-header"><h2>🎓 Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
+      <div class="stats-grid" id="courseStats"></div>
+      <div class="section">
+        <div class="section-header"><h3>📚 Catalogo de Cursos</h3></div>
+        <div class="card-table" id="courseList"><div class="empty">Nenhum curso cadastrado</div></div>
+      </div>
+    </div>
+    <div class="page" id="page-images">
+      <div class="page-header"><h2>🎨 Imagens</h2><p>Imagens geradas e utilizadas nos artigos</p></div>
+      <div class="section">
+        <div class="section-header"><h3>📸 Galeria de Imagens</h3></div>
+        <div class="card-table" id="imageGallery"><div class="empty">Nenhuma imagem gerada ainda</div></div>
+      </div>
+    </div>
+    <div class="page" id="page-hermes">
+      <div class="page-header"><h2>🗣️ Hermes</h2><p>Orquestrador inteligente do ecossistema Dezafira</p></div>
+      <div class="card-table" id="hermesChat" style="padding:20px">
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:600px;margin:0 auto">
+          <div style="background:#12141e;border-radius:12px;padding:16px;min-height:200px;max-height:400px;overflow-y:auto;font-size:13px;line-height:1.6" id="hermesMessages">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>
+              <div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">
+                <strong style="color:#a5b4fc;font-size:12px">Hermes</strong>
+                <p style="margin-top:4px;color:#8a91a5">Ola! Sou o Hermes, orquestrador do sistema Dezafira. Como posso ajudar?</p>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="hermesInput" placeholder="Digite sua mensagem para o Hermes..." style="flex:1;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#e8edf2;font-size:13px;font-family:inherit" onkeydown="if(event.key==='Enter') sendHermes()">
+            <button class="btn btn-primary" onclick="sendHermes()" style="white-space:nowrap">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="page" id="page-lili">
       <div class="page-header"><h2>👩‍💻 LiLi — Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
       <div class="stats-grid" id="liliStats"></div>
@@ -315,6 +410,10 @@ function navigate(p){
   if(p==="dashboard")loadDashboard();
   else if(p==="pipeline"){renderPipeline();loadHistory();}
   else if(p==="blogs")loadBlogs();
+  else if(p==="books")loadBooks();
+  else if(p==="courses")loadCourses();
+  else if(p==="images")loadImages();
+  else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
   closeSidebar();window.scrollTo(0,0);
 }
@@ -876,7 +975,135 @@ async function liliCorrectArticle(postId){
   }
 }
 
-loadDashboard();
+async function loadBooks(){
+  var statsEl=$("bookStats"),listEl=$("bookList");
+  if(!statsEl)return;
+  try{
+    var data=await api("/api/v1/factory/dashboard");
+    var booksCount=data.books_count||0;
+    statsEl.innerHTML='<div class="stat-card"><div class="label">Total de Livros</div><div class="value">'+booksCount+'</div></div>'+
+      '<div class="stat-card"><div class="label">Capitulos</div><div class="value">-</div></div>'+
+      '<div class="stat-card"><div class="label">Palavras</div><div class="value">-</div></div>'+
+      '<div class="stat-card"><div class="label">Status</div><div class="value" style="font-size:14px;color:#fbbf24">Fabrica de Livros em breve</div></div>';
+    if(listEl&&(!data.books||!data.books.length)){
+      listEl.innerHTML='<div class="empty">Nenhum livro cadastrado ainda. A Fabrica de Livros sera ativada em breve.</div>';
+    }else if(listEl&&data.books&&data.books.length){
+      listEl.innerHTML=data.books.map(function(b){
+        return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(b.title||"")+'</div><div class="meta">'+(b.author||"")+'</div></div><div><span class="tag tag-blue">'+(b.chapters||0)+' cap</span></div></div>';
+      }).join("");
+    }
+  }catch(e){statsEl.innerHTML='<div class="stat-card"><div class="label">Erro</div><div class="value" style="font-size:14px;color:#f87171">Erro ao carregar</div></div>';}
+}
+
+async function loadCourses(){
+  var statsEl=$("courseStats"),listEl=$("courseList");
+  if(!statsEl)return;
+  try{
+    var data=await api("/api/v1/factory/dashboard");
+    var coursesCount=data.courses_count||0;
+    statsEl.innerHTML='<div class="stat-card"><div class="label">Total de Cursos</div><div class="value">'+coursesCount+'</div></div>'+
+      '<div class="stat-card"><div class="label">Modulos</div><div class="value">-</div></div>'+
+      '<div class="stat-card"><div class="label">Aulas</div><div class="value">-</div></div>'+
+      '<div class="stat-card"><div class="label">Status</div><div class="value" style="font-size:14px;color:#fbbf24">Fabrica de Cursos em breve</div></div>';
+    if(listEl&&(!data.courses||!data.courses.length)){
+      listEl.innerHTML='<div class="empty">Nenhum curso cadastrado ainda. A Fabrica de Cursos sera ativada em breve.</div>';
+    }else if(listEl&&data.courses&&data.courses.length){
+      listEl.innerHTML=data.courses.map(function(c){
+        return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(c.title||"")+'</div><div class="meta">'+(c.category||"")+'</div></div><div><span class="tag tag-purple">'+(c.modules||0)+' mod</span></div></div>';
+      }).join("");
+    }
+  }catch(e){statsEl.innerHTML='<div class="stat-card"><div class="label">Erro</div><div class="value" style="font-size:14px;color:#f87171">Erro ao carregar</div></div>';}
+}
+
+async function loadImages(){
+  var gal=$("imageGallery");
+  if(!gal)return;
+  try{
+    var dash=await api("/api/v1/factory/dashboard");
+    var images=[];
+    (dash.posts?.recent||[]).forEach(function(p){
+      if(p.featured_image_url){
+        images.push({url:p.featured_image_url,title:p.title,post_id:p.id});
+      }
+    });
+    if(!images.length){
+      gal.innerHTML='<div class="empty">Nenhuma imagem encontrada nos artigos</div>';
+      return;
+    }
+    var grid=document.createElement("div");
+    grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:16px";
+    images.forEach(function(img){
+      var card=document.createElement("div");
+      card.style.cssText="background:#0b0c12;border:1px solid #14161f;border-radius:10px;overflow:hidden;cursor:pointer";
+      card.onclick=function(){window.open(img.url);};
+      var imgEl=document.createElement("img");
+      imgEl.src=img.url;
+      imgEl.alt=img.title||"";
+      imgEl.style.cssText="width:100%;height:120px;object-fit:cover;display:block";
+      imgEl.onerror=function(){
+        this.style.display="none";
+        var fb=document.createElement("div");
+        fb.style.cssText="height:120px;display:flex;align-items:center;justify-content:center;color:#5c6370;font-size:12px";
+        fb.textContent="Erro ao carregar";
+        this.parentElement.appendChild(fb);
+      };
+      var label=document.createElement("div");
+      label.style.cssText="padding:8px 10px;font-size:11px;color:#8a91a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      label.textContent=(img.title||"").slice(0,40);
+      card.appendChild(imgEl);
+      card.appendChild(label);
+      grid.appendChild(card);
+    });
+    gal.innerHTML="";
+    gal.appendChild(grid);
+  }catch(e){
+    gal.innerHTML='<div class="empty">Erro ao carregar imagens: '+escapeHtml(e.message)+'</div>';
+  }
+}async function loadHermes(){
+  // Chat container already rendered in HTML
+  var messagesEl=$("hermesMessages");
+  if(!messagesEl)return;
+  // Ensure initial message is visible
+  if(!messagesEl.querySelector(".hermes-initialized")){
+    var div=document.createElement("div");
+    div.className="hermes-initialized";
+    div.style.display="none";
+    messagesEl.appendChild(div);
+  }
+}
+window.sendHermes=function(){
+  var input=$("hermesInput"),msgEl=$("hermesMessages");
+  if(!input||!msgEl||!input.value.trim())return;
+  var text=input.value.trim();
+  input.value="";
+  // Add user message
+  var userDiv=document.createElement("div");
+  userDiv.style.cssText="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end";
+  userDiv.innerHTML='<div style="background:#1e2030;border-radius:12px;padding:10px 14px;flex:0 1 auto;max-width:80%">'+
+    '<p style="color:#e8edf2;font-size:13px">'+escapeHtml(text)+'</p></div>'+
+    '<div style="width:32px;height:32px;background:#2a2d3e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👤</div>';
+  msgEl.appendChild(userDiv);
+  // Add bot thinking
+  var botDiv=document.createElement("div");
+  botDiv.style.cssText="display:flex;gap:8px;margin-bottom:12px";
+  botDiv.id="hermesThinking";
+  botDiv.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>'+
+    '<div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">'+
+    '<strong style="color:#a5b4fc;font-size:12px">Hermes</strong><p style="margin-top:4px;color:#8a91a5"><span class="spinner" style="width:12px;height:12px"></span> Pensando...</p></div>';
+  msgEl.appendChild(botDiv);
+  msgEl.scrollTop=msgEl.scrollHeight;
+  // Simulate response (replace with actual API call later)
+  setTimeout(function(){
+    var thinking=$("hermesThinking");
+    if(thinking){
+      thinking.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>'+
+        '<div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">'+
+        '<strong style="color:#a5b4fc;font-size:12px">Hermes</strong><p style="margin-top:4px;color:#8a91a5">Funcionalidade de chat em desenvolvimento. Em breve o Hermes respondera com dados reais do sistema!</p></div>';
+    }
+    msgEl.scrollTop=msgEl.scrollHeight;
+  },1500);
+};
+
 </script>
 </body>
 </html>

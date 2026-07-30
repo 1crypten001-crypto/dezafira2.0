@@ -163,6 +163,7 @@ class BlogPost(Base):
     id = Column(String(50), primary_key=True, index=True)
     channel_id = Column(String(50), ForeignKey("blog_channels.id"), nullable=True)
     title = Column(String(500), nullable=False)
+    author = Column(String(200), default="Equipe Dezafira")
     slug = Column(String(500), nullable=True)
     content = Column(Text, nullable=True)
     excerpt = Column(String(1000), nullable=True)
@@ -384,6 +385,30 @@ try:
             conn.execute(text("ALTER TABLE blog_channels ADD COLUMN subdomain VARCHAR(100);"))
             conn.commit()
             print("[Database] Coluna subdomain adicionada na tabela blog_channels.")
+        except Exception:
+            pass
+
+        # author na tabela blog_posts
+        try:
+            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN author VARCHAR(200) DEFAULT 'Equipe Dezafira';"))
+            conn.commit()
+            print("[Database] Coluna author adicionada na tabela blog_posts.")
+        except Exception:
+            pass
+
+        # updated_at na tabela blog_posts
+        try:
+            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN updated_at TIMESTAMP;"))
+            conn.commit()
+            print("[Database] Coluna updated_at adicionada na tabela blog_posts.")
+        except Exception:
+            pass
+
+        # updated_at na tabela blog_channels
+        try:
+            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN updated_at TIMESTAMP;"))
+            conn.commit()
+            print("[Database] Coluna updated_at adicionada na tabela blog_channels.")
         except Exception:
             pass
             
@@ -839,7 +864,8 @@ def delete_db_blog_channel(channel_id: str) -> bool:
         db.close()
 
 def create_db_blog_post(channel_id: str, title: str, slug: str, content: str,
-                        excerpt: str = "", keywords: str = "", topic: str = "") -> dict:
+                        excerpt: str = "", keywords: str = "", topic: str = "",
+                        author: str = "Equipe Dezafira") -> dict:
     db = SessionLocal()
     try:
         new_post = BlogPost(
@@ -851,6 +877,7 @@ def create_db_blog_post(channel_id: str, title: str, slug: str, content: str,
             excerpt=excerpt,
             keywords=keywords,
             topic=topic,
+            author=author,
             status="draft",
             word_count=len(content.split()),
         )
@@ -888,6 +915,7 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
                 "platform_url": p.platform_url,
                 "word_count": p.word_count,
                 "topic": p.topic,
+                "author": getattr(p, "author", "Equipe Dezafira"),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             } for p in posts
@@ -916,6 +944,7 @@ def get_db_blog_post(post_id: str) -> dict:
                 "platform_url": p.platform_url,
                 "word_count": p.word_count,
                 "topic": p.topic,
+                "author": getattr(p, "author", "Equipe Dezafira"),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             }

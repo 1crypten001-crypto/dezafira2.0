@@ -1366,142 +1366,35 @@ async def get_monetization_status(channel_id: str = None):
 # PAGINAS DE SISTEMA — Privacidade, Sobre, Contato
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PAGE_PRIVACY = """<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Politica de Privacidade — O Reino</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet">
-<style>
-body{font-family:'Inter',sans-serif;background:#faf6ef;color:#3d3227;line-height:1.8;margin:0;padding:0}
-.container{max-width:800px;margin:0 auto;padding:40px 24px}
-h1{font-family:'Playfair Display',serif;color:#1a1410;font-size:32px;margin-bottom:8px}
-h2{color:#2a2219;font-size:20px;margin-top:32px;padding-bottom:6px;border-bottom:2px solid #f0e8d5}
-p{margin-bottom:16px;color:#5a4a3a}
-ul{color:#5a4a3a;margin-bottom:16px;padding-left:20px}
-li{margin-bottom:6px}
-.back{display:inline-block;margin-bottom:24px;color:#d4a853;text-decoration:none;font-weight:600}
-.back:hover{text-decoration:underline}
-</style>
-</head>
-<body>
-<div class="container">
-<a href="/blog/o-reino" class="back">&larr; Voltar ao Blog</a>
-<h1>Politica de Privacidade</h1>
-<p><em>Ultima atualizacao: julho de 2026</em></p>
-<h2>1. Introducao</h2>
-<p>O blog <strong>"O Reino"</strong> respeita a sua privacidade. Esta Politica de Privacidade explica como coletamos, usamos, compartilhamos e protegemos suas informacoes quando voce visita nosso site.</p>
-<h2>2. Dados que Coletamos</h2>
-<ul>
-<li><strong>Dados de navegacao:</strong> endereco IP, tipo de navegador, paginas visitadas</li>
-<li><strong>Cookies:</strong> utilizamos cookies proprios e de terceiros</li>
-<li><strong>Dados fornecidos voluntariamente:</strong> nome e e-mail em formularios</li>
-</ul>
-<h2>3. Uso de Cookies do Google</h2>
-<p>Utilizamos o <strong>Google AdSense</strong> para exibir anuncios. O Google utiliza cookies para veicular anuncios com base nas visitas anteriores dos usuarios ao nosso site ou a outros sites. Voce pode desativar a personalizacao de anuncios visitando as <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Configuracoes de Anuncios do Google</a>.</p>
-<p>Para mais informacoes: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Como o Google usa as informacoes de sites</a>.</p>
-<h2>4. LGPD</h2>
-<p>Em conformidade com a Lei 13.709/2018 (LGPD), voce tem direito a acessar, corrigir e solicitar a eliminacao de seus dados.</p>
-<h2>5. Contato</h2>
-<p>Para exercer seus direitos: <strong>contato@dezafira.com.br</strong></p>
-</div>
-</body>
-</html>"""
 
-PAGE_ABOUT = """<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Sobre Nos — O Reino</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet">
-<style>
-body{font-family:'Inter',sans-serif;background:#faf6ef;color:#3d3227;line-height:1.8;margin:0;padding:0}
-.container{max-width:800px;margin:0 auto;padding:40px 24px}
-h1{font-family:'Playfair Display',serif;color:#1a1410;font-size:32px;margin-bottom:8px}
-h2{color:#2a2219;font-size:20px;margin-top:32px;padding-bottom:6px;border-bottom:2px solid #f0e8d5}
-p{margin-bottom:16px;color:#5a4a3a}
-.back{display:inline-block;margin-bottom:24px;color:#d4a853;text-decoration:none;font-weight:600}
-.back:hover{text-decoration:underline}
-</style>
-</head>
-<body>
-<div class="container">
-<a href="/blog/o-reino" class="back">&larr; Voltar ao Blog</a>
-<h1>Sobre Nos — O Reino</h1>
-<h2>Nosso Proposito</h2>
-<p><strong>"O Reino"</strong> e um blog dedicado a explorar e compartilhar os ensinamentos de Jesus Cristo a luz das Escrituras Sagradas. Oferecemos reflexoes profundas, estudos biblicos e meditacoes que ajudam pessoas a compreender e aplicar os principios do Reino de Deus em sua vida diaria.</p>
-<h2>Nossa Missao</h2>
-<ul>
-<li><strong>Ensinar:</strong> Explicar as Escrituras de forma clara e acessivel</li>
-<li><strong>Refletir:</strong> Provocar reflexao profunda sobre fe e espiritualidade</li>
-<li><strong>Aplicar:</strong> Mostrar como viver os ensinamentos de Jesus no seculo XXI</li>
-</ul>
-<h2>Entre em Contato</h2>
-<p>contato@dezafira.com.br</p>
-</div>
-</body>
-</html>"""
 
-PAGE_CONTACT = """<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Contato — O Reino</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet">
-<style>
-body{font-family:'Inter',sans-serif;background:#faf6ef;color:#3d3227;line-height:1.8;margin:0;padding:0}
-.container{max-width:800px;margin:0 auto;padding:40px 24px}
-h1{font-family:'Playfair Display',serif;color:#1a1410;font-size:32px;margin-bottom:24px}
-.back{display:inline-block;margin-bottom:24px;color:#d4a853;text-decoration:none;font-weight:600}
-.back:hover{text-decoration:underline}
-.contact-card{background:#fff;border:1px solid #e0d5c0;border-radius:12px;padding:32px;margin-bottom:20px}
-.contact-card label{display:block;font-size:14px;font-weight:600;color:#3d3227;margin-bottom:6px}
-.contact-card input,.contact-card textarea{width:100%;padding:10px 14px;border:1px solid #e0d5c0;border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;background:#faf6ef;color:#3d3227;margin-bottom:16px}
-.contact-card input:focus,.contact-card textarea:focus{outline:none;border-color:#d4a853}
-.contact-card button{background:#d4a853;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
-.contact-card button:hover{background:#a67c2e}
-</style>
-</head>
-<body>
-<div class="container">
-<a href="/blog/o-reino" class="back">&larr; Voltar ao Blog</a>
-<h1>Entre em Contato</h1>
-<div class="contact-card">
-<form id="contactForm">
-<label for="name">Seu Nome</label>
-<input type="text" id="name" placeholder="Seu nome completo" required>
-<label for="email">Seu E-mail</label>
-<input type="email" id="email" placeholder="seu@email.com" required>
-<label for="message">Sua Mensagem</label>
-<textarea id="message" rows="5" placeholder="Escreva sua mensagem..." required></textarea>
-<button type="submit">Enviar Mensagem</button>
-</form>
-<div id="contactSuccess" style="display:none;text-align:center;padding:20px;color:#22c55e;font-weight:600">Mensagem enviada com sucesso!</div>
-</div>
-<p>contato@dezafira.com.br</p>
-<script>
-document.getElementById('contactForm').addEventListener('submit',function(e){
-  e.preventDefault();
-  document.getElementById('contactForm').style.display='none';
-  document.getElementById('contactSuccess').style.display='block';
-});
-</script>
-</div>
-</body>
-</html>"""
+@app.get("/blog/{slug}/privacidade", response_class=HTMLResponse)
+async def serve_privacy_page(slug: str):
+    from modules.blog_viewer import generate_privacy_page
+    from modules.database import get_db_blog_info
+    blog_info = get_db_blog_info(slug) or {}
+    return HTMLResponse(content=generate_privacy_page(slug, blog_info))
 
-@app.get("/blog/o-reino/privacidade", response_class=HTMLResponse)
-async def serve_privacy_page():
-    return HTMLResponse(content=PAGE_PRIVACY)
+@app.get("/blog/{slug}/sobre", response_class=HTMLResponse)
+async def serve_about_page(slug: str):
+    from modules.blog_viewer import generate_about_page
+    from modules.database import get_db_blog_info
+    blog_info = get_db_blog_info(slug) or {}
+    return HTMLResponse(content=generate_about_page(slug, blog_info))
 
-@app.get("/blog/o-reino/sobre", response_class=HTMLResponse)
-async def serve_about_page():
-    return HTMLResponse(content=PAGE_ABOUT)
+@app.get("/blog/{slug}/contato", response_class=HTMLResponse)
+async def serve_contact_page(slug: str):
+    from modules.blog_viewer import generate_contact_page
+    from modules.database import get_db_blog_info
+    blog_info = get_db_blog_info(slug) or {}
+    return HTMLResponse(content=generate_contact_page(slug, blog_info))
 
-@app.get("/blog/o-reino/contato", response_class=HTMLResponse)
-async def serve_contact_page():
-    return HTMLResponse(content=PAGE_CONTACT)
-
+@app.get("/blog/{slug}/termos", response_class=HTMLResponse)
+async def serve_terms_page(slug: str):
+    from modules.blog_viewer import generate_terms_page
+    from modules.database import get_db_blog_info
+    blog_info = get_db_blog_info(slug) or {}
+    return HTMLResponse(content=generate_terms_page(slug, blog_info))
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ROBOTS.TXT & SITEMAP
@@ -1515,6 +1408,7 @@ async def robots_txt():
 @app.get("/sitemap.xml", response_class=HTMLResponse)
 async def sitemap_xml():
     from modules.database import SessionLocal, BlogPost, BlogChannel
+    from datetime import datetime
     db = SessionLocal()
     try:
         posts = db.query(BlogPost).filter(BlogPost.status.in_(["published", "draft"])).all()
@@ -1523,17 +1417,23 @@ async def sitemap_xml():
         db.close()
     urls = []
     base_url = "https://dezafira.com.br"
+    today = datetime.utcnow().strftime("%Y-%m-%d")
     for ch in channels:
         slug = ch.site_url or "/blog/" + ch.name.lower().replace(" ", "-")
-        urls.append(f"<url><loc>{base_url}{slug}</loc><priority>0.9</priority></url>")
-        urls.append(f"<url><loc>{base_url}{slug}/sobre</loc><priority>0.5</priority></url>")
-        urls.append(f"<url><loc>{base_url}{slug}/privacidade</loc><priority>0.3</priority></url>")
-        urls.append(f"<url><loc>{base_url}{slug}/contato</loc><priority>0.5</priority></url>")
+        ch_date = getattr(ch, 'updated_at', None) or getattr(ch, 'created_at', None) or datetime.utcnow()
+        lastmod = ch_date.strftime("%Y-%m-%d")
+        urls.append(f"<url><loc>{base_url}{slug}</loc><lastmod>{lastmod}</lastmod><priority>0.9</priority></url>")
+        urls.append(f"<url><loc>{base_url}{slug}/sobre</loc><lastmod>{today}</lastmod><priority>0.5</priority></url>")
+        urls.append(f"<url><loc>{base_url}{slug}/privacidade</loc><lastmod>{today}</lastmod><priority>0.3</priority></url>")
+        urls.append(f"<url><loc>{base_url}{slug}/contato</loc><lastmod>{today}</lastmod><priority>0.5</priority></url>")
+        urls.append(f"<url><loc>{base_url}{slug}/termos</loc><lastmod>{today}</lastmod><priority>0.3</priority></url>")
     for p in posts:
         ch = next((c for c in channels if c.id == p.channel_id), None)
         if ch:
             slug = ch.site_url or "/blog/" + ch.name.lower().replace(" ", "-")
-            urls.append(f"<url><loc>{base_url}{slug}?post={p.id}</loc><priority>0.8</priority></url>")
+            p_date = getattr(p, 'updated_at', None) or getattr(p, 'created_at', None) or datetime.utcnow()
+            lastmod = p_date.strftime("%Y-%m-%d")
+            urls.append(f"<url><loc>{base_url}{slug}?post={p.id}</loc><lastmod>{lastmod}</lastmod><priority>0.8</priority></url>")
     xml_content = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(urls) + "</urlset>"
     return HTMLResponse(content=xml_content, media_type="application/xml")
 
@@ -2210,9 +2110,12 @@ async def redirect_oreino():
     return RedirectResponse(url="/blog/o-reino")
 
 @app.get("/blog/{slug}", response_class=HTMLResponse)
-async def serve_blog_frontend(slug: str, post: str = None):
-    """Serve o frontend publico do blog com artigos renderizados no servidor.
-    Suporta ?post=post_id para visualizar artigo individual.
+async def serve_blog_frontend(slug: str, post: str = None, cat: str = None, q: str = None):
+    """Serve o frontend publico do blog.
+    Suporta:
+      ?post=post_id  - artigo individual
+      ?cat=categoria  - filtrar por categoria (busca nas keywords)
+      ?q=termo        - buscar por termo no titulo/conteudo
     """
     from modules.blog_viewer import generate_blog_html
     from modules.database import get_db_blog_info, get_db_blog_posts, get_db_blog_post
@@ -2226,7 +2129,32 @@ async def serve_blog_frontend(slug: str, post: str = None):
             individual_post = get_db_blog_post(post)
             if not individual_post:
                 individual_post = {"error": "not found"}
-        posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
+        # Busca todos os posts
+        all_posts = get_db_blog_posts(channel_id=blog_info["id"], limit=200) or []
+        
+        # Filtro por categoria (?cat=)
+        if cat and not individual_post:
+            cat_lower = cat.lower().strip()
+            filtered = []
+            for p in all_posts:
+                kw = (p.get("keywords") or "").lower()
+                tit = (p.get("title") or "").lower()
+                if cat_lower in kw or cat_lower in tit:
+                    filtered.append(p)
+            posts = filtered if filtered else all_posts
+        # Busca por termo (?q=)
+        elif q and not individual_post:
+            q_lower = q.lower().strip()
+            filtered = []
+            for p in all_posts:
+                tit = (p.get("title") or "").lower()
+                kw = (p.get("keywords") or "").lower()
+                exc = (p.get("excerpt") or "").lower()
+                if q_lower in tit or q_lower in kw or q_lower in exc:
+                    filtered.append(p)
+            posts = filtered if filtered else []
+        else:
+            posts = all_posts[:50]
     else:
         from modules.database import get_db_blog_channels
         channels = get_db_blog_channels()
@@ -2236,7 +2164,13 @@ async def serve_blog_frontend(slug: str, post: str = None):
                 individual_post = get_db_blog_post(post)
             posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
 
-    html = generate_blog_html(slug, blog_info, posts, post=individual_post)
+    # Computar artigos relacionados (excluir o post atual)
+    related = []
+    if individual_post and individual_post.get('id') and posts:
+        pid = individual_post['id']
+        related = [p for p in posts if p.get('id') != pid][:3]
+
+    html = generate_blog_html(slug, blog_info, posts, post=individual_post, related_posts=related)
     return HTMLResponse(content=html)
 @app.post("/api/v1/blog/{slug}/posts/{post_id}/generate-image")
 async def generate_blog_post_image(slug: str, post_id: str):
