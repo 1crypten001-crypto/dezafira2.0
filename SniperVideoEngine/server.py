@@ -3004,6 +3004,7 @@ async def process_hermes_command(message: str, channel_id: str = None, backgroun
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _macro_results: dict = {}
+_running_tasks: dict = {}  # prevent GC of background pipeline tasks
 
 
 
@@ -3193,6 +3194,92 @@ async def delete_blog_post(post_id: str):
 
 
 
+
+
+
+
+@app.post("/api/v1/pipeline/run-blog-factory")
+async def run_blog_factory_frontend(payload: dict):
+    """Alias da UI - delega para a pipeline macro."""
+    blog_name = payload.get("blog_name", "")
+    niche = payload.get("niche", "")
+    language = payload.get("language", "pt")
+    target_articles = payload.get("target_articles", 3)
+    if not blog_name or not niche:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="blog_name and niche are required")
+    
+    import uuid
+    tid = f"ff_{uuid.uuid4().hex[:8]}"
+    
+    from modules.blog_pipeline import run_blog_macro_pipeline
+    
+    _macro_results[tid] = {
+        "status": "active",
+        "phase": "fundacao",
+        "progress": 0,
+        "message": "🚀 Iniciando pipeline...",
+        "blog_name": blog_name,
+        "niche": niche,
+        "data": None,
+        "last_update": __import__('time').time(),
+    }
+    
+    def _touch_macro(pid):
+        if pid in _macro_results:
+            _macro_results[pid]["last_update"] = __import__('time').time()
+    
+    def on_progress(pid, stage_id, progress, message, data):
+        if pid in _macro_results:
+            _touch_macro(pid)
+            try:
+                real_stage = data.get("stage_id", stage_id) if isinstance(data, dict) else stage_id
+                real_prog = data.get("progress", progress) if isinstance(data, dict) else progress
+                real_msg = data.get("message", message) if isinstance(data, dict) else message
+                real_status = data.get("status", "running") if isinstance(data, dict) else "running"
+                _macro_results[pid].update({
+                    "status": real_status if real_status != "running" else "active",
+                    "phase": real_stage,
+                    "progress": real_prog,
+                    "message": real_msg,
+                    "data": data,
+                })
+            except Exception as e:
+                print(f"[FF-PIPELINE] on_progress error: {e}")
+    
+    async def _run_and_report():
+        try:
+            async def _heartbeat():
+                while True:
+                    await asyncio.sleep(15)
+                    if tid not in _macro_results:
+                        break
+                    if _macro_results[tid].get("status") in ("completed", "failed"):
+                        break
+                    # Apenas atualiza timestamp para UI saber que pipeline esta viva
+                    _macro_results[tid]["last_update"] = __import__('time').time()
+            
+            hb_task = asyncio.create_task(_heartbeat())
+            try:
+                state = await run_blog_macro_pipeline(
+                    blog_name=blog_name, niche=niche, language=language,
+                    task_id=tid, target_articles=target_articles,
+                    on_progress=on_progress,
+                )
+                _macro_results[tid]["status"] = state.get("status", "completed")
+                _macro_results[tid]["data"] = state
+            finally:
+                hb_task.cancel()
+        except Exception as e:
+            _macro_results[tid]["status"] = "failed"
+            _macro_results[tid]["error"] = str(e)
+            _macro_results[tid]["last_update"] = __import__('time').time()
+    
+    import asyncio
+    task = asyncio.create_task(_run_and_report())
+    _running_tasks[tid] = task  # prevent GC
+    
+    return {"task_id": tid, "blog_name": blog_name, "niche": niche, "status": "starting", "message": "Pipeline iniciada!"}
 @app.post("/api/v1/pipeline/run-sync")
 async def run_sync_pipeline(payload: dict):
     """Executa a pipeline de blog de forma SINCRONA (inline na requisicao).
