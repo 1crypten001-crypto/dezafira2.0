@@ -490,7 +490,19 @@ async function loadMonetization(){
   var scoreEl=$("monetizationScore");
   if(!container)return;
   try{
-    var data=await api("/api/v1/monetization/status");
+    // Descobre o channel_id do primeiro blog ativo via dashboard
+    var chId="";
+    try{
+      var dash=await api("/api/v1/factory/dashboard");
+      if(dash.channels&&dash.channels.list&&dash.channels.list.length>0)
+        chId=dash.channels.list[0].id;
+    }catch(e){}
+    if(!chId){
+      try{var info=await api("/api/v1/blog/o-reino/info");if(info)chId=info.id;}catch(e2){}
+    }
+    var url="/api/v1/monetization/status";
+    if(chId) url+="?channel_id="+encodeURIComponent(chId);
+    var data=await api(url);
     if(data.error||data.overall===undefined){
       container.innerHTML='<div class="empty">Erro ao carregar avaliacao</div>';
       return;
