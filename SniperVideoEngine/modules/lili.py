@@ -331,13 +331,13 @@ async def revisar_blog(channel_id: str) -> dict:
             t = issue["tipo"]
             issues_by_type[t] = issues_by_type.get(t, 0) + 1
 
-    avg_score = round(total_score / len(posts), 1) if posts else 0
+    avg_score = round(total_score / len(posts_meta), 1) if posts_meta else 0
 
     return {
         "channel_id": channel_id,
         "status": "completo",
-        "message": f"{approved_count}/{len(posts)} artigos aprovados. Score medio: {avg_score}/100",
-        "total": len(posts),
+        "message": f"{approved_count}/{len(posts_meta)} artigos aprovados. Score medio: {avg_score}/100",
+        "total": len(posts_meta),
         "approved": approved_count,
         "avg_score": avg_score,
         "issues_by_type": issues_by_type,
