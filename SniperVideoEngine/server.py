@@ -2027,6 +2027,11 @@ async def generate_blog_banner(slug: str):
     return {"success": False, "error": "Nenhuma imagem encontrada"}
 
 
+@app.get("/oreino", response_class=RedirectResponse)
+@app.get("/o-reino", response_class=RedirectResponse)
+async def redirect_oreino():
+    return RedirectResponse(url="/blog/o-reino")
+
 @app.get("/blog/{slug}", response_class=HTMLResponse)
 async def serve_blog_frontend(slug: str):
     """Serve o frontend público do blog."""
