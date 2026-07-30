@@ -610,15 +610,49 @@ async function loadMonetization(){
 
 function _connectWs(){
   if(ws){try{ws.close()}catch(e){}}
-  // Start polling fallback immediately
+  // Start polling fallback immediately (sera substituido pelo WS quando conectar)
   if(ms&&ms.taskId)_startPolling(ms.taskId);
   try{
     var proto=location.protocol==="https:"?"wss:":"ws:";
-    ws=new WebSocket(proto+"//"+location.host+"/ws");
-    ws.onmessage=function(e){try{var msg=JSON.parse(e.data);handleWsMessage(msg)}catch(ex){}};
-    ws.onopen=function(){if(window._pollTimer){clearInterval(window._pollTimer);window._pollTimer=null}};
-    ws.onclose=function(){if(ms&&ms.running)setTimeout(_connectWs,5000)};
-    ws.onerror=function(){};
+    ws=new WebSocket(proto+"//"+location.host+"/ws/pipeline");
+    ws.onmessage=function(e){
+      try{
+        var msg=JSON.parse(e.data);
+        // Reseta watchdog ao receber mensagem
+        if(ms&&ms.running){
+          var warnEl=$("macroCurrentPhase");
+          if(warnEl)warnEl.style.color="";
+        }
+        handleWsMessage(msg);
+        // Se recebeu dados via WS, para o polling
+        if(msg.type&&window._pollTimer){
+          clearInterval(window._pollTimer);
+          window._pollTimer=null;
+        }
+      }catch(ex){}
+    };
+    ws.onopen=function(){
+      // Inscreve no canal da pipeline
+      if(ms&&ms.taskId){
+        try{ws.send(JSON.stringify({type:"subscribe",task_id:ms.taskId}))}catch(e){}
+      }
+      // NÃO para o polling aqui! Aguarda primeira mensagem via ws.onmessage.
+      // Se o subscribe falhar, o WebSocket fica aberto sem enviar dados,
+      // e sem o polling a UI trava para sempre.
+    };
+    ws.onclose=function(){
+      // Fallback: volta ao polling se desconectar
+      if(ms&&ms.running&&ms.taskId&&!window._pollTimer){
+        _startPolling(ms.taskId);
+      }
+      // Reconecta apenas se pipeline ainda estiver rodando
+      if(ms&&ms.running){
+        setTimeout(_connectWs,5000);
+      }
+    };
+    ws.onerror=function(){
+      // Fallback: polling continua
+    };
   }catch(e){}
 }
 function _startPolling(tid){

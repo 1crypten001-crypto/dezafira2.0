@@ -3244,6 +3244,29 @@ async def run_blog_factory_frontend(payload: dict):
                     "message": real_msg,
                     "data": data,
                 })
+                # Broadcast via WebSocket para clientes conectados
+                try:
+                    asyncio.create_task(_ws_hub.broadcast(
+                        event_type="pipeline_progress",
+                        data={
+                            "stage_id": real_stage,
+                            "progress": real_prog,
+                            "message": real_msg,
+                            "status": real_status if real_status != "running" else "active",
+                            "current_article": (data or {}).get("state", {}).get("current_macro_stage"),
+                            "article_topic": (data or {}).get("article_topic"),
+                            "phase_detail": real_stage,
+                            "lili_score": (data or {}).get("lili_score"),
+                            "lili_approved": (data or {}).get("lili_approved"),
+                            "article_title": (data or {}).get("article_title"),
+                            "task_id": pid,
+                            "articles_generated": (data or {}).get("state", {}).get("articles_generated", 0),
+                            "target_articles": (data or {}).get("state", {}).get("target_articles", 0),
+                        },
+                        task_id=pid,
+                    ))
+                except Exception as ws_e:
+                    print(f"[FF-PIPELINE] WebSocket broadcast error: {ws_e}")
             except Exception as e:
                 print(f"[FF-PIPELINE] on_progress error: {e}")
     
@@ -3268,12 +3291,34 @@ async def run_blog_factory_frontend(payload: dict):
                 )
                 _macro_results[tid]["status"] = state.get("status", "completed")
                 _macro_results[tid]["data"] = state
+                # Broadcast completion via WebSocket
+                try:
+                    asyncio.create_task(_ws_hub.broadcast(
+                        event_type="pipeline_complete",
+                        data={
+                            "status": state.get("status", "completed"),
+                            "articles_generated": state.get("articles_generated", 0),
+                        },
+                        task_id=tid,
+                    ))
+                except Exception as _ws_e:
+                    print(f"[WS] completion broadcast error: {_ws_e}")
             finally:
                 hb_task.cancel()
         except Exception as e:
             _macro_results[tid]["status"] = "failed"
             _macro_results[tid]["error"] = str(e)
             _macro_results[tid]["last_update"] = __import__('time').time()
+            # Broadcast failure via WebSocket
+            try:
+                import asyncio as _aio2
+                _aio2.ensure_future(_ws_hub.broadcast(
+                    event_type="pipeline_failed",
+                    data={"error": str(e)[:200]},
+                    task_id=tid,
+                ))
+            except Exception:
+                pass
     
     import asyncio
     task = asyncio.create_task(_run_and_report())
