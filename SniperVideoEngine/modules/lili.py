@@ -456,31 +456,29 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         content_html
     )
 
-    # 9. Remover 2+ barras invertidas consecutivas (backslash_dominated)
-    content_html = re.sub(r'\\\\{3,}', '', content_html)
-
-    # 10. Remover padrao <numero:numero\\> (angle_bracket_number_slash)
-    content_html = re.sub(r'<\d+[:.]\d+\\{1,2}>', '', content_html)
-    content_html = re.sub(r'<\d+[:.]\d+>', '', content_html)  # sem backslash tambem
-
-    # 11. Remover paragrafos <p> inteiros que contenham garbage text
-    # Remove <p> com 2+ barras invertidas consecutivas (backslash_dominated)
+        # 9. (ANTES de remover backslashes!) Remover secoes INTEIRAS (h2/h3) com garbage
     content_html = re.sub(
-        r'<p>.*?\\\\{3,}.*?</p>',
+        r'<h[23][^>]*>.*?(?=<h[23]|\\Z)',
+        lambda m: '' if re.search(r'\\{2,}', m.group(0)) else m.group(0),
+        content_html,
+        flags=re.DOTALL
+    )
+
+    # 10. Remover 2+ barras invertidas consecutivas
+    content_html = re.sub(r'\\{2,}', '', content_html)
+
+    # 11. Remover padrao <numero:numero>
+    content_html = re.sub(r'<\\d+[:.]\\d+>', '', content_html)
+
+    # 12. Remover paragrafos <p> INTEIROS com garbage text
+    content_html = re.sub(
+        r'<p>[^<]*\\{2,}[^<]*</p>',
         '',
         content_html,
         flags=re.DOTALL
     )
-    # Remove <p> com padrao <numero:numero> (angle_bracket_number_slash)
     content_html = re.sub(
-        r'<p>.*?<\d+[:.]\d+>.*?</p>',
-        '',
-        content_html,
-        flags=re.DOTALL
-    )
-    # Remove blocos de texto solto (fora de tags <p>) com 3+ barras invertidas
-    content_html = re.sub(
-        r'(?:^|(?<=</p>))[^<]*?\\\\{3,}[^<]*(?=<p>|$)',
+        r'<p>[^<]*<\\d+[:.]\\d+>[^<]*</p>',
         '',
         content_html,
         flags=re.DOTALL
@@ -488,72 +486,3 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
 
     return content_html
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# FUNCAO DE INTEGRACAO COM A PIPELINE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def lili_review_after_generation(post_id: str) -> dict:
-    """
-    Chamada apos gerar cada artigo na pipeline.
-    Revisa e corrige automaticamente se necessario.
-
-    Args:
-        post_id: ID do post recem-gerado
-
-    Returns:
-        Dict com resultado da revisao
-    """
-    from modules.database import get_db_blog_post, update_db_blog_post
-
-    # Buscar o artigo
-    post = get_db_blog_post(post_id)
-    if not post:
-        return {
-            "post_id": post_id,
-            "status": "erro",
-            "message": "Post nao encontrado",
-        }
-
-    content = post.get("content", "")
-
-    # 1. Revisar
-    review = await revisar_artigo(post)
-
-    # 2. Se tiver issues de conteudo, tentar correcao automatica
-    if not review["content_review"]["approved"]:
-        corrected = corrigir_conteudo_automatico(content)
-        if corrected != content:
-            # Salvar versao corrigida
-            update_db_blog_post(post_id, content=corrected)
-
-            # Re-revisar
-            post["content"] = corrected
-            review = await revisar_artigo(post)
-            review["auto_corrected"] = True
-        else:
-            review["auto_corrected"] = False
-    else:
-        review["auto_corrected"] = False
-
-    # 3. Se nao tiver imagem, marcar para geracao posterior
-    if not post.get("featured_image_url"):
-        review["needs_image"] = True
-    else:
-        review["needs_image"] = False
-
-    return review
-
-
-async def lili_review_all_pending(channel_id: str) -> dict:
-    """
-    Revisa todos os artigos pendentes de um blog.
-    Usado na fase de Entrega.
-
-    Args:
-        channel_id: ID do canal
-
-    Returns:
-        Resumo da revisao
-    """
-    return await revisar_blog(channel_id)
