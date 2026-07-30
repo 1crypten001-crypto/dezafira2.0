@@ -146,6 +146,18 @@
   .pipeline-history .history-item:last-child{border-bottom:none}
   .pipeline-history .history-topic{font-weight:600;flex:1}
   .pipeline-history .history-time{color:#5c6370;font-size:11px}
+
+  /* Lili quality panel */
+  .lili-article-row{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;padding:14px 20px;border-bottom:1px solid #14161f;align-items:center}
+  .lili-article-row:last-child{border-bottom:none}
+  .lili-article-title{font-size:14px;font-weight:600;color:#e8edf2}
+  .lili-article-meta{font-size:11px;color:#5c6370;margin-top:2px}
+  .lili-issue-tag{display:inline-flex;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px}
+  .lili-issue-tag.high{background:rgba(239,68,68,.15);color:#f87171}
+  .lili-issue-tag.med{background:rgba(245,158,11,.15);color:#fbbf24}
+  .lili-issue-tag.low{background:rgba(59,130,246,.15);color:#60a5fa}
+  .lili-score-bar{width:80px;height:6px;background:#14161f;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+  .lili-score-fill{height:100%;border-radius:3px;transition:width .5s ease}
 </style>
 </head>
 <body>
@@ -166,6 +178,7 @@
       <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
       <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">🎨</span> Imagens</a>
       <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🗣️</span> Hermes</a>
+      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">👩‍💻</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira v1.0</div>
   </aside>
@@ -254,11 +267,24 @@
     <div class="page" id="page-courses"><div class="page-header"><h2>🎓 Cursos</h2></div><div class="stats-grid" id="courseStats"></div></div>
     <div class="page" id="page-images"><div class="page-header"><h2>🎨 Imagens</h2></div></div>
     <div class="page" id="page-hermes"><div class="page-header"><h2>🗣️ Hermes</h2></div></div>
+    <div class="page" id="page-lili">
+      <div class="page-header"><h2>👩‍💻 LiLi — Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
+      <div class="stats-grid" id="liliStats"></div>
+      <div class="section">
+        <div class="section-header">
+          <h3>📄 Artigos Revisados</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm btn-primary" id="liliReviewAllBtn" onclick="liliReviewAll()">🔄 Revisar Todos</button>
+          </div>
+        </div>
+        <div class="card-table" id="liliResults"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Revisando artigos...</div></div>
+      </div>
+    </div>
   </main>
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const pageTitles={dashboard:"Dashboard",blogs:"Blogs",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes"};
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
 const STAGES=[
   {id:"fundacao",name:"Fundacao",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
@@ -288,6 +314,7 @@ function navigate(p){
   if(p==="dashboard")loadDashboard();
   else if(p==="pipeline"){renderPipeline();loadHistory();}
   else if(p==="blogs")loadBlogs();
+  else if(p==="lili")loadLili();
   closeSidebar();window.scrollTo(0,0);
 }
 function toggleSidebar(){$("sidebar").classList.toggle("open");}
@@ -606,6 +633,145 @@ function handleWsMessage(msg){
   }else if(t==="pipeline_failed"){
     addLog("fundacao","Erro: "+(d.error||""),"error");
     ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";$("resetMacroBtn").style.display="";
+  }
+}
+
+
+async function loadLili(){
+  var statsEl=$("liliStats"),resultsEl=$("liliResults"),badgeEl=$("liliBadge");
+  if(!statsEl||!resultsEl)return;
+  
+  // First, get the channel_id
+  var chId="";
+  try{
+    var dash=await api("/api/v1/factory/dashboard");
+    if(dash.channels&&dash.channels.list&&dash.channels.list.length>0)
+      chId=dash.channels.list[0].id;
+  }catch(e){}
+  if(!chId){
+    try{var info=await api("/api/v1/blog/o-reino/info");if(info)chId=info.id;}catch(e2){}
+  }
+  
+  if(!chId){
+    statsEl.innerHTML='<div class="stat-card"><div class="label">Erro</div><div class="value" style="font-size:16px">Nenhum blog encontrado</div></div>';
+    resultsEl.innerHTML='<div class="empty">Crie um blog primeiro</div>';
+    return;
+  }
+  
+  // Show loading
+  resultsEl.innerHTML='<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Revisando artigos...</div>';
+  statsEl.innerHTML='<div class="stat-card"><div class="label">Revisando...</div><div class="value" style="font-size:16px"><span class="spinner" style="width:14px;height:14px;margin-right:6px"></span> Analisando qualidade</div></div>';
+  
+  // Call review-all endpoint
+  var data=await api("/api/v1/lili/review-all?channel_id="+encodeURIComponent(chId));
+  
+  if(data.error){
+    resultsEl.innerHTML='<div class="empty">Erro: '+escapeHtml(data.error)+'</div>';
+    statsEl.innerHTML='<div class="stat-card"><div class="label">Erro</div><div class="value" style="font-size:14px;color:#f87171">'+escapeHtml(data.error)+'</div></div>';
+    return;
+  }
+  
+  // Update stats
+  var total=data.total||0;
+  var approved=data.approved||0;
+  var avgScore=data.avg_score||0;
+  var scoreColor=avgScore>=80?"#4ade80":avgScore>=60?"#fbbf24":"#f87171";
+  
+  statsEl.innerHTML=
+    '<div class="stat-card"><div class="label">Total Artigos</div><div class="value">'+total+'</div></div>'+
+    '<div class="stat-card"><div class="label">Aprovados</div><div class="value" style="color:#4ade80">'+approved+'</div><div class="sub">'+Math.round((approved/total)*100)+'% dos artigos</div></div>'+
+    '<div class="stat-card"><div class="label">Reprovados</div><div class="value" style="color:#f87171">'+(total-approved)+'</div></div>'+
+    '<div class="stat-card"><div class="label">Score Medio</div><div class="value" style="color:'+scoreColor+'">'+avgScore+'</div><div class="sub">de 100</div></div>';
+  
+  // Update badge
+  if(badgeEl)badgeEl.textContent=total;
+  
+  // Build results list
+  var results=data.results||[];
+  if(!results.length){
+    resultsEl.innerHTML='<div class="empty">Nenhum artigo para revisar</div>';
+    return;
+  }
+  
+  // Separate approved and reproved
+  var approvedList=[], reprovedList=[];
+  results.forEach(function(r){
+    if(r.approved)approvedList.push(r);
+    else reprovedList.push(r);
+  });
+  
+  var html="";
+  
+  // Reproved first
+  if(reprovedList.length){
+    html+='<div style="padding:10px 20px;font-size:12px;font-weight:700;color:#f87171;background:rgba(239,68,68,.06);border-bottom:1px solid #14161f">\u26A0\uFE0F Artigos Reprovados ('+reprovedList.length+')</div>';
+    reprovedList.forEach(function(r){
+      var cr=r.content_review||{};
+      var issues=cr.issues||[];
+      var score=cr.score||0;
+      var scoreColor2=score>=80?"#4ade80":score>=60?"#fbbf24":"#f87171";
+      
+      var issueTags=issues.slice(0,3).map(function(i){
+        var cls=i.severity==="alta"?"high":i.severity==="media"?"med":"low";
+        return '<span class="lili-issue-tag '+cls+'">'+escapeHtml(i.tipo||"issue")+'</span>';
+      }).join("");
+      var more=issues.length>3?' <span style="font-size:10px;color:#5c6370">+'+ (issues.length-3)+'</span>':'';
+      
+      html+='<div class="lili-article-row">'+
+        '<div><div class="lili-article-title">'+escapeHtml(r.title||"")+'</div>'+
+        '<div class="lili-article-meta">'+issueTags+more+'</div></div>'+
+        '<div style="text-align:center"><div class="lili-score-bar"><div class="lili-score-fill" style="width:'+score+'%;background:'+scoreColor2+'"></div></div></div>'+
+        '<div style="font-weight:700;font-size:14px;color:'+scoreColor2+';text-align:center">'+score+'</div>'+
+        '<div style="display:flex;gap:4px">'+
+          '<button class="btn btn-sm" onclick="liliCorrectArticle(\''+r.post_id+'\')" title="Corrigir automaticamente">\uD83D\uDEE0\uFE0F</button>'+
+        '</div></div>';
+    });
+  }
+  
+  // Approved
+  if(approvedList.length){
+    html+='<div style="padding:10px 20px;font-size:12px;font-weight:700;color:#4ade80;background:rgba(34,197,94,.06);border-bottom:1px solid #14161f">\u2705 Artigos Aprovados ('+approvedList.length+')</div>';
+    approvedList.forEach(function(r){
+      var cr=r.content_review||{};
+      var score=cr.score||0;
+      var scoreColor2=score>=80?"#4ade80":score>=60?"#fbbf24":"#f87171";
+      
+      html+='<div class="lili-article-row">'+
+        '<div><div class="lili-article-title">'+escapeHtml(r.title||"")+'</div>'+
+        '<div class="lili-article-meta">\u2705 Aprovado</div></div>'+
+        '<div style="text-align:center"><div class="lili-score-bar"><div class="lili-score-fill" style="width:'+score+'%;background:'+scoreColor2+'"></div></div></div>'+
+        '<div style="font-weight:700;font-size:14px;color:'+scoreColor2+';text-align:center">'+score+'</div>'+
+        '<div></div></div>';
+    });
+  }
+  
+  resultsEl.innerHTML=html;
+}
+
+async function liliReviewAll(){
+  var btn=$("liliReviewAllBtn");
+  if(btn)btn.disabled=true;
+  showToast("Revisando todos os artigos...");
+  await loadLili();
+  if(btn)btn.disabled=false;
+  showToast("Revisao concluida!");
+}
+
+async function liliCorrectArticle(postId){
+  if(!postId)return;
+  showToast("Corrigindo artigo...");
+  try{
+    var res=await api("/api/v1/lili/correct/"+postId,{method:"POST"});
+    if(res.error){showToast("Erro: "+res.error);return;}
+    if(res.corrected){
+      showToast("Correcoes aplicadas! Score: "+res.review?.content_review?.score+"/100");
+    }else{
+      showToast("Nenhuma correcao necessaria. Score: "+res.review?.content_review?.score+"/100");
+    }
+    // Reload
+    loadLili();
+  }catch(e){
+    showToast("Erro ao corrigir: "+e.message);
   }
 }
 

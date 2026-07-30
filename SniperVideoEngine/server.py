@@ -2960,6 +2960,86 @@ async def process_hermes_command(message: str, channel_id: str = None, backgroun
 _macro_results: dict = {}
 
 
+
+
+# ============================================================================
+# LILI — REVISORA DE QUALIDADE
+# ============================================================================
+
+@app.get("/api/v1/lili/review/{post_id}")
+async def lili_review_post(post_id: str):
+    """Revisa um artigo individual e retorna score + issues."""
+    from modules.lili import revisar_artigo
+    from modules.database import get_db_blog_post
+    
+    post = get_db_blog_post(post_id)
+    if not post:
+        return {"error": "Post nao encontrado"}
+    
+    review = await revisar_artigo(post)
+    return review
+
+
+@app.get("/api/v1/lili/review-all")
+async def lili_review_all(channel_id: str = None):
+    """Revisa todos os artigos de um blog."""
+    from modules.lili import revisar_blog
+    
+    if not channel_id:
+        from modules.database import get_db_blog_channels
+        channels = get_db_blog_channels()
+        if channels and len(channels) > 0:
+            channel_id = channels[0]["id"]
+        else:
+            return {"error": "Nenhum canal encontrado"}
+    
+    review = await revisar_blog(channel_id)
+    return review
+
+
+@app.post("/api/v1/lili/correct/{post_id}")
+async def lili_correct_post(post_id: str):
+    """Aplica correcoes automaticas no conteudo do artigo."""
+    from modules.lili import corrigir_conteudo_automatico, revisar_artigo
+    from modules.database import get_db_blog_post, update_db_blog_post
+    
+    post = get_db_blog_post(post_id)
+    if not post:
+        return {"error": "Post nao encontrado"}
+    
+    original_content = post.get("content", "")
+    if not original_content:
+        return {"error": "Post sem conteudo"}
+    
+    # Aplicar correcoes
+    corrected = corrigir_conteudo_automatico(original_content)
+    
+    if corrected == original_content:
+        # Nada foi corrigido — refazer revisao para confirmar
+        post["content"] = corrected
+        review = await revisar_artigo(post)
+        return {
+            "success": True,
+            "corrected": False,
+            "message": "Nenhuma correcao necessaria",
+            "review": review,
+        }
+    
+    # Salvar versao corrigida
+    update_db_blog_post(post_id, content=corrected)
+    
+    # Re-revisar
+    post["content"] = corrected
+    review = await revisar_artigo(post)
+    
+    return {
+        "success": True,
+        "corrected": True,
+        "message": f"{len(review['content_review']['issues'])} issues restantes apos correcao",
+        "review": review,
+    }
+
+
 @app.get("/api/v1/pipeline/macro-result/{task_id}")
 async def get_macro_result(task_id: str):
     """Retorna o resultado de uma execução de macro pipeline."""
