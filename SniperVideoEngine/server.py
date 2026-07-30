@@ -3121,6 +3121,72 @@ async def delete_blog_post(post_id: str):
     return {"success": True, "message": f"Post {post_id} removido"}
 
 
+
+@app.post("/api/v1/pipeline/run-sync")
+async def run_sync_pipeline(payload: dict):
+    """Executa a pipeline de blog de forma SINCRONA (inline na requisicao).
+    
+    Nao usa background tasks, threading ou create_task.
+    A pipeline roda dentro do timeout da requisicao HTTP.
+    Para 5 artigos (~60s cada), espere ~5 minutos de resposta.
+    A UI acompanha o progresso via _macro_results polling.
+    """
+    blog_name = payload.get("blog_name", "")
+    niche = payload.get("niche", "")
+    language = payload.get("language", "pt")
+    target_articles = payload.get("target_articles", 3)
+    if not blog_name or not niche:
+        raise HTTPException(status_code=400, detail="blog_name and niche are required")
+    
+    import uuid
+    tid = f"sync_{uuid.uuid4().hex[:8]}"
+    
+    from modules.blog_pipeline import run_blog_macro_pipeline
+    from modules.database import get_db_blog_channels
+    
+    # Armazena estado inicial para UI acompanhar via polling
+    _macro_results[tid] = {"status": "starting", "blog_name": blog_name, "niche": niche, "data": None}
+    
+    def on_progress(pid, stage_id, progress, message, data):
+        if pid in _macro_results:
+            try:
+                real_stage = data.get("stage_id", stage_id) if isinstance(data, dict) else stage_id
+                real_prog = data.get("progress", progress) if isinstance(data, dict) else progress
+                real_msg = data.get("message", message) if isinstance(data, dict) else message
+                real_status = data.get("status", "running") if isinstance(data, dict) else "running"
+                _macro_results[pid].update({
+                    "status": real_status,
+                    "phase": real_stage,
+                    "progress": real_prog,
+                    "message": real_msg,
+                    "data": data,
+                })
+            except Exception as e:
+                print(f"[SYNC-PIPELINE] on_progress error: {e}")
+    
+    print(f"[SYNC-PIPELINE] Starting: {tid} blog={blog_name} articles={target_articles}")
+    
+    state = await run_blog_macro_pipeline(
+        blog_name=blog_name, niche=niche, language=language,
+        task_id=tid, target_articles=target_articles,
+        on_progress=on_progress,
+    )
+    
+    _macro_results[tid]["status"] = state.get("status", "completed")
+    _macro_results[tid]["data"] = state
+    
+    print(f"[SYNC-PIPELINE] Complete: {tid} status={state.get('status')}")
+    
+    return {
+        "task_id": tid,
+        "blog_name": blog_name,
+        "niche": niche,
+        "status": state.get("status", "completed"),
+        "articles_generated": state.get("articles_generated", 0),
+        "total_articles": target_articles,
+        "state": state,
+    }
+
 @app.post("/api/v1/blog/generate-batch")
 async def generate_batch_articles(payload: dict):
     """Gera N artigos completos de forma direta, UM POR VEZ, síncrono.
