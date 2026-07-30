@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 import html as html_mod
 from modules.brand_themes import detect_theme, generate_theme_css
+from urllib.parse import quote
 
 
 def esc(text):
@@ -178,7 +179,8 @@ def _get_categories(nicho: str) -> list:
 
 def _page_frame(title: str, body_html: str, theme_css: str = "",
                description: str = "", image_url: str = "",
-               canonical_url: str = "", schema_json: str = "") -> str:
+               canonical_url: str = "", schema_json: str = "",
+               theme: dict = None) -> str:
     """Gera pagina HTML completa com SEO: Open Graph, Twitter Cards, Schema.org e canonical."""
     google_fonts = "Inter:wght@300;400;500;600;700"
     if "Playfair" in theme_css:
@@ -188,11 +190,22 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
     if "Lora" in theme_css:
         google_fonts += "|Lora:wght@400;600;700"
 
-    favicon = ("data:image/svg+xml,"
-               "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
-               "%3Crect width='32' height='32' rx='6' fill='%23d4a853'/%3E"
-               "%3Ctext x='16' y='23' font-size='22' text-anchor='middle' fill='%231a1410'%3E%E2%9C%9D%3C/text%3E"
-               "%3C/svg%3E")
+    # Favicon dinamico por tema
+    if theme:
+        pri = theme.get("colors", {}).get("primary", "#d4a853").lstrip("#")
+        ico_char = theme.get("header_icon", "✝")
+        ico_urlencoded = quote(ico_char, safe='')
+        favicon = ("data:image/svg+xml,"
+                   "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+                   f"%3Crect width='32' height='32' rx='6' fill='%23{pri}'/%3E"
+                   f"%3Ctext x='16' y='23' font-size='22' text-anchor='middle' fill='%23fff'%3E{ico_urlencoded}%3C/text%3E"
+                   "%3C/svg%3E")
+    else:
+        favicon = ("data:image/svg+xml,"
+                   "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+                   "%3Crect width='32' height='32' rx='6' fill='%236366f1'/%3E"
+                   "%3Ctext x='16' y='23' font-size='22' text-anchor='middle' fill='%23fff'%3E%F0%9F%93%9D%3C/text%3E"
+                   "%3C/svg%3E")
 
     desc_escaped = esc(description[:160]) if description else ""
     img_escaped = esc(image_url) if image_url else ""
@@ -235,6 +248,8 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: str = "") -> str:
     """Gera header fixo com logo, navegacao por categorias e busca."""
     categories = _get_categories(blog_niche)
+    theme = detect_theme(blog_niche)
+    header_icon = theme.get("header_icon", "&#10013;")
     nav_items = "".join(
         f'<a href="/blog/{slug}?cat={c.lower()}" class="nav-link{" active" if current_cat.lower() == c.lower() else ""}">{c}</a>'
         for c in categories
@@ -242,7 +257,7 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
     return f"""<header class="site-header">
   <div class="header-inner">
     <a href="/blog/{slug}" class="header-logo">
-      <span class="logo-icon">&#10013;</span>
+      <span class="logo-icon">{header_icon}</span>
       <span class="logo-text">{blog_name}</span>
     </a>
     <nav class="header-nav" id="mainNav">
@@ -271,6 +286,8 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
     """Gera footer com links e informacoes."""
     if not year:
         year = str(datetime.now().year)
+    theme = detect_theme(blog_niche)
+    header_icon = theme.get("header_icon", "&#10013;")
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])
     # Descricao dinâmica baseada no nicho
@@ -278,7 +295,7 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
     return f"""<footer class="site-footer">
   <div class="footer-grid">
     <div class="footer-brand">
-      <span class="logo-icon">&#10013;</span>
+      <span class="logo-icon">{header_icon}</span>
       <strong>{blog_name}</strong>
       <p>Blog dedicado a {niche_desc.lower()}.</p>
     </div>
@@ -370,7 +387,7 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
 {_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}"""
 
     title = f"{blog_name} &mdash; Blog sobre {blog_niche}" if blog_niche else blog_name
-    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical)
+    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme)
 
 
 def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts: list = None) -> str:
@@ -490,7 +507,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
 
     return _page_frame(f"{title} &mdash; {blog_name}", body, theme_css,
                        description=excerpt_clean, image_url=img_url,
-                       canonical_url=canonical, schema_json=schema)
+                       canonical_url=canonical, schema_json=schema, theme=theme)
 
 
 # ─── STATIC PAGES ────────────────────────────────────────────────────
@@ -534,7 +551,7 @@ def generate_static_page(slug: str, blog_info: dict, page_title: str, content_ht
 {_get_footer_html(slug, blog_name, blog_niche)}"""
 
     full_title = f"{page_title} &mdash; {blog_name}"
-    return _page_frame(full_title, body, theme_css)
+    return _page_frame(full_title, body, theme_css, theme=detect_theme(blog_niche))
 
 
 def generate_privacy_page(slug: str, blog_info: dict) -> str:

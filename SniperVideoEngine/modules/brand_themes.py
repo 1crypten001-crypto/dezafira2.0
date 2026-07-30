@@ -257,7 +257,7 @@ def generate_theme_css(nicho: str, blog_name: str = "") -> str:
 --dark:{c["dark"]};--dark2:{c["dark2"]};
 --text:{c["text"]};--text-light:{c["text_light"]};
 --accent:{c["accent"]};--border:{c["border"]};
---radius:12px;--radius-sm:8px;--shadow:0 2px 20px rgba(0,0,0,0.08);
+--gold:{c["primary"]};--radius:12px;--radius-sm:8px;--shadow:0 2px 20px rgba(0,0,0,0.08);
 --font-heading:{f["heading"]};--font-body:{f["body"]};
 }}
 *,*::before,*::after{{margin:0;padding:0;box-sizing:border-box}}
