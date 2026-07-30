@@ -2313,7 +2313,82 @@ async def get_blog_factory_status(task_id: str):
         return {"status": "unknown", "task_id": task_id, "message": "Pipeline nao encontrada ou ainda nao iniciada"}
     return result
 
+@app.post("/api/v1/blog/import-posts")
+async def import_blog_posts(payload: dict):
+    """Importa artigos em massa de um banco local para o Railway.
+    Payload: {"posts": [...], "channel_id": "..."}
+    """
+    from modules.database import SessionLocal, BlogPost
+    from datetime import datetime
+    import uuid
+
+    posts = payload.get("posts", [])
+    channel_id = payload.get("channel_id", "")
+
+    if not channel_id:
+        from modules.database import BlogChannel
+        db = SessionLocal()
+        try:
+            ch = db.query(BlogChannel).first()
+            if ch:
+                channel_id = ch.id
+        finally:
+            db.close()
+
+    if not channel_id:
+        raise HTTPException(status_code=400, detail="Nenhum channel_id fornecido e nenhum blog encontrado.")
+
+    inserted = 0
+    skipped = 0
+    errors = []
+
+    for post in posts:
+        title = post.get("title", "").strip()
+        if not title:
+            skipped += 1
+            continue
+
+        db = SessionLocal()
+        try:
+            existing = db.query(BlogPost).filter(BlogPost.title == title).first()
+            if existing:
+                skipped += 1
+                continue
+
+            slug = post.get("slug", "") or title.lower().replace(" ", "-")[:80]
+            new_post = BlogPost(
+                id=post.get("id") or f"post_{uuid.uuid4().hex[:8]}",
+                channel_id=channel_id,
+                title=title,
+                slug=slug,
+                content=post.get("content", ""),
+                excerpt=post.get("excerpt", ""),
+                keywords=post.get("keywords", ""),
+                featured_image_url=post.get("featured_image_url"),
+                status=post.get("status", "draft"),
+                word_count=post.get("word_count", 0),
+                topic=post.get("topic", ""),
+            )
+            db.add(new_post)
+            db.commit()
+            inserted += 1
+        except Exception as e:
+            db.rollback()
+            errors.append({"title": title[:40], "error": str(e)[:100]})
+        finally:
+            db.close()
+
+    return {
+        "message": "Importacao concluida!",
+        "inserted": inserted,
+        "skipped": skipped,
+        "errors": len(errors),
+        "error_details": errors[:5],
+    }
+
+
 @app.post("/api/v1/blog/generate-missing-images")
+
 async def generate_missing_images():
     """Gera imagens para todos os artigos do blog que estão sem."""
     from modules.ricardo import gerar_imagens_pendentes
