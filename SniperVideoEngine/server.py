@@ -62,6 +62,8 @@ app.add_middleware(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+import re
+
 # SUBDOMAIN MIDDLEWARE — Roteia subdominios para blogs
 # Ex: oreino.dezafira.com.br → /blog/o-reino
 # ═══════════════════════════════════════════════════════════════════════════════
