@@ -17,8 +17,8 @@ if not DATABASE_URL:
     # Garante que o diretório existe
     try:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Database] Erro ao buscar subdominio: {e}")
     # No Windows, SQLAlchemy requer forward slashes no path do SQLite
     db_path_unix = DB_PATH.replace("\\", "/")
     DATABASE_URL = f"sqlite:///{db_path_unix}"
@@ -145,7 +145,6 @@ class BlogChannel(Base):
     name = Column(String(100), nullable=False)
     nicho = Column(String(100), default="Geral")
     lang = Column(String(10), default="PT")
-    subdomain = Column(String(100), unique=True, nullable=True, index=True)
     platform = Column(String(50), default="wordpress")
     site_url = Column(String(500), nullable=True)
     api_endpoint = Column(String(500), nullable=True)
@@ -177,6 +176,16 @@ class BlogPost(Base):
     topic = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime, nullable=True)
+
+
+class BlogSubdomain(Base):
+    """Mapeamento subdominio -> blog (tabela separada)."""
+    __tablename__ = "blog_subdomains"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channel_id = Column(String(50), ForeignKey("blog_channels.id"), nullable=False, index=True)
+    subdomain = Column(String(100), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class BlogSection(Base):
@@ -439,6 +448,24 @@ def create_db_channel(name: str, nicho: str, lang: str):
             monetization_step="setup"
         )
         db.add(new_chan)
+        db.flush()
+        
+        # Store subdomain in separate table
+        if not subdomain:
+            import unicodedata as _ud, re as _re
+            subdomain = name.lower().replace(" ", "").replace("-", "")[:50]
+            subdomain = _ud.normalize("NFKD", subdomain).encode("ascii", "ignore").decode("ascii")
+            subdomain = subdomain.replace("[", "").replace("]", "").replace("(", "").replace(")", "")
+            subdomain = subdomain.replace("?", "").replace("!", "").replace(",", "").replace(".", "")
+            subdomain = subdomain.replace(":", "").replace(";", "").replace("'", '').replace('"', "")
+            subdomain = subdomain.replace("@", "").replace("#", "").replace("$", "").replace("%", "")
+            subdomain = _re.sub(r"[^a-z0-9-]", "", subdomain)
+        
+        existing_sd = db.query(BlogSubdomain).filter(BlogSubdomain.subdomain == subdomain).first()
+        if not existing_sd:
+            sd_entry = BlogSubdomain(channel_id=new_chan.id, subdomain=subdomain)
+            db.add(sd_entry)
+        
         db.commit()
         return {
             "id": new_chan.id,
@@ -752,7 +779,6 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             name=name,
             nicho=nicho,
             lang=lang,
-            subdomain=subdomain,
             platform=platform,
             site_url=site_url,
             api_endpoint=api_endpoint,
@@ -766,7 +792,7 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             "name": new_chan.name,
             "nicho": new_chan.nicho,
             "lang": new_chan.lang,
-            "subdomain": getattr(new_chan, "subdomain", None),
+            "subdomain": subdomain,
             "platform": new_chan.platform,
             "site_url": new_chan.site_url,
             "status": new_chan.status,
@@ -784,7 +810,7 @@ def get_db_blog_channels() -> list:
                 "name": c.name,
                 "nicho": c.nicho,
                 "lang": c.lang,
-                "subdomain": getattr(c, "subdomain", None) or slug.replace("-", "").lower()[:50],
+                "subdomain": __get_subdomain_for_channel(c.id, c.name.lower().replace(" ", "-")[:50]),
                 "platform": c.platform,
                 "site_url": c.site_url,
                 "status": c.status,
@@ -951,7 +977,7 @@ def get_db_blog_channel(channel_id: str) -> dict:
                 "lang": c.lang,
                 "platform": c.platform,
                 "site_url": c.site_url,
-                "subdomain": getattr(c, "subdomain", None) or slug.replace("-", "").lower()[:50],
+                "subdomain": __get_subdomain_for_channel(c.id, c.name.lower().replace(" ", "-")[:50]),
                 "api_endpoint": c.api_endpoint,
                 "api_token": c.api_token,
                 "username": c.username,
@@ -982,7 +1008,7 @@ def get_db_blog_info(slug: str) -> dict:
                     "name": c.name,
                     "nicho": c.nicho,
                     "lang": c.lang,
-                    "subdomain": getattr(c, "subdomain", None) or slug.replace("-", "").lower()[:50],
+                    "subdomain": __get_subdomain_for_channel(c.id, c.name.lower().replace(" ", "-")[:50]),
                     "slug": name_slug,
                     "platform": c.platform,
                     "site_url": c.site_url,
@@ -1012,36 +1038,56 @@ def update_db_blog_channel(channel_id: str, **kwargs) -> bool:
         db.close()
 
 
-def get_db_blog_by_subdomain(subdomain: str) -> dict:
-    """Retorna dados de um blog pelo subdominio."""
+
+def __get_subdomain_for_channel(channel_id, slug_fallback=""):
+    """Retorna subdominio de um canal (fallback para slug)."""
     db = SessionLocal()
     try:
-        c = db.query(BlogChannel).filter(BlogChannel.subdomain == subdomain).first()
-        if c:
-            post_count = db.query(BlogPost).filter(
-                BlogPost.channel_id == c.id
-            ).count()
-            return {
-                "id": c.id,
-                "name": c.name,
-                "nicho": c.nicho,
-                "lang": c.lang,
-                "subdomain": getattr(c, "subdomain", None) or slug.replace("-", "").lower()[:50],
-                "slug": c.name.lower().replace(" ", "-")[:50],
-                "platform": c.platform,
-                "site_url": c.site_url,
-                "status": c.status,
-                "frequency": c.frequency,
-                "banner_url": c.banner_url,
-                "post_count": post_count,
-                "created_at": c.created_at.isoformat() if c.created_at else None,
-            }
+        sd = db.query(BlogSubdomain).filter(BlogSubdomain.channel_id == channel_id).first()
+        if sd:
+            return sd.subdomain
+    except Exception:
+        pass
+    finally:
+        db.close()
+    if slug_fallback:
+        import unicodedata as _ud, re as _re
+        sub = slug_fallback.replace("-", "").lower()[:50]
+        sub = _ud.normalize("NFKD", sub).encode("ascii", "ignore").decode("ascii")
+        sub = _re.sub(r"[^a-z0-9-]", "", sub)
+        return sub
+    return ""
+
+def get_db_blog_by_subdomain(subdomain: str) -> dict:
+    """Retorna dados de um blog pelo subdominio (tabela blog_subdomains)."""
+    db = SessionLocal()
+    try:
+        sd = db.query(BlogSubdomain).filter(BlogSubdomain.subdomain == subdomain).first()
+        if sd:
+            c = db.query(BlogChannel).filter(BlogChannel.id == sd.channel_id).first()
+            if c:
+                post_count = db.query(BlogPost).filter(
+                    BlogPost.channel_id == c.id
+                ).count()
+                return {
+                    "id": c.id,
+                    "name": c.name,
+                    "nicho": c.nicho,
+                    "lang": c.lang,
+                    "subdomain": sd.subdomain,
+                    "slug": c.name.lower().replace(" ", "-")[:50],
+                    "platform": c.platform,
+                    "site_url": c.site_url,
+                    "status": c.status,
+                    "frequency": c.frequency,
+                    "banner_url": c.banner_url,
+                    "post_count": post_count,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
         return None
     finally:
         db.close()
 
-
-# ─── BlogSection CRUD ────────────────────────────────────────────────
 
 def create_db_blog_section(channel_id: str, name: str, slug: str = "",
                            description: str = "", keywords: str = "",

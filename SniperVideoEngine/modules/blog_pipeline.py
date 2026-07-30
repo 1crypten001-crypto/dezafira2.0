@@ -425,18 +425,7 @@ class BlogMacroPipeline:
             self._update_macro(sid, "active", 20,
                 "📡 Criando canal de blog no banco...")
 
-            # Auto-generate subdomain from blog name
-            import unicodedata
-            subdomain = blog_name.lower().replace(" ", "").replace("-", "")[:50]
-            subdomain = unicodedata.normalize('NFKD', subdomain).encode('ascii', 'ignore').decode('ascii')
-            subdomain = subdomain.replace("[", "").replace("]", "").replace("(", "").replace(")", "")
-            subdomain = subdomain.replace("?", "").replace("!", "").replace(",", "").replace(".", "")
-            subdomain = subdomain.replace(":", "").replace(";", "").replace("'", "").replace('"', "")
-            subdomain = subdomain.replace("@", "").replace("#", "").replace("$", "").replace("%", "")
-            import re
-            subdomain = re.sub(r'[^a-z0-9-]', '', subdomain)
-            if not subdomain:
-                subdomain = blog_name.lower().replace(" ", "-")[:50]
+            # Subdomain is auto-generated in create_db_blog_channel
             
             channel = create_db_blog_channel(
                 name=blog_name,
