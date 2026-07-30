@@ -466,17 +466,16 @@ function loadHistory(){
   });
 }
 
-async function loadDashboard(){
-  var d=await api("/api/v1/factory/dashboard");
-  loadMonetization();
-  if(d.error)return;
+function renderDashboardData(d){
+  if(!d||d.error)return;
   var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div><div class="sub">'+(d.channels?.active||0)+' ativos</div></div>';
   stats+='<div class="stat-card"><div class="label">Artigos</div><div class="value">'+(d.posts?.total||0)+'</div><div class="sub">'+(d.posts?.total_words||0).toLocaleString()+" palavras</div></div>";
   stats+='<div class="stat-card"><div class="label">Livros</div><div class="value">'+(d.books_count||0)+'</div></div>';
   stats+='<div class="stat-card"><div class="label">Cursos</div><div class="value">'+(d.courses_count||0)+'</div></div>';
-  $("dashStats").innerHTML=stats;
+  var oldStats=$("dashStats").innerHTML;
+  if(oldStats!==stats)$("dashStats").innerHTML=stats;
   var chs=d.channels?.list||[];
-  $("dashChannels").innerHTML=chs.length?chs.map(function(c){
+  var chHtml=chs.length?chs.map(function(c){
     var blogUrl=c.site_url||blogSlug(c.name);
     var withImg=c.posts_with_images||0;
     var withoutImg=c.posts_without_images||0;
@@ -484,12 +483,19 @@ async function loadDashboard(){
     var imgPct=total>0?Math.round((withImg/total)*100):0;
     var imgColor=imgPct>=80?'#22c55e':imgPct>=50?'#f59e0b':'#ef4444';
     var bar='<div style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:#14161f;border-radius:2px;overflow:hidden;min-width:50px"><div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:2px"></div></div><span style="font-size:10px;color:#8a91a5">'+withImg+'/'+total+'</span></div>';
-    return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+subTxt+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a>'+(c.subdomain?' <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" class="btn btn-sm" style="background:rgba(212,168,83,0.12);color:#d4a853">&#127760;</a>':'')+'</div></div>';
+    return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
   }).join(""):'<div class="empty">Nenhum canal</div>';
+  $("dashChannels").innerHTML=chHtml;
   var sum='<div class="table-row cols-3"><div><div class="title">📝 Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
   sum+='<div class="table-row cols-3"><div><div class="title">📗 Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
   sum+='<div class="table-row cols-3"><div><div class="title">🎓 Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
   $("factorySummary").innerHTML=sum;
+}
+
+async function loadDashboard(){
+  var d=await api("/api/v1/factory/dashboard");
+  loadMonetization();
+  renderDashboardData(d);
 }async function loadBlogs(){
   var d=await api("/api/v1/factory/dashboard");
   if(d.error)return;
@@ -622,6 +628,16 @@ function _connectWs(){
         if(ms&&ms.running){
           var warnEl=$("macroCurrentPhase");
           if(warnEl)warnEl.style.color="";
+        }
+        // Keepalive: responde ao ping do servidor
+        if(msg.type==="ping"){
+          try{ws.send(JSON.stringify({type:"pong",ts:Date.now()}))}catch(ex2){}
+          return;
+        }
+        // Dashboard update ao vivo
+        if(msg.type==="dashboard_update"){
+          renderDashboardData(msg.data);
+          return;
         }
         handleWsMessage(msg);
         // Se recebeu dados via WS, para o polling

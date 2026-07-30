@@ -592,6 +592,50 @@ async def startup_event():
 
     init_telegram_bot(on_telegram_chat, on_telegram_produce)
 
+    # Inicia WebSocket keepalive para detectar conexoes mortas
+    try:
+        from pipeline.websocket import WebSocketHub
+        _ws_hub.start_keepalive(interval=25)
+        print('[Startup] WebSocket keepalive iniciado (25s)')
+    except Exception as e:
+        print(f'[Startup] Erro ao iniciar keepalive: {e}')
+
+    # Configura e inicia broadcast periodico de metricas do dashboard
+    try:
+        async def _fetch_dashboard():
+            from modules.database import SessionLocal, BlogChannel, BlogPost
+            from sqlalchemy import func
+            db = SessionLocal()
+            try:
+                channels = db.query(BlogChannel).count()
+                posts = db.query(BlogPost).count()
+                words = db.query(func.coalesce(func.sum(BlogPost.word_count), 0)).scalar()
+                published = db.query(BlogPost).filter(BlogPost.status == 'published').count()
+                drafts = db.query(BlogPost).filter(BlogPost.status == 'draft').count()
+                channels_list = []
+                for c in db.query(BlogChannel).order_by(BlogChannel.created_at.desc()).all():
+                    ch_posts = db.query(BlogPost).filter(BlogPost.channel_id == c.id)
+                    with_img = ch_posts.filter(BlogPost.featured_image_url.isnot(None)).count()
+                    without_img = ch_posts.filter(BlogPost.featured_image_url.is_(None)).count()
+                    channels_list.append({
+                        'id': c.id, 'name': c.name, 'nicho': c.nicho,
+                        'lang': c.lang, 'post_count': ch_posts.count(),
+                        'posts_with_images': with_img, 'posts_without_images': without_img,
+                    })
+                return {
+                    'channels': {'total': channels, 'active': channels, 'list': channels_list},
+                    'posts': {'total': posts, 'published': published, 'drafts': drafts, 'total_words': words or 0},
+                    'books_count': 0, 'courses_count': 0,
+                }
+            finally:
+                db.close()
+        _ws_hub.set_dashboard_fetcher(_fetch_dashboard)
+        await _ws_hub.start_dashboard_broadcast(interval=30)
+        print('[Startup] Dashboard broadcast iniciado (30s)')
+    except Exception as e:
+        print(f'[Startup] Erro ao iniciar dashboard broadcast: {e}')
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD — Fábrica de Blogs (com Books + Courses)
 # ═══════════════════════════════════════════════════════════════════════════════
