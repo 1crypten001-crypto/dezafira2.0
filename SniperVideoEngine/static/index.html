@@ -465,7 +465,7 @@ async function loadDashboard(){
     var imgPct=total>0?Math.round((withImg/total)*100):0;
     var imgColor=imgPct>=80?'#22c55e':imgPct>=50?'#f59e0b':'#ef4444';
     var bar='<div style="display:flex;align-items:center;gap:4px"><div style="flex:1;height:4px;background:#14161f;border-radius:2px;overflow:hidden;min-width:50px"><div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:2px"></div></div><span style="font-size:10px;color:#8a91a5">'+withImg+'/'+total+'</span></div>';
-    return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
+    return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+subTxt+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a>'+(c.subdomain?' <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" class="btn btn-sm" style="background:rgba(212,168,83,0.12);color:#d4a853">&#127760;</a>':'')+'</div></div>';
   }).join(""):'<div class="empty">Nenhum canal</div>';
   var sum='<div class="table-row cols-3"><div><div class="title">📝 Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
   sum+='<div class="table-row cols-3"><div><div class="title">📗 Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
@@ -496,6 +496,8 @@ async function loadDashboard(){
   $("blogPosts").innerHTML=plist;
     var clist=chs.length?chs.map(function(c){
     var blogUrl=c.site_url||blogSlug(c.name);
+    var subTxt='';
+    if(c.subdomain) subTxt='<div style="font-size:.75rem;color:var(--text-light);margin-top:2px">&#127760; '+c.subdomain+'.dezafira.com.br</div>';
     var withImg=c.posts_with_images||0;
     var withoutImg=c.posts_without_images||0;
     var total=c.post_count||(withImg+withoutImg)||0;
@@ -506,7 +508,7 @@ async function loadDashboard(){
       '<div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:3px;transition:width .4s ease"></div></div>'+
       '<span style="font-size:11px;color:#8a91a5;white-space:nowrap">'+withImg+'/'+total+' img</span></div>';
     var tagClass=withoutImg>0?'tag-yellow':'tag-green';
-    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(c.name)+'</div><div class="meta">'+escapeHtml(c.nicho)+' &#8226; '+c.lang+'</div>'+bar+'</div><div><span class="tag '+tagClass+'">'+(c.post_count||0)+' posts</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
+    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(c.name)+'</div><div class="meta">'+escapeHtml(c.nicho)+' &#8226; '+c.lang+'</div>'+bar+subTxt+'</div><div><span class="tag '+tagClass+'">'+(c.post_count||0)+' posts</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a>'+(c.subdomain?' <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" class="btn btn-sm" style="background:rgba(212,168,83,0.12);color:#d4a853">&#127760;</a>':'')+'</div></div>';
   }).join(""):'<div class="empty">Nenhum canal</div>';
   $("blogChannels").innerHTML=clist;
 }

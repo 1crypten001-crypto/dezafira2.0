@@ -60,6 +60,76 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SUBDOMAIN MIDDLEWARE — Roteia subdominios para blogs
+# Ex: oreino.dezafira.com.br → /blog/o-reino
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_SUBDOMAIN_CACHE: dict = {}
+_LAST_SUBDOMAIN_REFRESH: float = 0
+_SUBDOMAIN_DOMAIN = os.getenv("SUBDOMAIN_DOMAIN", "dezafira.com.br")
+
+@app.middleware("http")
+async def subdomain_middleware(request, call_next):
+    """
+    Intercepta requisicoes e verifica se o Host header contem um subdominio.
+    Se encontrar subdominio conhecido, redireciona para /blog/{slug}.
+    Pula requisicoes de API e arquivos estaticos.
+    """
+    path = request.url.path
+    host = request.headers.get("host", "").lower()
+    
+    # So processa GET requests
+    if request.method != "GET":
+        return await call_next(request)
+    
+    # Pular requisicoes de API, estaticos, websocket
+    if path.startswith(("/api/", "/static/", "/outputs/", "/ws/", "/health", "/app/")):
+        return await call_next(request)
+    
+    # Pular se ja esta em /blog/ ou /oreino (evita loop)
+    if path.startswith("/blog/") or path in ("/oreino", "/o-reino"):
+        return await call_next(request)
+    
+    # Verificar se o Host tem subdominio (ex: oreino.dezafira.com.br)
+    subdomain = None
+    if host.endswith(_SUBDOMAIN_DOMAIN) and host != _SUBDOMAIN_DOMAIN:
+        prefix = host[:-(len(_SUBDOMAIN_DOMAIN) + 1)]
+        if prefix and "." not in prefix:
+            subdomain = prefix
+    elif "localhost" in host or "127.0.0.1" in host:
+        return await call_next(request)
+    
+    if not subdomain:
+        return await call_next(request)
+    
+    # Buscar blog pelo subdominio (com cache)
+    import time
+    now = time.time()
+    slug = _SUBDOMAIN_CACHE.get(subdomain)
+    if not slug or (now - _LAST_SUBDOMAIN_REFRESH > 60):
+        try:
+            from modules.database import get_db_blog_by_subdomain
+            blog = get_db_blog_by_subdomain(subdomain)
+            if blog:
+                slug = blog["slug"]
+                _SUBDOMAIN_CACHE[subdomain] = slug
+                _LAST_SUBDOMAIN_REFRESH = now
+            else:
+                return await call_next(request)
+        except Exception:
+            return await call_next(request)
+    
+    if not slug:
+        return await call_next(request)
+    
+    # Redirecionamento permanente (301) para o blog viewer
+    # Mantemos o subdominio como URL canônica — o Google segue redirects 301
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/blog/{slug}", status_code=301)
+
+
 # Dicionário na memória para guardar o status das gerações
 # Removidos channels.json e predictions_db locais. Usando database.py.
 
@@ -2011,6 +2081,59 @@ async def get_blog_info(slug: str):
     if not info:
         raise HTTPException(status_code=404, detail="Blog não encontrado")
     return info
+
+@app.get("/api/v1/blog/{slug}/subdomain")
+async def get_blog_subdomain(slug: str):
+    """Retorna o subdominio configurado para um blog."""
+    from modules.database import get_db_blog_info
+    info = get_db_blog_info(slug)
+    if not info:
+        raise HTTPException(status_code=404, detail="Blog não encontrado")
+    base_domain = os.getenv("SUBDOMAIN_DOMAIN", "dezafira.com.br")
+    subdomain = info.get("subdomain") or slug.replace("-", "").lower()[:50]
+    return {
+        "subdomain": subdomain,
+        "url": f"https://{subdomain}.{base_domain}" if subdomain else None,
+        "current": info.get("subdomain"),
+        "auto": slug.replace("-", "").lower()[:50],
+    }
+
+
+@app.post("/api/v1/blog/{slug}/subdomain")
+async def set_blog_subdomain(slug: str, payload: dict):
+    """Configura o subdominio de um blog."""
+    from modules.database import get_db_blog_info, update_db_blog_channel
+    info = get_db_blog_info(slug)
+    if not info:
+        raise HTTPException(status_code=404, detail="Blog não encontrado")
+    
+    subdomain = payload.get("subdomain", "").strip().lower()
+    if not subdomain:
+        raise HTTPException(status_code=400, detail="Subdominio nao pode ser vazio")
+    
+    # Sanitize subdomain
+    subdomain = subdomain.replace(" ", "").replace("_", "-")
+    subdomain = re.sub(r"[^a-z0-9-]", "", subdomain)
+    subdomain = subdomain[:50]
+    
+    if not subdomain:
+        raise HTTPException(status_code=400, detail="Subdominio invalido apos sanitizacao")
+    
+    success = update_db_blog_channel(info["id"], subdomain=subdomain)
+    if success:
+        base_domain = os.getenv("SUBDOMAIN_DOMAIN", "dezafira.com.br")
+        # Invalidar cache
+        try:
+            _SUBDOMAIN_CACHE.pop(subdomain, None)
+        except Exception:
+            pass
+        return {
+            "success": True,
+            "subdomain": subdomain,
+            "url": f"https://{subdomain}.{base_domain}",
+        }
+    return {"success": False, "error": "Falha ao atualizar subdominio"}
+
 
 
 @app.post("/api/v1/blog/{slug}/generate-banner")

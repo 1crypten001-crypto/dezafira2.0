@@ -425,11 +425,25 @@ class BlogMacroPipeline:
             self._update_macro(sid, "active", 20,
                 "📡 Criando canal de blog no banco...")
 
+            # Auto-generate subdomain from blog name
+            import unicodedata
+            subdomain = blog_name.lower().replace(" ", "").replace("-", "")[:50]
+            subdomain = unicodedata.normalize('NFKD', subdomain).encode('ascii', 'ignore').decode('ascii')
+            subdomain = subdomain.replace("[", "").replace("]", "").replace("(", "").replace(")", "")
+            subdomain = subdomain.replace("?", "").replace("!", "").replace(",", "").replace(".", "")
+            subdomain = subdomain.replace(":", "").replace(";", "").replace("'", "").replace('"', "")
+            subdomain = subdomain.replace("@", "").replace("#", "").replace("$", "").replace("%", "")
+            import re
+            subdomain = re.sub(r'[^a-z0-9-]', '', subdomain)
+            if not subdomain:
+                subdomain = blog_name.lower().replace(" ", "-")[:50]
+            
             channel = create_db_blog_channel(
                 name=blog_name,
                 nicho=niche,
                 lang=self.state.language,
                 platform="dezafira",
+                subdomain=subdomain,
             )
             self.state.channel_id = channel["id"]
 
@@ -440,6 +454,7 @@ class BlogMacroPipeline:
             brand_bible = await self._generate_brand_bible(blog_name, niche)
 
             # Salva brand bible via update (em channel_knowledge ou no próprio canal)
+            from modules.database import get_db_blog_by_subdomain
             update_db_blog_channel(channel["id"], site_url=f"/blog/{blog_name.lower().replace(' ', '-')}")
 
             # 3. Criar registro do pipeline run com dados completos

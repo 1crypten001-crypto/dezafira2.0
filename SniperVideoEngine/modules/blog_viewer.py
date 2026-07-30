@@ -107,6 +107,8 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     blog_name = esc(blog_info["name"])
     blog_niche = esc(blog_info.get("nicho", ""))
     pcount = len(posts)
+    subdomain = blog_info.get("subdomain", "")
+    subdomain_html = f'<a href="https://{subdomain}.dezafira.com.br" target="_blank" style="display:inline-block;margin-top:8px;padding:4px 12px;background:rgba(255,255,255,0.08);border-radius:20px;font-size:.8rem;color:var(--gold-light);text-decoration:none">&#128279; {subdomain}.dezafira.com.br</a>' if subdomain else ''
 
     cards_html = ""
     for p in posts:
@@ -141,6 +143,7 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     body = f"""<header class="blog-header">
   <h1>&#10013; {blog_name}</h1>
   <p>{blog_niche}</p>
+  {subdomain_html}
   <div class="blog-stats"><span>&#128197; {pcount} artigo{"s" if pcount != 1 else ""}</span></div>
 </header>
 <main class="blog-content">

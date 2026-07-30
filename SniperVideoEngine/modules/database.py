@@ -1,5 +1,6 @@
 import os
 import uuid
+import re
 from datetime import datetime
 from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, text, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -144,6 +145,7 @@ class BlogChannel(Base):
     name = Column(String(100), nullable=False)
     nicho = Column(String(100), default="Geral")
     lang = Column(String(10), default="PT")
+    subdomain = Column(String(100), unique=True, nullable=True, index=True)
     platform = Column(String(50), default="wordpress")
     site_url = Column(String(500), nullable=True)
     api_endpoint = Column(String(500), nullable=True)
@@ -365,6 +367,14 @@ try:
             conn.execute(text("ALTER TABLE blog_channels ADD COLUMN banner_url VARCHAR(1000);"))
             conn.commit()
             print("[Database] Coluna banner_url adicionada na tabela blog_channels.")
+        except Exception:
+            pass
+            
+        # subdomain na tabela blog_channels
+        try:
+            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN subdomain VARCHAR(100);"))
+            conn.commit()
+            print("[Database] Coluna subdomain adicionada na tabela blog_channels.")
         except Exception:
             pass
             
@@ -722,14 +732,27 @@ def update_db_app_payment(transaction_id: str, status: str):
 # ─── Blog CRUD ─────────────────────────────────────────────────────────
 
 def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wordpress",
-                           site_url: str = "", api_endpoint: str = "", api_token: str = "") -> dict:
+                           site_url: str = "", api_endpoint: str = "", api_token: str = "",
+                           subdomain: str = "") -> dict:
     db = SessionLocal()
     try:
+        # Auto-generate subdomain from name if not provided
+        if not subdomain:
+            import unicodedata
+            subdomain = name.lower().replace(" ", "").replace("-", "")[:50]
+            subdomain = unicodedata.normalize('NFKD', subdomain).encode('ascii', 'ignore').decode('ascii')
+            subdomain = subdomain.replace("[", "").replace("]", "").replace("(", "").replace(")", "")
+            subdomain = subdomain.replace("?", "").replace("!", "").replace(",", "").replace(".", "")
+            subdomain = subdomain.replace(":", "").replace(";", "").replace("'", "").replace('"', "")
+            subdomain = subdomain.replace("@", "").replace("#", "").replace("$", "").replace("%", "")
+            subdomain = re.sub(r'[^a-z0-9-]', '', subdomain)
+        
         new_chan = BlogChannel(
             id=f"blg_{uuid.uuid4().hex[:6]}",
             name=name,
             nicho=nicho,
             lang=lang,
+            subdomain=subdomain,
             platform=platform,
             site_url=site_url,
             api_endpoint=api_endpoint,
@@ -743,6 +766,7 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             "name": new_chan.name,
             "nicho": new_chan.nicho,
             "lang": new_chan.lang,
+            "subdomain": new_chan.subdomain,
             "platform": new_chan.platform,
             "site_url": new_chan.site_url,
             "status": new_chan.status,
@@ -760,6 +784,7 @@ def get_db_blog_channels() -> list:
                 "name": c.name,
                 "nicho": c.nicho,
                 "lang": c.lang,
+                "subdomain": c.subdomain,
                 "platform": c.platform,
                 "site_url": c.site_url,
                 "status": c.status,
@@ -926,6 +951,7 @@ def get_db_blog_channel(channel_id: str) -> dict:
                 "lang": c.lang,
                 "platform": c.platform,
                 "site_url": c.site_url,
+                "subdomain": c.subdomain,
                 "api_endpoint": c.api_endpoint,
                 "api_token": c.api_token,
                 "username": c.username,
@@ -956,6 +982,7 @@ def get_db_blog_info(slug: str) -> dict:
                     "name": c.name,
                     "nicho": c.nicho,
                     "lang": c.lang,
+                    "subdomain": c.subdomain,
                     "slug": name_slug,
                     "platform": c.platform,
                     "site_url": c.site_url,
@@ -981,6 +1008,35 @@ def update_db_blog_channel(channel_id: str, **kwargs) -> bool:
             db.commit()
             return True
         return False
+    finally:
+        db.close()
+
+
+def get_db_blog_by_subdomain(subdomain: str) -> dict:
+    """Retorna dados de um blog pelo subdominio."""
+    db = SessionLocal()
+    try:
+        c = db.query(BlogChannel).filter(BlogChannel.subdomain == subdomain).first()
+        if c:
+            post_count = db.query(BlogPost).filter(
+                BlogPost.channel_id == c.id
+            ).count()
+            return {
+                "id": c.id,
+                "name": c.name,
+                "nicho": c.nicho,
+                "lang": c.lang,
+                "subdomain": c.subdomain,
+                "slug": c.name.lower().replace(" ", "-")[:50],
+                "platform": c.platform,
+                "site_url": c.site_url,
+                "status": c.status,
+                "frequency": c.frequency,
+                "banner_url": c.banner_url,
+                "post_count": post_count,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+        return None
     finally:
         db.close()
 
