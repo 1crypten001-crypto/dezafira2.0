@@ -68,6 +68,19 @@ BAD_PATTERNS = {
         "message": "Cabecalho de secao vazio (sem conteudo)",
         "fix": "Remover cabecalho vazio ou adicionar conteudo.",
     },
+    "colon_sequence_double": {
+        "pattern": "[A-Z][a-z]+:\s*\"[A-Z][a-z]+:\s*\"",
+        "severity": "alta",
+        "message": "Sequencia de dois-pontos aninhados com aspas (garbage do LLM)",
+        "fix": "Remover a linha corrompida.",
+    },
+    "colon_sequence_single": {
+        'pattern': r"[A-Z][a-z]+:\s*'[A-Z][a-z]+:\s*'",
+        "severity": "alta",
+        "message": "Sequencia de dois-pontos aninhados com apostrofo (garbage do LLM)",
+        "fix": "Remover a linha corrompida.",
+    },
+
 }
 
 
