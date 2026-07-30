@@ -2263,7 +2263,7 @@ async def get_blog_pipeline_history():
     return {"pipelines": []}
 
 @app.post("/api/v1/pipeline/run-blog-factory")
-async def run_blog_factory_endpoint(payload: dict):
+async def run_blog_factory_endpoint(payload: dict, background_tasks: BackgroundTasks):
     blog_name = payload.get("blog_name", "")
     niche = payload.get("niche", "")
     language = payload.get("language", "pt")
@@ -2277,7 +2277,10 @@ async def run_blog_factory_endpoint(payload: dict):
     _macro_results[task_id] = {"status": "starting", "blog_name": blog_name, "niche": niche, "data": None}
 
     async def _run_macro_with_ws(tid, bname, nic, lang, tgt):
-        from modules.blog_pipeline import run_blog_macro_pipeline as _run_macro
+        import traceback
+        try:
+            print(f"[PIPELINE] Macro task starting: {tid} blog={bname}")
+            from modules.blog_pipeline import run_blog_macro_pipeline as _run_macro
         hub = _ws_hub
         import asyncio
         def on_progress(pid, stage_id, progress, message, data):
@@ -2293,8 +2296,8 @@ async def run_blog_factory_endpoint(payload: dict):
                     _macro_results[pid]["progress"] = real_prog
                     _macro_results[pid]["message"] = real_msg
                     _macro_results[pid]["data"] = data
-            except Exception:
-                pass
+            except Exception as e_on:
+                print(f"[PIPELINE] on_progress error: {e_on}")
             if stage_id == "__broadcast__":
                 try:
                     loop = asyncio.get_running_loop()
@@ -2329,12 +2332,12 @@ async def run_blog_factory_endpoint(payload: dict):
             loop.create_task(hub.broadcast("pipeline_complete", result))
         except Exception as e:
             print(f"[WS] complete error: {e}")
+    except Exception as outer_e:
+        print(f"[PIPELINE] FATAL error in _run_macro_with_ws: {outer_e}")
+        traceback.print_exc()
+        _macro_results[tid] = {"status": "failed", "blog_name": bname, "niche": nic, "error": str(outer_e)}
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(_run_macro_with_ws(task_id, blog_name, niche, language, target_articles))
-    except Exception as e:
-        print(f"[SERVER] ERRO ao criar task: {e}")
+    background_tasks.add_task(_run_macro_with_ws, task_id, blog_name, niche, language, target_articles)
     return {
         "task_id": task_id, "blog_name": blog_name, "niche": niche,
         "status": "starting", "target_articles": target_articles,
@@ -3140,6 +3143,104 @@ async def delete_blog_post(post_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return {"success": True, "message": f"Post {post_id} removido"}
+
+
+@app.post("/api/v1/blog/generate-batch")
+async def generate_batch_articles(payload: dict):
+    """Gera N artigos completos de forma direta, UM POR VEZ, síncrono.
+    
+    Args:
+        topics: Lista de temas dos artigos
+        channel_id: ID do canal (opcional, usa o primeiro se nao fornecido)
+        target_words: Palavras alvo (padrao 1000)
+        
+    Returns:
+        Lista de resultados com cada artigo gerado
+    """
+    topics = payload.get("topics", [])
+    if not topics or not isinstance(topics, list):
+        raise HTTPException(status_code=400, detail="topics (list) is required")
+    
+    target_words = payload.get("target_words", 1000)
+    language = payload.get("language", "pt")
+    
+    from modules.blog_writer import write as blog_write
+    from modules.database import get_db_blog_channels, get_db_blog_post, update_db_blog_post
+    from modules.lili import lili_review_after_generation
+    from modules.image_factory import ImageGeneratorAgent
+    
+    channel_id = payload.get("channel_id", "")
+    if not channel_id:
+        channels = get_db_blog_channels()
+        if channels and len(channels) > 0:
+            channel_id = channels[0]["id"]
+        else:
+            raise HTTPException(status_code=400, detail="No channel found")
+    
+    results = []
+    errors = []
+    
+    for i, topic in enumerate(topics):
+        try:
+            result = await blog_write(
+                topic=topic,
+                channel_id=channel_id,
+                language=language,
+                target_words=target_words,
+                keywords=topic,
+            )
+            
+            if result.get("success"):
+                post_id = result.get("post_id")
+                title = result.get("title", topic)
+                word_count = result.get("word_count", 0)
+                
+                # Gerar imagem
+                img_url = None
+                if post_id:
+                    try:
+                        agent = ImageGeneratorAgent()
+                        img = await agent.generate_for_article(title=title, keywords=topic, topic=topic)
+                        if img.get("image_url"):
+                            update_db_blog_post(post_id, featured_image_url=img["image_url"])
+                            img_url = img["image_url"]
+                    except Exception as e_img:
+                        print(f"[Batch] Image error for {topic[:30]}: {e_img}")
+                
+                # Revisao Lili
+                lili = None
+                if post_id:
+                    try:
+                        lili = await lili_review_after_generation(post_id)
+                    except Exception as e_lili:
+                        print(f"[Batch] Lili error: {e_lili}")
+                
+                results.append({
+                    "success": True,
+                    "topic": topic,
+                    "post_id": post_id,
+                    "title": title,
+                    "word_count": word_count,
+                    "featured_image_url": img_url,
+                    "lili_review": lili,
+                })
+                print(f"[Batch] [{i+1}/{len(topics)}] OK: {topic[:40]} ({word_count} palavras)")
+            else:
+                err = result.get("error", "Unknown error")
+                errors.append({"topic": topic, "error": err})
+                print(f"[Batch] [{i+1}/{len(topics)}] ERROR: {topic[:40]} -> {err[:60]}")
+        except Exception as e:
+            errors.append({"topic": topic, "error": str(e)})
+            print(f"[Batch] [{i+1}/{len(topics)}] EXCEPTION: {topic[:40]} -> {str(e)[:60]}")
+    
+    return {
+        "success": len(results) > 0,
+        "total": len(topics),
+        "generated": len(results),
+        "errors": len(errors),
+        "articles": results,
+        "error_details": errors if errors else None,
+    }
 
 @app.get("/api/v1/pipeline/macro-result/{task_id}")
 async def get_macro_result(task_id: str):
