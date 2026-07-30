@@ -213,7 +213,24 @@
   .lili-issue-tag.med{background:rgba(245,158,11,.15);color:#fbbf24}
   .lili-issue-tag.low{background:rgba(59,130,246,.15);color:#60a5fa}
   .lili-score-bar{width:80px;height:6px;background:#14161f;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
-  .lili-score-fill{height:100%;border-radius:3px;transition:width .5s ease}
+
+  /* Blog tabs */
+  .blog-tabs{display:flex;gap:0;margin-bottom:0;overflow-x:auto;overflow-y:hidden;position:relative;background:#0b0c12;border:1px solid #14161f;border-radius:12px 12px 0 0}
+  .blog-tab{display:flex;align-items:center;gap:8px;padding:12px 20px;cursor:pointer;color:#5c6370;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s ease;white-space:nowrap;flex-shrink:0}
+  .blog-tab:hover{color:#e8edf2;background:#12141e}
+  .blog-tab.active{color:#a5b4fc;border-bottom-color:#6366f1;background:rgba(99,102,241,.08)}
+  .blog-tab .tab-badge{background:#1e2030;padding:1px 7px;border-radius:8px;font-size:10px;color:#8a91a5}
+  .blog-tab.active .tab-badge{background:rgba(99,102,241,.2);color:#a5b4fc}
+  .blog-panel{display:none}
+  .blog-panel.active{display:block}
+  .blog-panel .panel-header{background:#0b0c12;border:1px solid #14161f;border-top:none;border-radius:0 0 12px 12px;padding:20px 24px;margin-bottom:20px}
+  .blog-panel .panel-header h3{font-size:18px;font-weight:700;margin-bottom:4px}
+  .blog-panel .panel-header .panel-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:#5c6370;margin-top:8px}
+  .blog-panel .panel-header .panel-meta span{display:flex;align-items:center;gap:4px}
+  .blog-panel .panel-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .blog-panel .panel-actions .btn{font-size:12px}
+  .blog-empty-state{padding:32px;text-align:center;color:#5c6370}
+
 </style>
 </head>
 <body>
@@ -316,8 +333,8 @@
     <div class="page" id="page-blogs">
       <div class="page-header"><h2>📝 Fabrica de Blogs</h2><p>Gerencie canais e artigos</p></div>
       <div class="stats-grid" id="blogStats"></div>
-      <div class="section"><div class="section-header"><h3>📄 Artigos</h3></div><div class="card-table" id="blogPosts"></div></div>
-      <div class="section"><div class="section-header"><h3>📡 Canais</h3></div><div class="card-table" id="blogChannels"></div></div>
+      <div class="blog-tabs" id="blogTabs"></div>
+      <div id="blogPanels"></div>
     </div>
 
     <div class="page" id="page-books">
@@ -599,42 +616,105 @@ async function loadDashboard(){
   var d=await api("/api/v1/factory/dashboard");
   if(d.error)return;
   var posts=d.posts?.recent||[],chs=d.channels?.list||[];
-  var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div></div>';
   var withImg=d.channels?.list?.reduce(function(acc,c){return acc+(c.posts_with_images||0)},0)||0;
   var totalP=(d.posts?.total||0);
   var imgPct=totalP>0?Math.round((withImg/totalP)*100):0;
+  var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div></div>';
   stats+='<div class="stat-card"><div class="label">Artigos</div><div class="value">'+(d.posts?.total||0)+'</div>';
   stats+='<div class="sub">'+(d.posts?.total_words||0).toLocaleString()+" palavras</div></div>";
   stats+='<div class="stat-card"><div class="label">🖼️ Com Imagem</div><div class="value">'+withImg+'/'+totalP+'</div><div class="sub">'+imgPct+'% dos artigos</div></div>';
   $("blogStats").innerHTML=stats;
-  var plist=posts.length?posts.map(function(p){
-    var ch=(chs||[]).find(function(c){return c.id===p.channel_id});
-    var slug=ch?ch.site_url||blogSlug(ch.name):'/blog/o-reino';
-    var artUrl=slug+'?post='+p.id;
-    var hasImg=p.featured_image_url?true:false;
-    var imgBadge=hasImg
-      ?'<span class="tag tag-green" style="background:rgba(34,197,94,.12);color:#4ade80">🖼️</span>'
-      :'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171">🚫 Img</span>';
-    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div></div>';
-  }).join(""):'<div class="empty">Nenhum artigo</div>';
-  $("blogPosts").innerHTML=plist;
-    var clist=chs.length?chs.map(function(c){
+
+  if(!chs.length){
+    $("blogTabs").innerHTML='';
+    $("blogPanels").innerHTML='<div class="blog-empty-state">Nenhum blog cadastrado. Crie um blog na Pipeline primeiro.</div>';
+    return;
+  }
+
+  // Build tabs
+  var tabsHtml=chs.map(function(c,i){
+    var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
+    var totalCountPerBlog = c.post_count || blogPosts.length;
+    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" onclick="switchBlogTab(\''+c.id+'\')">'+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
+  }).join('');
+  $("blogTabs").innerHTML=tabsHtml;
+
+  // Build panels
+  var panelsHtml=chs.map(function(c,i){
+    var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
     var blogUrl=c.site_url||blogSlug(c.name);
-    var subTxt='';
-    if(c.subdomain) subTxt='<div style="font-size:.75rem;color:var(--text-light);margin-top:2px">&#127760; '+c.subdomain+'.dezafira.com.br</div>';
-    var withImg=c.posts_with_images||0;
-    var withoutImg=c.posts_without_images||0;
-    var total=c.post_count||(withImg+withoutImg)||0;
-    var imgPct=total>0?Math.round((withImg/total)*100):0;
-    var imgColor=imgPct>=80?'#22c55e':imgPct>=50?'#f59e0b':'#ef4444';
-    var bar='<div style="display:flex;align-items:center;gap:6px;margin-top:4px">'+
-      '<div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px">'+
-      '<div style="height:100%;width:'+imgPct+'%;background:'+imgColor+';border-radius:3px;transition:width .4s ease"></div></div>'+
-      '<span style="font-size:11px;color:#8a91a5;white-space:nowrap">'+withImg+'/'+total+' img</span></div>';
-    var tagClass=withoutImg>0?'tag-yellow':'tag-green';
-    return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(c.name)+'</div><div class="meta">'+escapeHtml(c.nicho)+' &#8226; '+c.lang+'</div>'+bar+subTxt+'</div><div><span class="tag '+tagClass+'">'+(c.post_count||0)+' posts</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a>'+(c.subdomain?' <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" class="btn btn-sm" style="background:rgba(212,168,83,0.12);color:#d4a853">&#127760;</a>':'')+'</div></div>';
-  }).join(""):'<div class="empty">Nenhum canal</div>';
-  $("blogChannels").innerHTML=clist;
+    var subTxt=c.subdomain?'<span>🌐 <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" style="color:#a5b4fc">'+c.subdomain+'.dezafira.com.br</a></span>':'';
+    var withImgC=c.posts_with_images||0;
+    var withoutImgC=c.posts_without_images||0;
+    var totalC=c.post_count||(withImgC+withoutImgC)||0;
+    var pubC=c.published_count||0;
+    var imgPctC=totalC>0?Math.round((withImgC/totalC)*100):0;
+    var imgColor=imgPctC>=80?'#4ade80':imgPctC>=50?'#fbbf24':'#f87171';
+    var avgW = totalC>0?Math.round((d.posts?.total_words||0)/totalC):0;
+
+    var postsList=blogPosts.length?blogPosts.map(function(p){
+      var artUrl=blogUrl+'?post='+p.id;
+      var hasImg=p.featured_image_url?true:false;
+      var imgBadge=hasImg
+        ?'<span class="tag tag-green" style="background:rgba(34,197,94,.12);color:#4ade80">🖼️</span>'
+        :'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171">🚫 Img</span>';
+      return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div></div>';
+    }).join(''):'<div class="blog-empty-state">Nenhum artigo neste blog</div>';
+
+    var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
+
+    return '<div class="blog-panel'+(i===0?' active':'')+'" id="panel_'+c.id+'">'+
+      '<div class="panel-header">'+
+        '<h3>'+escapeHtml(c.name)+'</h3>'+
+        '<div style="font-size:13px;color:#5c6370;margin-bottom:8px">'+escapeHtml(c.nicho)+'</div>'+
+        '<div class="panel-meta">'+
+          '<span>📄 '+totalC+' artigos</span>'+
+          '<span>📝 '+(pubC||0)+' publicados</span>'+
+          '<span>📊 ~'+avgW+' palavras média</span>'+
+          '<span>🔗 <a href="'+blogUrl+'" target="_blank" style="color:#a5b4fc">Ver Blog</a></span>'+
+          subTxt+
+        '</div>'+
+        '<div class="panel-actions">'+
+          '<button class="btn btn-sm" onclick="window.open(\''+blogUrl+'\')">🔗 Abrir Blog</button>'+
+          '<button class="btn btn-sm btn-primary" onclick="generateForBlog(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\')">✍️ Novo Artigo</button>'+
+          '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
+    '</div>';
+  }).join('');
+  $("blogPanels").innerHTML=panelsHtml;
+}
+
+function switchBlogTab(channelId){
+  document.querySelectorAll(".blog-tab").forEach(function(t){t.classList.remove("active")});
+  document.querySelectorAll(".blog-panel").forEach(function(p){p.classList.remove("active")});
+  var tab=document.querySelector('.blog-tab[data-blog="'+channelId+'"]');
+  if(tab)tab.classList.add("active");
+  var panel=$("panel_"+channelId);
+  if(panel)panel.classList.add("active");
+}
+
+async function generateForBlog(channelId,niche){
+  var topic=prompt("Tema do novo artigo para "+niche+":");
+  if(!topic)return;
+  showToast("Gerando artigo...");
+  try{
+    var res=await api("/api/v1/blog/generate-article",{method:"POST",body:JSON.stringify({topic:topic,channel_id:channelId,keywords:topic,target_words:1200,language:"pt"})});
+    if(res.error){showToast("Erro: "+res.error);return;}
+    showToast("Artigo gerado! "+res.word_count+" palavras");
+    loadBlogs();
+  }catch(e){showToast("Erro: "+e.message);}
+}
+
+async function liliReviewAllForBlog(channelId){
+  showToast("Revisando todos os artigos...");
+  try{
+    var res=await api("/api/v1/lili/review-all?channel_id="+encodeURIComponent(channelId));
+    if(res.error){showToast("Erro: "+res.error);return;}
+    showToast("Revisao concluida! "+res.approved+"/"+res.total+" aprovados. Media: "+res.avg_score+"/100");
+    loadBlogs();
+  }catch(e){showToast("Erro: "+e.message);}
 }
 
 

@@ -182,6 +182,45 @@ def revisar_conteudo(
                     "localizacao": ctx[:80],
                 })
 
+    # --- Deteccao de repeticoes de paragrafos identicos (fora do loop BAD_PATTERNS) ---
+    # Remove tags HTML para comparacao pura
+    clean_paras = [re.sub(r'<[^>]+>', '', p).strip() for p in paragraphs]
+    para_freq = {}
+    for i, cp in enumerate(clean_paras):
+        if len(cp) < 20:
+            continue  # Ignora paragrafos muito curtos
+        key = cp[:50]  # Primeiros 50 chars como fingerprint
+        para_freq.setdefault(key, []).append(i)
+    for key, indices in para_freq.items():
+        if len(indices) >= 3:
+            # Mesmo inicio de paragrafo aparece 3+ vezes
+            issues.append({
+                "tipo": "paragrafo_repetido_massivo",
+                "severity": "alta",
+                "message": f"Paragrafo comeco '{key[:30]}...' repetido {len(indices)} vezes no artigo",
+                "fix": "Remover paragrafos duplicados, manter apenas uma instancia.",
+                "localizacao": f"paragrafos {[i+1 for i in indices[:5]]}",
+            })
+
+    # --- Deteccao de trechos de lixo (repeticoes de 3+ palavras seguidas) ---
+    text_words = re.sub(r'<[^>]+>', '', content_html).split()
+    if len(text_words) > 50:
+        # Check for repeated 5-word sequences
+        word_seq_count = {}
+        for i in range(len(text_words) - 4):
+            seq = ' '.join(text_words[i:i+5]).lower()
+            word_seq_count[seq] = word_seq_count.get(seq, 0) + 1
+        worst_seq = max(word_seq_count.values()) if word_seq_count else 0
+        if worst_seq >= 4:
+            # A sequencia de 5 palavras aparece 4+ vezes
+            issues.append({
+                "tipo": "repeticao_massiva_sequencia",
+                "severity": "alta",
+                "message": f"Sequencia de 5 palavras repetida {worst_seq}x no artigo (provável LLM loop)",
+                "fix": "Regenerar o artigo com instrucao anti-repeticao explicita.",
+                    "localizacao": "artigo completo",
+                })
+
     # --- Estatisticas dos paragrafos ---
     if paragraphs:
         para_word_counts = [_count_words(f"<p>{p}</p>") for p in paragraphs]
@@ -384,7 +423,47 @@ async def revisar_blog(channel_id: str) -> dict:
         "avg_score": avg_score,
         "issues_by_type": issues_by_type,
         "results": results,
-    }
+    
+
+
+    "assistant_repetition": {
+        "pattern": r"\bassistant\b(?:\s+\bassistant\b){2,}",
+        "severity": "alta",
+        "message": "Token 'assistant' repetido (vazamento do formato de chat do LLM)",
+        "fix": "Remover a linha contaminada e regenerar a secao.",
+    },
+    "colon_r_garbage": {
+        "pattern": r"[A-Z][a-z]+[:]R\s+[A-Z][a-z]+[:]R",
+        "severity": "alta",
+        "message": "Garbage text LLM com padrao 'Palavra:R Palavra:R' (token corrompido)",
+        "fix": "Remover o bloco corrompido e regenerar a secao.",
+    },
+    "repeated_colon_block": {
+        "pattern": r"(?:[A-Z][a-z]*\s*:\s*[A-Z][a-z]*\s*){5,}",
+        "severity": "alta",
+        "message": "Bloco de texto com repeticoes de palavras seguidas de dois-pontos (token corrompido do LLM)",
+        "fix": "Remover o bloco inteiro de lixo e regenerar.",
+    },
+    "user_token_leak": {
+        "pattern": r"\buser\s*[:]?\s*assistant\b",
+        "severity": "alta",
+        "message": "Vazamento de tokens de chat (user/assistant) no conteudo do artigo",
+        "fix": "Remover a linha contaminada.",
+    },
+    "paragraph_identical_repeated": {
+        "pattern": r"(<p>[^<]+</p>)\s*\1\s*\1",
+        "severity": "alta",
+        "message": "Mesmo paragrafo repetido 3+ vezes consecutivas",
+        "fix": "Remover as repeticoes e manter apenas um paragrafo.",
+    },
+    "token_noise_short": {
+        "pattern": r"\b[A-Z][a-z]{0,2}\s*:\s*[A-Z][a-z]{0,2}\s*:?\s*[A-Z]",
+        "severity": "alta",
+        "message": "Ruido de token: palavras curtas seguidas de dois-pontos (ex: 'A Es:R')",
+        "fix": "Remover o fragmento corrompido.",
+    },
+
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -470,7 +549,25 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     # 11. Remover padrao <numero:numero>
     content_html = re.sub(r'<\\d+[:.]\\d+>', '', content_html)
 
-    # 12. Remover paragrafos <p> INTEIROS com garbage text
+        # 13. Remover repeticoes de 'assistant'
+    content_html = re.sub(r'\bassistant\b(?:\s+\bassistant\b)+', '', content_html, flags=re.IGNORECASE)
+
+    # 14. Remover tokens corrompidos 'A Es:R' e similares
+    content_html = re.sub(r'[A-Z][a-z]{0,2}\s*:\s*[A-Z][a-z]{0,2}\s*:\s*[A-Z]', '', content_html)
+
+    # 15. Remover blocos de palavras com dois-pontos repetidos (5+)
+    content_html = re.sub(r'(?:[A-Z][a-z]*\s*:\s*[A-Z][a-z]*\s*:?\s*){4,}', '', content_html)
+
+    # 16. Remover paragrafos INTEIROS que contem 'assistant' como palavra principal
+    content_html = re.sub(r'<p>[^<]*\bassistant\b[^<]*</p>', '', content_html, flags=re.IGNORECASE)
+
+    # 17. Remover paragrafos duplicados consecutivos (mesmo texto >2x)
+    content_html = re.sub(r'(<p>[^<]+</p>)\s*\1\s*\1', r'\\1', content_html, flags=re.DOTALL)
+
+    # 18. Remover 'user:' ou 'assistant:' no meio do texto
+    content_html = re.sub(r'\b(?:user|assistant)\s*:\s*"', '', content_html, flags=re.IGNORECASE)
+
+# 12. Remover paragrafos <p> INTEIROS com garbage text
     content_html = re.sub(
         r'<p>[^<]*\\{2,}[^<]*</p>',
         '',

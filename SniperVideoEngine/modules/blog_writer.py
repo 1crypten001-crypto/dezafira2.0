@@ -491,7 +491,14 @@ Crie um PLANO DETALHADO para um artigo sobre "{topic}".
 Diretrizes:
 - Idioma: {language}
 - Keywords: {keywords if keywords else topic}
-- O artigo terá ~{target_words} palavras no total
+- O artigo terá ~{min(target_words, 1300)} palavras no total (MAXIMO 1500)
+- NAO repita a mesma frase, paragrafo ou ideia mais de uma vez no artigo
+- LIMITE o artigo completo a 1100-1500 palavras (NUNCA ultrapasse 1500)
+- VARIE a estrutura das frases e evite padroes repetitivos
+- NAO use o mesmo paragrafo introdutorio mais de uma vez
+- NAO inclua marcadores de chat como 'assistant:' ou 'user:'
+- EVITE verbosidade: cada paragrafo deve adicionar informacao nova
+- SE sentir que esta repetindo algo, PARE e mude de topico
 
 Retorne APENAS JSON:
 {{
@@ -552,9 +559,10 @@ Diretrizes:
 - Idioma: {language}
 - Gancho forte: pergunta provocativa, afirmação ousada ou história curta
 - Contextualize o tema e mostre por que o leitor deve continuar lendo
-- ~400-600 palavras
+- ~200-300 palavras (seja conciso)
 - Use <h2>Introdução</h2> seguido de parágrafos <p>
 - Retorne APENAS o HTML da introdução (sem JSON)
+- NAO repita a mesma ideia em paragrafos diferentes
 - Instrucoes especificas do nicho:
 {niche_instructions}"""
 
@@ -586,10 +594,11 @@ Escreva a seção "{sec_title}" para um artigo sobre "{topic}".
 Diretrizes:
 - Idioma: {language}
 - Contexto da seção: {sec_desc}
-- ~{sec_target} palavras
-- Aprox. 4-6 parágrafos profundos e informativos
+- ~{min(sec_target, 350)} palavras (seja conciso, maximo 350)
+- Aprox. 3-5 parágrafos informativos (profundidade > quantidade)
 - Inclua dados, exemplos praticos e contexto do nicho
-- Mantenha tom adequado ao tema (informativo, inspirador, ou educacional)
+- Mantenha tom adequado ao tema
+- NAO repita informacao ja dita em secoes anteriores
 - Instrucoes especificas do nicho:
 {_get_niche_instructions(topic, keywords)}
 - Use <h2>{sec_title}</h2> no início
@@ -618,12 +627,13 @@ Escreva uma CONCLUSÃO PODEROSA para um artigo sobre "{topic}".
 
 Diretrizes:
 - Idioma: {language}
-- Resuma os pontos principais sem repetir
+- Resuma os pontos principais SEM REPETIR o que ja foi dito
 - Reflexão final que gere engajamento
-- CTA natural (convide o leitor a agir, refletir, comentar, compartilhar)
-- ~300-500 palavras
+- CTA natural (convide o leitor a agir)
+- ~150-250 palavras (seja direto)
 - Use <h2>Conclusão</h2> no início
 - Retorne APENAS o HTML (sem JSON, sem markdown)
+- NAO repita a introducao ou as secoes
 - Instrucoes especificas do nicho:
 {_get_niche_instructions(topic, keywords)}"""
 
@@ -648,6 +658,24 @@ Diretrizes:
     # Estimar word count (stripping HTML tags first)
     text_only = re.sub(r'<[^>]+>', '', full_content_html)
     estimated_words = len(text_only.split())
+
+    # --- TRUNCAMENTO: limitar a target_words + 200 maximo ---
+    max_allowed = max(target_words + 200, 1500)
+    if estimated_words > max_allowed and len(all_parts) > 2:
+        print(f'[BlogWriter] Artigo tem {estimated_words} palavras, truncando para ~{max_allowed}...')
+        words_so_far = 0
+        truncated = []
+        for part in all_parts:
+            part_text = re.sub(r'<[^>]+>', '', part)
+            part_words = len(part_text.split())
+            if words_so_far + part_words > max_allowed and len(truncated) >= 2:
+                break
+            truncated.append(part)
+            words_so_far += part_words
+        full_content_html = "\n\n".join(truncated)
+        text_only = re.sub(r'<[^>]+>', '', full_content_html)
+        estimated_words = len(text_only.split())
+        print(f'[BlogWriter] Artigo truncado para ~{estimated_words} palavras')
 
     print(f"[BlogWriter] Artigo compilado: ~{estimated_words} palavras")
     print(f"[BlogWriter] Chamadas LLM totais: {2 + len(sections) + 1} (planejamento + introducao + {len(sections)} secoes + conclusao)")
