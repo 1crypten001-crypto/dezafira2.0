@@ -298,8 +298,11 @@ async def revisar_blog(channel_id: str) -> dict:
     """
     from modules.database import get_db_blog_posts
 
-    posts = get_db_blog_posts(channel_id=channel_id, limit=100)
-    if not posts:
+    from modules.database import get_db_blog_post
+    
+    # Get all post IDs for the channel
+    posts_meta = get_db_blog_posts(channel_id=channel_id, limit=100)
+    if not posts_meta:
         return {
             "channel_id": channel_id,
             "status": "erro",
@@ -312,7 +315,11 @@ async def revisar_blog(channel_id: str) -> dict:
     total_score = 0
     issues_by_type = {}
 
-    for post in posts:
+    # Fetch full content for each post (get_db_blog_posts doesnt include content field)
+    for pm in posts_meta:
+        post = get_db_blog_post(pm["id"])
+        if not post:
+            continue
         review = await revisar_artigo(post)
         results.append(review)
         if review["approved"]:
