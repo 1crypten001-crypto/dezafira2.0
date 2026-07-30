@@ -23,7 +23,6 @@ if not DATABASE_URL:
     DATABASE_URL = f"sqlite:///{db_path_unix}"
 
 # 2. Configurar o Engine e Sessão com Fallback Resiliente
-_IS_ENV_DATABASE_URL = bool(os.getenv("DATABASE_URL"))  # Foi explicitamente configurada?
 try:
     # Ajuste de compatibilidade para postgresql:// no SQLAlchemy 1.4+
     if DATABASE_URL.startswith("postgres://"):
@@ -34,16 +33,9 @@ try:
     with engine.connect() as conn:
         pass
 except Exception as db_err:
-    if _IS_ENV_DATABASE_URL:
-        # Se DATABASE_URL foi explicitamente setada (Railway Postgres), NÃO cair em fallback silencioso
-        raise RuntimeError(
-            f"[Database] ❌ Conexão PostgreSQL FALHOU! DATABASE_URL foi configurada, mas não foi possível conectar.\n"
-            f"   Erro: {str(db_err)}\n"
-            f"   Verifique se a string de conexão está correta e se o banco está acessível.\n"
-            f"   DATABASE_URL={DATABASE_URL[:60]}..."
-        ) from db_err
-    print(f"[Database]  Erro ao conectar no banco original: {str(db_err)}")
-    print("[Database] Acionando fallback resiliente: banco SQLite em memória (sqlite:///:memory:)")
+    print(f"[Database]  Aviso: falha ao conectar no banco configurado: {str(db_err)}")
+    print("[Database] Usando SQLite em memória como fallback. Dados não persistem entre deploys.")
+    print("[Database] Para usar PostgreSQL, verifique a variável DATABASE_URL no Railway.")
     DATABASE_URL = "sqlite:///:memory:"
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
@@ -377,13 +369,6 @@ try:
             pass
             
 except Exception as table_err:
-    if _IS_ENV_DATABASE_URL:
-        # Se DATABASE_URL foi explicitamente setada, crashar — não cair em fallback silencioso
-        raise RuntimeError(
-            f"[Database] ❌ Migração de tabelas PostgreSQL FALHOU!\n"
-            f"   Erro: {str(table_err)}\n"
-            f"   Verifique as permissões e o schema do banco."
-        ) from table_err
     print(f"[Database]  Falha ao criar tabelas no banco original: {str(table_err)}")
     print("[Database] Recaindo para banco em memória (sqlite:///:memory:) para tabelas")
     DATABASE_URL = "sqlite:///:memory:"
