@@ -2034,24 +2034,23 @@ async def redirect_oreino():
 
 @app.get("/blog/{slug}", response_class=HTMLResponse)
 async def serve_blog_frontend(slug: str):
-    """Serve o frontend público do blog."""
-    import os
-    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-    blog_file = os.path.join(static_dir, f"{slug}.html")
-    if os.path.exists(blog_file):
-        with open(blog_file, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse(content=f"""<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8">
-<title>{slug} — Blog Dezafira</title>
-<style>body{{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 20px;color:#333;line-height:1.6}}h1{{color:#1a1a1a}}</style>
-</head>
-<body><h1>📝 {slug}</h1><p>Blog em construção...</p>
-<p><a href="/">Voltar ao painel</a></p>
-</body></html>""")
+    """Serve o frontend publico do blog com artigos renderizados no servidor (SEO-friendly)."""
+    from modules.blog_viewer import generate_blog_html
+    from modules.database import get_db_blog_info, get_db_blog_posts
 
+    blog_info = get_db_blog_info(slug)
+    posts = []
+    if blog_info:
+        posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
+    else:
+        from modules.database import get_db_blog_channels
+        channels = get_db_blog_channels()
+        if channels:
+            blog_info = channels[0]
+            posts = get_db_blog_posts(channel_id=blog_info["id"], limit=50)
 
+    html = generate_blog_html(slug, blog_info, posts)
+    return HTMLResponse(content=html)
 @app.post("/api/v1/blog/{slug}/posts/{post_id}/generate-image")
 async def generate_blog_post_image(slug: str, post_id: str):
     """Gera imagem de destaque para um artigo existente."""
