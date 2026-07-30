@@ -850,11 +850,13 @@ class BlogMacroPipeline:
                                 if lili_approved:
                                     self._update_macro(
                                         sid, "active", overall_progress,
-                                        f"🌸 LiLi aprovou: score {lili_score}/100")
+                                        f"🌸 LiLi aprovou: score {lili_score}/100",
+                                        {"lili_score": lili_score, "lili_approved": True, "article_title": article_result.get("title", "")})
                                     if lili_corrected:
                                         self._update_macro(
                                             sid, "active", overall_progress,
-                                            f"🌸 LiLi corrigiu e aprovou: '{title_preview}' score {lili_score}/100")
+                                            f"🌸 LiLi corrigiu e aprovou: '{title_preview}' score {lili_score}/100",
+                                            {"lili_score": lili_score, "lili_approved": True, "lili_corrected": True, "article_title": article_result.get("title", "")})
                                     article_result["lili_review"] = {
                                         "approved": True,
                                         "score": lili_score,

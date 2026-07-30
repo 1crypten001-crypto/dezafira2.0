@@ -244,6 +244,7 @@
             <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
           </div>
           <div class="macro-current-phase-label" id="macroCurrentPhase">⏳ Iniciando pipeline...</div>
+          <div id="macroLiliScore" style="margin-top:8px;display:flex;align-items:center;gap:8px"></div>
         </div>
         <div class="pipeline-log-container">
           <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
@@ -370,6 +371,24 @@ function updateStage(sid,status,prog,msg,data){
     if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
     if(data.phase_detail){$("macroCurrentPhase").textContent="🔄 "+data.phase_detail}
+    // LiLi score display
+    if(data.lili_score!==undefined||data.lili_approved!==undefined){
+      var ls=$("macroLiliScore");
+      if(ls){
+        var scr=data.lili_score||0;
+        var color=scr>=80?'#4ade80':scr>=50?'#fbbf24':'#f87171';
+        var icon=data.lili_approved?'✅':'🚫';
+        var label=data.lili_approved?'LiLi Aprovou':'LiLi Reprovou';
+        ls.innerHTML='<span style="font-size:11px;color:#8a91a5">🌸</span>'+
+          '<span style="font-size:12px;color:'+color+';font-weight:600">'+icon+' '+label+': '+scr+'/100</span>'+
+          '<div style="flex:1;max-width:120px;height:4px;background:#14161f;border-radius:2px;overflow:hidden">'+
+          '<div style="height:100%;width:'+scr+'%;background:'+color+';border-radius:2px;transition:width .5s ease"></div></div>'+
+          (data.article_title?'<span style="font-size:11px;color:#5c6370">'+data.article_title.slice(0,30)+'</span>':'');
+      }
+    }else{
+      var ls=$("macroLiliScore");
+      if(ls)ls.innerHTML='';
+    }
   }
 }
 function updateBar(){
@@ -614,7 +633,7 @@ function _startPolling(tid){
         handleWsMessage({type:"pipeline_failed",data:{error:data.error||"Pipeline falhou"}});
         clearInterval(window._pollTimer);
       }else if(data&&data.phase){
-        handleWsMessage({type:"pipeline_progress",data:{stage_id:data.phase,progress:data.progress||50,message:data.phase,status:data.status||"active",current_article:data.data?.current_article,article_topic:data.data?.article_topic,phase_detail:data.phase}});
+        handleWsMessage({type:"pipeline_progress",data:{stage_id:data.phase,progress:data.progress||50,message:data.phase,status:data.status||"active",current_article:data.data?.current_article,article_topic:data.data?.article_topic,phase_detail:data.phase,lili_score:data.data?.lili_score,lili_approved:data.data?.lili_approved,article_title:data.data?.article_title}});
       }
     }).catch(function(){});
   },8000);
