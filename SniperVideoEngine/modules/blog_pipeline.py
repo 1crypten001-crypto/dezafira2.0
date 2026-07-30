@@ -362,6 +362,30 @@ class BlogMacroPipeline:
         self.state.status = "running"
         self.state.started_at = datetime.utcnow()
 
+        # ─── VERIFICAR ARTIGOS EXISTENTES ──────────────────────────────
+        # Se o blog ja existe, contar artigos atuais e ajustar target
+        try:
+            from modules.database import get_db_blog_channels, get_db_blog_posts
+            existing_channels = get_db_blog_channels()
+            for ch in (existing_channels or []):
+                if ch.get("name", "").strip().lower() == blog_name.strip().lower():
+                    existing_posts = get_db_blog_posts(channel_id=ch["id"], limit=1000)
+                    existing_count = len(existing_posts) if existing_posts else 0
+                    if existing_count > 0:
+                        ajustado = max(0, self.state.target_articles - existing_count)
+                        print(f"[Pipeline] Blog '{blog_name}' ja tem {existing_count} artigos. "
+                              f"Target ajustado de {self.state.target_articles} para {ajustado}")
+                        if ajustado <= 0:
+                            print(f"[Pipeline] Blog ja tem {existing_count} >= {self.state.target_articles} artigos. Nada a gerar.")
+                            self.state.status = "completed"
+                            self.state.completed_at = datetime.utcnow()
+                            self._emit("pipeline_completed", self.state.to_dict())
+                            return self.state
+                        self.state.target_articles = ajustado
+                    break
+        except Exception as e:
+            print(f"[Pipeline] Erro ao verificar artigos existentes: {e}")
+
         # Inclui stage_id e status no evento inicial para que a UI saia de "starting"
         start_data = {
             **self.state.to_dict(),
@@ -685,6 +709,12 @@ class BlogMacroPipeline:
             for i, sec in enumerate(sections):
                 sec_id = sec.get("id", f"sec_{i}")
                 articles_per_section[sec_id] = base + (1 if i < remainder else 0)
+
+        # ─── SE TARGET FOR 0, PULAR PRODUCAO ──────────────────────────
+        if target <= 0:
+            self._update_macro(sid, "completed", 100,
+                "✅ Blog ja completo! Nenhum artigo adicional necessario")
+            return
 
         self._update_macro(sid, "active", 5,
             f"📝 Produzindo {target} artigos em {len(articles_per_section)} seções...")

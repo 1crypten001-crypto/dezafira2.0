@@ -80,7 +80,18 @@ BAD_PATTERNS = {
         "message": "Sequencia de dois-pontos aninhados com apostrofo (garbage do LLM)",
         "fix": "Remover a linha corrompida.",
     },
-
+    "colon_quote_colon_garbage": {
+        "pattern": r"[A-Z][a-z]+:\s*\"[A-Z][a-z]+:\s*\":",
+        "severity": "alta",
+        "message": "Garbage text LLM: palavra + dois-pontos + aspas + palavra + dois-pontos (ex: 'Aerial: \"The:\"')",
+        "fix": "Remover a linha corrompida. Regenerar a secao.",
+    },
+    "repeat_word_colon_quote": {
+        "pattern": r"(?:Aerial|Aalar|Aster|Achan|A\\{2,})\s*:\s*\"[A-Z][a-z]+:[^\"]*\"[^\"]*\"[A-Z][a-z]+:",
+        "severity": "alta",
+        "message": "Garbage text LLM com sequencia de palavras aleatorias (Aerial, Aalar, etc.)",
+        "fix": "Remover a secao corrompida. Regenerar via LLM.",
+    },
 }
 
 

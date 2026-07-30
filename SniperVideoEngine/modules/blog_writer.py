@@ -489,10 +489,10 @@ Escreva a seção "{sec_title}" para um artigo sobre "{topic}".
 
 Diretrizes:
 - Idioma: {language}
-- Contexto da seção: {sec_desc}
-- ~{sec_target} palavras
-- Se relevante (tema cristão/bíblico), inclua citações bíblicas
-- Aprox. 4-6 parágrafos profundos
+- Contexto da seção: {sec_desc}- ~{sec_target} palavras
+                        - Aprox. 4-6 parágrafos profundos e informativos
+                        - Inclua dados, exemplos praticos e contexto do nicho
+                        - Mantenha tom adequado ao tema (informativo, inspirador, ou educacional)
 - Use <h2>{sec_title}</h2> no início
 - Use <h3> para subseções se necessário
 - Retorne APENAS o HTML da seção (sem JSON, sem markdown)"""
