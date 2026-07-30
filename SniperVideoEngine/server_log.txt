@@ -1,0 +1,161 @@
+C:\Users\spcom\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (7.4.3)/charset_normalizer (3.4.7) doesn't match a supported version!
+  warnings.warn(
+C:\Users\spcom\Desktop\dezafira\SniperVideoEngine\server.py:464: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Will watch for changes in these directories: ['C:\\Users\\spcom\\Desktop\\dezafira\\SniperVideoEngine']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [12848] using WatchFiles
+C:\Users\spcom\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (7.4.3)/charset_normalizer (3.4.7) doesn't match a supported version!
+  warnings.warn(
+INFO:     Started server process [4944]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Telegram Bot] TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID nao definidos. Bot inativo.
+INFO:     127.0.0.1:60753 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60755 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60754 - "POST /api/v1/blog/o-reino/generate-banner HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60775 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60786 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60789 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60793 - "POST /api/v1/pipeline/run-blog HTTP/1.1" 200 OK
+[KeywordMiner] Obscura Bridge disponivel — SERP analysis robusta ativada!
+[KeywordMiner] Mining keywords for: 'a parabola do semeador - estudo profundo'
+[KeywordMiner] Initial suggestions: 2
+INFO:     127.0.0.1:60790 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+[KeywordMiner] After prefix expansion: 1
+[KeywordMiner] After suffix expansion: 4
+[KeywordMiner] Relevant keywords: 5
+[KeywordMiner] Final results: 5 keywords
+[BlogWriter] Iniciando geracao multiparte: A parabola do semeador - estudo profundo
+[BlogWriter] Alvo: ~1500 palavras em 4-5 chamadas LLM
+[BlogWriter] Etapa 1/5: Planejando estrutura do artigo...
+[BlogWriter] Chamada LLM #1: Planejamento...
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Plano: Desvendando A Parábola do Semeador — 5 secoes
+[BlogWriter] Etapa 2/5: Escrevendo introdução...
+[BlogWriter] Chamada LLM #2: Introdução...
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Introdução gerada: 2851 chars
+[BlogWriter] Etapa 3/5: Seção 1/5: 'Introdução à Parábola do Semeador'...
+[BlogWriter] Chamada LLM #3: Seção 1 'Introdução à Parábola do Semeador'...
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Seção 1 gerada: 1086 chars
+[BlogWriter] Etapa 3/5: Seção 2/5: 'Análise Detalhada da Parábola'...
+[BlogWriter] Chamada LLM #4: Seção 2 'Análise Detalhada da Parábola'...
+INFO:     127.0.0.1:60891 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60904 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60909 - "GET /api/v1/pipeline/blog/history HTTP/1.1" 200 OK
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Seção 2 gerada: 2592 chars
+[BlogWriter] Etapa 3/5: Seção 3/5: 'Aparição e Significado dos Diferentes Tipos de Solo'...
+[BlogWriter] Chamada LLM #5: Seção 3 'Aparição e Significado dos Diferentes Tipos de Solo'...
+INFO:     127.0.0.1:60918 - "GET /api/v1/pipeline/blog-factory/status/blg_3f369e34 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60930 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Seção 3 gerada: 2823 chars
+[BlogWriter] Etapa 3/5: Seção 4/5: 'Aplicação Prática da Parábola na Vida Cristã'...
+[BlogWriter] Chamada LLM #6: Seção 4 'Aplicação Prática da Parábola na Vida Cristã'...
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Seção 4 gerada: 105 chars
+[BlogWriter] Etapa 3/5: Seção 5/5: 'Conclusão e Reflexão'...
+[BlogWriter] Chamada LLM #7: Seção 5 'Conclusão e Reflexão'...
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Seção 5 gerada: 1638 chars
+[BlogWriter] Etapa 4/5: Escrevendo conclusão...
+[BlogWriter] Chamada LLM #{4+len(sections)}: Conclusão...
+INFO:     127.0.0.1:61005 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+[LLM] OpenRouter meta-llama/llama-3.3-70b-instruct: OK
+[BlogWriter] Conclusão gerada: 2870 chars
+[BlogWriter] Etapa 5/5: Compilando artigo final...
+[BlogWriter] Artigo compilado: ~2257 palavras
+[BlogWriter] Chamadas LLM totais: 8 (planejamento + introducao + 5 secoes + conclusao)
+INFO:     127.0.0.1:61024 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61024 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61024 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61024 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61024 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61024 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61025 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61091 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61113 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61125 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61189 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61208 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61209 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61209 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61209 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61210 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61210 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61210 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61210 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61222 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61266 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61266 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61266 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61267 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61393 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61394 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61418 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61437 - "POST /api/v1/blog/o-reino/posts/post_ea1ad69e/generate-image HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61454 - "POST /api/v1/blog/o-reino/generate-banner HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61469 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61471 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61484 - "GET /blog/o-reino HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'modules\database.py'. Reloading...
+C:\Users\spcom\AppData\Local\hermes\hermes-agent\venv\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (1.26.20) or chardet (7.4.3)/charset_normalizer (3.4.7) doesn't match a supported version!
+  warnings.warn(
+INFO:     Started server process [1612]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Telegram Bot] TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID nao definidos. Bot inativo.
+INFO:     127.0.0.1:61513 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61501 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61496 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61555 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61584 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61613 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61622 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61625 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61669 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61671 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61674 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61723 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61723 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61727 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61728 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61754 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61755 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61754 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61755 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61755 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61768 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61769 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61811 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61850 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61850 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61850 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61850 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61941 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61944 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61991 - "POST /api/v1/blog/o-reino/posts/post_ea1ad69e/generate-image HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62060 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:62076 - "GET /api/v1/blog/o-reino/info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62117 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62117 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62117 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:62118 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62120 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62283 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62283 - "GET /blog/o-reino HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62284 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62284 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62284 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:62284 - "GET /api/v1/blog/o-reino/posts/post_ea1ad69e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62293 - "GET /sw.js?v=100.1 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:62368 - "GET /api/v1/blog/o-reino/posts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62473 - "GET /blog/o-reino HTTP/1.1" 200 OK

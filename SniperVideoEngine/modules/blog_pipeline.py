@@ -929,22 +929,21 @@ class BlogMacroPipeline:
 
         await asyncio.sleep(0.3)
 
-        # Marcar pipeline como concluído
-        self._update_macro(sid, "active", 40,
         # --- Lili: Revisao final de todos os artigos pendentes ---
         self._update_macro(sid, "active", 45,
-            "Lili: revisando qualidade de todos os artigos...")
+            "🌸 Lili: revisando qualidade de todos os artigos...")
         try:
             from modules.lili import lili_review_all_pending
             lili_final = await lili_review_all_pending(channel_id=channel_id)
             if lili_final.get("status") == "completo":
                 self._update_macro(sid, "active", 50,
-                    f"Lili: {lili_final.get('approved',0)}/{lili_final.get('total',0)} artigos aprovados, score medio {lili_final.get('avg_score',0)}/100")
+                    f"🌸 Lili: {lili_final.get('approved',0)}/{lili_final.get('total',0)} artigos aprovados, score medio {lili_final.get('avg_score',0)}/100")
         except ImportError:
             pass
         except Exception as e_lili:
             print(f"[Pipeline] Lili warning: {e_lili}")
 
+        self._update_macro(sid, "active", 40,
             "✅ Gerando relatório final...")
         try:
             from modules.database import update_db_blog_pipeline_run

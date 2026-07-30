@@ -2262,7 +2262,7 @@ async def run_blog_pipeline_endpoint(payload: dict, background_tasks: Background
 async def get_blog_pipeline_history():
     return {"pipelines": []}
 
-@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")
+@app.get("/api/v1/pipeline/blog-factory/status/{task_id}")
 async def get_blog_factory_status(task_id: str):
     """Retorna o status real de uma pipeline de blog."""
     result = _macro_results.get(task_id)
