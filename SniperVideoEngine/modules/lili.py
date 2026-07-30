@@ -430,6 +430,14 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     content_html = content_html.replace("disc\\u00adpulos", "discipulos")
     content_html = re.sub(r"disc[\s]*[Ã\xad][\s]*pulos", "discipulos", content_html)
 
+    # 8. Limpar HTML garbage: remove & $ # @ \\ de DENTRO de tags HTML
+    # Captura qualquer tag <...> e filtra caracteres estranhos do seu interior
+    content_html = re.sub(
+        r'<([^>]+)>',
+        lambda m: '<' + ''.join(c for c in m.group(1) if c not in '&$#@\\') + '>',
+        content_html
+    )
+
     return content_html
 
 
