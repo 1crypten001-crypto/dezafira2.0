@@ -374,6 +374,16 @@ class MacroState:
             }
 
     def to_dict(self) -> dict:
+        def _to_iso(val):
+            if not val:
+                return None
+            if isinstance(val, str):
+                return val
+            try:
+                return val.isoformat()
+            except AttributeError:
+                return str(val)
+
         # Serialize macro stages (convert datetime objects to strings)
         serialized_stages = {}
         for sid, s in self.macro_stages.items():
@@ -381,8 +391,8 @@ class MacroState:
                 "status": s["status"],
                 "progress": s["progress"],
                 "message": s["message"],
-                "started_at": s["started_at"].isoformat() if s.get("started_at") else None,
-                "completed_at": s["completed_at"].isoformat() if s.get("completed_at") else None,
+                "started_at": _to_iso(s.get("started_at")),
+                "completed_at": _to_iso(s.get("completed_at")),
                 "data": s.get("data"),
                 "error": s.get("error"),
             }
@@ -400,8 +410,8 @@ class MacroState:
             "status": self.status,
             "current_macro_stage": self.current_macro_stage,
             "macro_stages": serialized_stages,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "started_at": _to_iso(self.started_at),
+            "completed_at": _to_iso(self.completed_at),
             "error": self.error,
             "reddit_questions": self.reddit_questions,
         }

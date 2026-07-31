@@ -65,18 +65,87 @@ Retorne APENAS o JSON válido sem blocos de código markdown ou texto explicativ
             print(f"[Seu Design] Identidade visual gerada com sucesso para '{blog_name}'!")
             return data
         except Exception as e:
-            print(f"[Seu Design] Falha ao gerar branding dinamicamente: {e}. Usando fallback.")
-            from modules.brand_themes import detect_theme
-            theme = detect_theme(niche)
+            print(f"[Seu Design] Falha ao gerar branding dinamicamente: {e}. Usando fallback premium.")
+            import hashlib
+            
+            palettes = [
+                # Teal / Mint (Emerald Luxury)
+                {
+                    "primary": "#0d9488", "primary_light": "#99f6e4", "primary_dark": "#115e59",
+                    "bg": "#f0fdfa", "bg_dark": "#ccfbf1", "dark": "#0f172a", "dark2": "#1e293b",
+                    "text": "#1e293b", "text_light": "#64748b", "accent": "#f59e0b", "border": "#e2e8f0"
+                },
+                # Navy / Blue (Classic Navy)
+                {
+                    "primary": "#1e40af", "primary_light": "#bfdbfe", "primary_dark": "#1e3a8a",
+                    "bg": "#f8fafc", "bg_dark": "#f1f5f9", "dark": "#0f172a", "dark2": "#1e293b",
+                    "text": "#334155", "text_light": "#64748b", "accent": "#ea580c", "border": "#cbd5e1"
+                },
+                # Deep Violet (Royal Violet)
+                {
+                    "primary": "#6d28d9", "primary_light": "#ddd6fe", "primary_dark": "#5b21b6",
+                    "bg": "#faf5ff", "bg_dark": "#f3e8ff", "dark": "#0f172a", "dark2": "#1e293b",
+                    "text": "#334155", "text_light": "#64748b", "accent": "#db2777", "border": "#e9d5ff"
+                },
+                # Warm Terracotta
+                {
+                    "primary": "#ca8a04", "primary_light": "#fef9c3", "primary_dark": "#854d0e",
+                    "bg": "#fefdf0", "bg_dark": "#fef9c3", "dark": "#1c1917", "dark2": "#292524",
+                    "text": "#3d3227", "text_light": "#78716c", "accent": "#e11d48", "border": "#fef08a"
+                },
+                # Slate Rose
+                {
+                    "primary": "#be185d", "primary_light": "#fbcfe8", "primary_dark": "#9d174d",
+                    "bg": "#fff1f2", "bg_dark": "#ffe4e6", "dark": "#0f172a", "dark2": "#1e293b",
+                    "text": "#334155", "text_light": "#64748b", "accent": "#0d9488", "border": "#fecdd3"
+                }
+            ]
+            
+            # Escolhe paleta baseado no hash do nome do blog para garantir unicidade
+            hash_val = int(hashlib.md5(blog_name.encode('utf-8')).hexdigest(), 16)
+            palette = palettes[hash_val % len(palettes)]
+            
+            # Escolhe fonte baseado no nicho
+            fonts = {
+                "heading": "'Plus Jakarta Sans', sans-serif",
+                "body": "'Inter', sans-serif"
+            }
+            if any(k in niche.lower() for k in ["jesus", "crista", "deus", "fe", "igreja", "historia"]):
+                fonts = {
+                    "heading": "'Lora', serif",
+                    "body": "'Inter', sans-serif"
+                }
+            
+            logo_color = palette["primary"]
+            logo_svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 40" width="180" height="40">
+                <g transform="translate(5, 5)">
+                    <rect x="0" y="2" width="26" height="26" rx="8" fill="{logo_color}" opacity="0.15"/>
+                    <circle cx="13" cy="15" r="7" fill="none" stroke="{logo_color}" stroke-width="2.5"/>
+                    <path d="M13 8v5M13 16v1" stroke="{logo_color}" stroke-width="2.5" stroke-linecap="round"/>
+                </g>
+                <text x="42" y="24" fill="#ffffff" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="15" letter-spacing="-0.3px">{blog_name}</text>
+            </svg>"""
+            
+            favicon_svg = f"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23{logo_color.replace('#', '')}'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23fff' stroke-width='2.5'/%3E%3C/svg%3E"
+            
             return {
-                "colors": theme["colors"],
-                "colors_dark": theme.get("colors_dark", theme["colors"]),
-                "fonts": theme["fonts"],
-                "logo_initial": theme.get("logo_initial", blog_name[0] if blog_name else "B"),
-                "header_symbol": theme.get("header_symbol", "💡"),
-                "logo_svg": f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="120" height="40">
-                    <rect width="120" height="40" rx="8" fill="{theme['colors']['primary']}"/>
-                    <text x="20" y="25" fill="#ffffff" font-family="sans-serif" font-weight="bold" font-size="16">{blog_name[:10]}</text>
-                </svg>""",
-                "favicon_svg": f"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23{theme['colors']['primary'].replace('#', '')}'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='%23fff'%3E{blog_name[0] if blog_name else 'B'}%3C/text%3E%3C/svg%3E"
+                "colors": palette,
+                "colors_dark": {
+                    "bg": "#080c14",
+                    "bg_dark": "#0f172a",
+                    "dark": "#f8fafc",
+                    "dark2": "#e2e8f0",
+                    "text": "#cbd5e1",
+                    "text_light": "#64748b",
+                    "border": "#1e293b",
+                    "primary": palette["primary"],
+                    "primary_light": palette["primary_light"],
+                    "primary_dark": palette["primary_dark"],
+                    "accent": palette["accent"],
+                },
+                "fonts": fonts,
+                "logo_initial": blog_name[0] if blog_name else "B",
+                "header_symbol": "✨",
+                "logo_svg": logo_svg,
+                "favicon_svg": favicon_svg
             }
