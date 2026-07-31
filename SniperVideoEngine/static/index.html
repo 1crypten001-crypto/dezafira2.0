@@ -549,6 +549,35 @@ function addLog(sid,msg,type){
   l.appendChild(el);l.scrollTop=l.scrollHeight;
 }
 
+async function suggestBlogIdea(){
+  var btn = $("btnSuggestBlog");
+  var isAffiliate = $("macroMonetizationMode").value === "affiliate";
+  if(btn){
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;margin-right:6px"></span> Pensando...';
+  }
+  try {
+    var res = await api("/api/v1/pipeline/suggest-blog-idea", {
+      method: "POST",
+      body: JSON.stringify({ is_affiliate: isAffiliate })
+    });
+    if(res && res.name && res.niche){
+      $("macroBlogName").value = res.name;
+      $("macroNiche").value = res.niche;
+      showToast("✓ Seu Hermes sugeriu uma ideia!");
+    } else if(res && res.error){
+      showToast("Erro ao sugerir: " + res.error);
+    }
+  } catch(e) {
+    showToast("Erro de rede ao sugerir ideia.");
+  } finally {
+    if(btn){
+      btn.disabled = false;
+      btn.innerHTML = "🪄 Sugerir Ideia (Seu Hermes)";
+    }
+  }
+}
+
 async function startMacroPipeline(){
   var name=$("macroBlogName").value.trim(),niche=$("macroNiche").value.trim();
   var target=parseInt($("macroTargetArticles").value)||30;
@@ -670,8 +699,9 @@ async function loadDashboard(){
 
   // Build panels
   var panelsHtml = '<div class="blog-panel active" id="panel_new">' +
-    '<div class="panel-header">' +
+    '<div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
       '<div><h3>🏗️ Criar Novo Blog do Zero</h3><div style="font-size:12px;color:#5c6370">Configure o nome, nicho, quantidade de artigos e o modo de monetização do blog</div></div>' +
+      '<div><button class="btn btn-sm" id="btnSuggestBlog" onclick="suggestBlogIdea()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-weight:700;padding:6px 14px">🪄 Sugerir Ideia (Seu Hermes)</button></div>' +
     '</div>' +
     '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:24px;margin-top:16px;display:flex;flex-direction:column;gap:16px">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px">' +

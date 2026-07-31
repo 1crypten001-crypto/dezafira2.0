@@ -3981,6 +3981,68 @@ async def run_blog_factory_frontend(payload: dict):
     _running_tasks[tid] = task  # prevent GC
     
     return {"task_id": tid, "blog_name": blog_name, "niche": niche, "status": "starting", "message": "Pipeline iniciada!"}
+
+@app.post("/api/v1/pipeline/suggest-blog-idea")
+async def suggest_blog_idea(payload: dict):
+    """
+    Usa o LLM para sugerir um Nome de Blog criativo e um Nicho lucrativo.
+    Se is_affiliate for True, foca em produtos físicos e reviews de afiliados.
+    """
+    is_affiliate = bool(payload.get("is_affiliate", False))
+    from modules.blog_writer import _call_llm
+    
+    if is_affiliate:
+        system = "Você é o Seu Hermes, o inteligente orquestrador e estrategista de e-commerce e afiliados."
+        prompt = (
+            "Sugira uma ideia única e lucrativa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
+            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog"}\n'
+            "Exemplo:\n"
+            '{"name": "CozinhaTech", "niche": "Eletroportáteis inteligentes e airfryers premium"}'
+        )
+    else:
+        system = "Você é o Seu Hermes, o inteligente orquestrador e editor-chefe de blogs focados em AdSense."
+        prompt = (
+            "Sugira uma ideia única de blog voltado para conteúdo informativo (monetização via AdSense) com alto potencial de buscas e engajamento.\n"
+            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho específico com alta curiosidade do público"}\n'
+            "Exemplo:\n"
+            '{"name": "PassaporteHistórico", "niche": "Curiosidades arqueológicas e civilizações antigas"}'
+        )
+        
+    try:
+        raw = await _call_llm(system, prompt, temperature=0.9, max_tokens=1000)
+        # Limpar possíveis blocos markdown do retorno
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("```")[1]
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:]
+        cleaned = cleaned.strip()
+        
+        import json
+        data = json.loads(cleaned)
+        return {"name": data.get("name", ""), "niche": data.get("niche", "")}
+    except Exception as e:
+        print(f"[Seu Hermes] Erro ao gerar sugestão de blog: {e}")
+        # Fallbacks estáticos caso a IA falhe
+        import random
+        if is_affiliate:
+            ideas = [
+                {"name": "AchadosGamer", "niche": "Acessórios e mouses gamer custo-benefício"},
+                {"name": "LarInteligente", "niche": "Dispositivos de casa inteligente e automação alexa"},
+                {"name": "CozinhaPro", "niche": "Utensílios culinários modernos e panelas elétricas"},
+                {"name": "EstiloSmart", "niche": "Relógios inteligentes e wearables de saúde"}
+            ]
+        else:
+            ideas = [
+                {"name": "CuriosidadesCósmicas", "niche": "Mistérios do universo e astrofísica para leigos"},
+                {"name": "EcoVida", "niche": "Práticas de jardinagem urbana e compostagem caseira"},
+                {"name": "SegredosFinanceiros", "niche": "Educação financeira básica e investimentos em renda fixa"},
+                {"name": "MenteSaudável", "niche": "Hábitos de produtividade pessoal e psicologia comportamental"}
+            ]
+        return random.choice(ideas)
+
 @app.post("/api/v1/pipeline/run-sync")
 async def run_sync_pipeline(payload: dict):
     """Executa a pipeline de blog de forma SINCRONA (inline na requisicao).
