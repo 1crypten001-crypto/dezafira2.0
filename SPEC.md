@@ -1,8 +1,8 @@
 # SPEC.md — Dezafira Pipeline Specification
 
-> **Versão:** 4.2
+> **Versão:** 4.3
 > **Data:** 2026-07-31
-> **Status:** Fábrica de Blogs em produção com 89 artigos, 2 blogs, 100% imagens, Google Hype Engine e Split Hero UX
+> **Status:** Fábrica de Blogs em produção com 89 artigos, 2 blogs, 100% imagens, Google Hype Engine, Split Hero UX, LiLi com score em cache + ranking + regeneração persistida
 > **Produção:** https://dezafira.com.br
 
 ---
@@ -33,11 +33,15 @@ Dezafira é um ecossistema de automação de conteúdo digital com foco atual na
 
 | Blog | Nicho | Artigos | C/Imagem | Publicados | Score LiLi | URL |
 |------|-------|---------|----------|------------|------------|-----|
-| ✝️ O Reino | Ensinamentos de Jesus | 41 | 41 (100%) | 39 | 98.9/100 | /blog/o-reino |
-| 💰 Vida Financeira | Finanças, Investimentos | 48 | 48 (100%) | 37 | 99.2/100 | /blog/vida-financeira |
-| **Total** | | **89** | **89 (100%)** | **76** | **99.1/100** | |
+| ✝️ O Reino | Ensinamentos de Jesus | 41 | 41 (100%) | 39 | 55/100 | /blog/o-reino |
+| 💰 Vida Financeira | Finanças, Investimentos | 48 | 48 (100%) | 37 | 81/100 | /blog/vida-financeira |
+| **Total** | | **89** | **89 (100%)** | **76** | **~84/100** | |
 
-### 2.2 Temas Visuais
+### 2.2 Score LiLi — Cache no Banco
+
+Desde v4.3 o score LiLi é **persistido no banco** (colunas `lili_score`, `lili_approved`, `lili_reviewed_at` em `blog_posts`), com migração idempotente no boot. O dashboard e o ranking leem do cache em vez de recalcular a cada request (2ª chamada ~4s vs ~40s).
+
+### 2.3 Temas Visuais
 
 Cada blog tem identidade visual própria via `brand_themes.py`:
 
@@ -46,7 +50,7 @@ Cada blog tem identidade visual própria via `brand_themes.py`:
 | Cristão | Dourado/tradição | `#d4a853`, `#1a1410`, `#8b2500` | Playfair Display |
 | Finanças | Verde/prosperidade | `#059669`, `#022c22`, `#0d9488` | Inter |
 
-### 2.3 Seu Pereira — Score Atual
+### 2.4 Seu Pereira — Score Atual
 
 **88.7% (17/18)** — Status: **✅ Pronto para solicitar o AdSense!** (118/133 pontos, avaliado em 31/07/2026).
 
@@ -236,7 +240,20 @@ As instruções de redação são **específicas do nicho** detectado automatica
 
 - Score = 100 - (15 × issues_alta + 5 × issues_media + 2 × issues_baixa)
 - Aprovado se score >= 70 E nenhum issue de severidade 'alta'
-- Score médio real: **99.1/100** (89 artigos revisados)
+- Score médio real: **~84/100** com os novos padrões estritos (pode variar conforme padrões aplicados)
+
+### 6.3 Ferramentas de Qualidade (v4.3)
+
+| Recurso | Endpoint | Descrição |
+|---------|----------|-----------|
+| Cache do score | — | `lili_score`/`lili_approved` persistidos no banco (dashboard cache-aware) |
+| Ranking global | `GET /api/v1/lili/ranking` | Todos os artigos por score, filtros por blog/status, medalhas #1/#2/#3 |
+| Score no painel | — | Badge `🌸 NN/100` por artigo + média por blog na UI Admin |
+| Corrigir | `POST /api/v1/lili/correct/{id}` | Auto-correção via LiLi (texto + HTML) |
+| Regenerar artigo | `POST /api/v1/blog/post/{id}/regenerate` | Recria do zero (texto + imagem + revisão), preserva status |
+| Regenerar imagem | `POST /api/v1/blog/post/{id}/regenerate-image` | Apenas a imagem, mantém texto e score |
+| Regenerar em lote | `POST /api/v1/lili/regenerate-batch` | Reprovação em massa (score < 70), **persistida em job** |
+| Status do job | `GET /api/v1/lili/regenerate-jobs/{job_id}` | Progresso do lote (itens done/failed/processing) |
 
 ---
 
@@ -269,6 +286,8 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 | `BlogSection` | `blog_sections` | Seções/micro-nichos | ~12 |
 | `BlogPipelineRun` | `blog_pipeline_runs` | Execuções da esteira | ~20 |
 | `BlogSubdomain` | `blog_subdomains` | Subdomínios dos blogs | 2 |
+| `RegenerationJob` | `regeneration_jobs` | Lotes de regeneração persistidos | 1 |
+| `RegenerationJobItem` | `regeneration_job_items` | Itens (artigos) de cada lote | 1 |
 | `Book` | `books` | Livros digitais | 0 |
 | `Course` | `courses` | Cursos | 0 |
 | `Channel` | `channels` | (Legado YouTube) | 0 |
@@ -278,6 +297,11 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 ## 9. Commits em Produção
 
 ```
+e56fcc7  fix: abas dos blogs visíveis imediatamente na página Blogs & Pipeline
+9a2b811  feat: persiste jobs de regeneração em lote no banco (resiliente a restarts)
+db241aa  feat: botão regenerar imagem por artigo e regeneração em lote de reprovados
+38c2ee4  feat: cache do score LiLi, botão regenerar e aba Qualidade com ranking
+5ad948f  feat: score LiLi por artigo no painel por blog da UI Admin
 c66620b  fix: dashboard 500 quebrava abas dos blogs na UI admin (migração + image_provider)
 a27aff6  fix: corrige emojis corrompidos (mojibake cp850) na UI admin da esteira
 57dd77d  fix: normaliza codificacao UTF-8, emojis e acentos de esteira
@@ -318,6 +342,11 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] LLM Cascade com 5 provedores
 - [x] Blog viewer público com páginas de sistema
 - [x] Dashboard SPA com métricas em tempo real
+- [x] **Score LiLi em cache no banco** — leitura instantânea no dashboard e ranking
+- [x] **Aba Qualidade com ranking global** — todos os artigos ordenados por score, filtros e medalhas
+- [x] **Botão regenerar imagem** por artigo (mantém texto) no painel e na aba Qualidade
+- [x] **Regeneração em lote persistida** — jobs no banco sobrevivem a restarts do Railway
+- [x] **Abas dos blogs visíveis imediatamente** na página Blogs & Pipeline
 - [x] Deploy Railway com PostgreSQL e domínio próprio
 - [x] 89 artigos publicados, 100% com imagem
 
@@ -332,4 +361,4 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 
 ---
 
-*SPEC v4.2 — Ecossistema Dezafira — 2026-07-31*
+*SPEC v4.3 — Ecossistema Dezafira — 2026-07-31*
