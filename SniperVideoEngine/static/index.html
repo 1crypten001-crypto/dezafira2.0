@@ -534,6 +534,7 @@ function addLog(sid,msg,type){
 async function startMacroPipeline(){
   var name=$("macroBlogName").value.trim(),niche=$("macroNiche").value.trim();
   var target=parseInt($("macroTargetArticles").value)||30;
+  var isAffiliate = $("macroMonetizationMode").value === "affiliate";
   if(!name||!niche){showToast("Preencha nome e nicho!");return}
   ms={running:true,taskId:null,stages:{},log:[],history:ms.history||[],gen:0,cur:0,topic:"",target:Math.min(target,100),start:Date.now()};
   lc=0;
@@ -555,7 +556,7 @@ async function startMacroPipeline(){
   addLog("fundacao","\u{1F680} Macro-Esteira iniciando...");
   addLog("fundacao","\u{1F3D7}\uFE0F Blog: "+name+" | Nicho: "+niche);
   addLog("fundacao","\u{1F4CB} Alvo: "+ms.target+" artigos");
-  var res=await api("/api/v1/pipeline/run-blog-factory",{method:"POST",body:JSON.stringify({blog_name:name,niche:niche,language:"pt",target_articles:ms.target})});
+  var res=await api("/api/v1/pipeline/run-blog-factory",{method:"POST",body:JSON.stringify({blog_name:name,niche:niche,language:"pt",target_articles:ms.target,is_affiliate:isAffiliate})});
   if(res.error){showToast("Erro: "+res.error);ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";return}
   ms.taskId=res.task_id;_connectWs();showToast("✓ Pipeline iniciada!");
 }
@@ -636,18 +637,52 @@ async function loadDashboard(){
   }
 
   // Build tabs com branding
-  var tabsHtml=chs.map(function(c,i){
+  var tabsHtml = '<div class="blog-tab active" data-blog="new" style="--tab-color:#10b981" onclick="switchBlogTab(\'new\')"><span class="tab-logo" style="background:#10b981;font-size:14px;display:flex;align-items:center;justify-content:center;color:#fff">➕</span> Criar Novo Blog</div>';
+  tabsHtml += chs.map(function(c,i){
     var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
     var totalCountPerBlog = c.post_count || blogPosts.length;
     var pri=c.brand_primary||'#6366f1';
     var init=(c.name||'B')[0];
     var logoHtml = c.logo_svg ? '<div class="tab-logo" style="background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden">'+c.logo_svg.replace('<svg ', '<svg style="width:100%;height:100%;object-fit:contain" ')+'</div>' : '<span class="tab-logo" style="background:'+pri+'">'+init+'</span>';
-    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" style="'+(i===0?'--tab-color:'+pri:'')+'" onclick="switchBlogTab(\''+c.id+'\')">'+logoHtml+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
+    return '<div class="blog-tab" data-blog="'+c.id+'" onclick="switchBlogTab(\''+c.id+'\')">'+logoHtml+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
   }).join('');
   $("blogTabs").innerHTML=tabsHtml;
 
   // Build panels
-  var panelsHtml=chs.map(function(c,i){
+  var panelsHtml = '<div class="blog-panel active" id="panel_new">' +
+    '<div class="panel-header">' +
+      '<div><h3>🏗️ Criar Novo Blog do Zero</h3><div style="font-size:12px;color:#5c6370">Configure o nome, nicho, quantidade de artigos e o modo de monetização do blog</div></div>' +
+    '</div>' +
+    '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:24px;margin-top:16px;display:flex;flex-direction:column;gap:16px">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px">' +
+        '<div><label style="font-size:12px;font-weight:600;color:#8a91a5;display:block;margin-bottom:6px">Nome do Blog</label><input type="text" id="macroBlogName" placeholder="Ex: O Reino" style="width:100%;padding:10px 14px;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;color:#fff;outline:none" /></div>' +
+        '<div><label style="font-size:12px;font-weight:600;color:#8a91a5;display:block;margin-bottom:6px">Nicho do Blog</label><input type="text" id="macroNiche" placeholder="Ex: Ensinamentos de Jesus" style="width:100%;padding:10px 14px;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;color:#fff;outline:none" /></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px">' +
+        '<div><label style="font-size:12px;font-weight:600;color:#8a91a5;display:block;margin-bottom:6px">Quantidade de Artigos Alvo</label>' +
+          '<select id="macroTargetArticles" style="width:100%;padding:10px 14px;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;color:#fff;outline:none">' +
+            '<option value="5">5 artigos</option>' +
+            '<option value="10">10 artigos</option>' +
+            '<option value="20">20 artigos</option>' +
+            '<option value="30" selected>30 artigos</option>' +
+            '<option value="50">50 artigos</option>' +
+          '</select>' +
+        '</div>' +
+        '<div><label style="font-size:12px;font-weight:600;color:#8a91a5;display:block;margin-bottom:6px">Modo de Monetização</label>' +
+          '<select id="macroMonetizationMode" style="width:100%;padding:10px 14px;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;color:#fff;outline:none">' +
+            '<option value="normal">Modo Normal (AdSense)</option>' +
+            '<option value="affiliate">Modo Afiliado (Amazon, Shopee, Mercado Livre)</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top:10px;text-align:right">' +
+        '<button class="btn btn-primary" id="startMacroBtn" onclick="startMacroPipeline()" style="padding:10px 24px;font-weight:700">🏗️ Iniciar Fábrica & Esteira</button>' +
+        '<button class="btn btn-danger" id="resetMacroBtn" onclick="resetMacroPipeline()" style="display:none;padding:10px 24px;font-weight:700;margin-left:8px">Resetar</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  panelsHtml += chs.map(function(c,i){
     var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
     var blogUrl=c.site_url||blogSlug(c.name);
     var pri=c.brand_primary||'#6366f1';

@@ -230,12 +230,13 @@ class MacroState:
     """Estado completo da macro-esteira de blog."""
 
     def __init__(self, task_id: str, blog_name: str, niche: str, language: str = "pt",
-                 target_articles: int = 1):
+                 target_articles: int = 1, is_affiliate: bool = False):
         self.task_id = task_id
         self.blog_name = blog_name
         self.niche = niche
         self.language = language
         self.target_articles = target_articles
+        self.is_affiliate = is_affiliate
         self.channel_id = None       # Set after Phase 1
         self.pipeline_run_id = None  # Set after Phase 1
         self.sections = []           # Set after Phase 2
@@ -371,11 +372,13 @@ class BlogMacroPipeline:
 
     async def execute(self, blog_name: str, niche: str, language: str = "pt",
                       task_id: Optional[str] = None,
-                      target_articles: Optional[int] = None) -> MacroState:
+                      target_articles: Optional[int] = None,
+                      is_affiliate: bool = False) -> MacroState:
         task_id = task_id or f"mblog_{uuid.uuid4().hex[:8]}"
 
         self.state = MacroState(task_id, blog_name, niche, language,
-                                target_articles=target_articles or DEFAULT_TOTAL)
+                                target_articles=target_articles or DEFAULT_TOTAL,
+                                is_affiliate=is_affiliate)
         self.state.status = "running"
         self.state.started_at = datetime.utcnow()
 
@@ -512,6 +515,7 @@ class BlogMacroPipeline:
                 lang=self.state.language,
                 platform="dezafira",
                 subdomain=subdomain,
+                is_affiliate=getattr(self.state, "is_affiliate", False),
             )
             self.state.channel_id = channel["id"]
 
@@ -1398,19 +1402,10 @@ async def run_blog_macro_pipeline(
     task_id: Optional[str] = None,
     target_articles: Optional[int] = None,
     on_progress: Optional[ProgressCallback] = None,
+    is_affiliate: bool = False,
 ) -> dict:
     """
     Executa a macro-esteira completa da Fábrica de Blogs.
-
-    Args:
-        blog_name: Nome do blog (ex: "O Reino")
-        niche: Nicho principal (ex: "Ensinamentos de Jesus")
-        language: Idioma
-        task_id: ID externo
-        on_progress: Callback de progresso
-
-    Returns:
-        Estado final do pipeline
     """
     pipeline = BlogMacroPipeline(on_progress=on_progress)
     state = await pipeline.execute(
@@ -1419,6 +1414,7 @@ async def run_blog_macro_pipeline(
         language=language,
         task_id=task_id,
         target_articles=target_articles,
+        is_affiliate=is_affiliate,
     )
     return state.to_dict()
 

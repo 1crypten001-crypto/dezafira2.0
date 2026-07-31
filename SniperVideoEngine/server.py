@@ -3858,6 +3858,7 @@ async def run_blog_factory_frontend(payload: dict):
     niche = payload.get("niche", "")
     language = payload.get("language", "pt")
     target_articles = payload.get("target_articles", 3)
+    is_affiliate = bool(payload.get("is_affiliate", False))
     if not blog_name or not niche:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="blog_name and niche are required")
@@ -3941,6 +3942,7 @@ async def run_blog_factory_frontend(payload: dict):
                     blog_name=blog_name, niche=niche, language=language,
                     task_id=tid, target_articles=target_articles,
                     on_progress=on_progress,
+                    is_affiliate=is_affiliate,
                 )
                 _macro_results[tid]["status"] = state.get("status", "completed")
                 _macro_results[tid]["data"] = state

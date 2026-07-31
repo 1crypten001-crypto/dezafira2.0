@@ -846,7 +846,7 @@ def update_db_app_payment(transaction_id: str, status: str):
 
 def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wordpress",
                            site_url: str = "", api_endpoint: str = "", api_token: str = "",
-                           subdomain: str = "") -> dict:
+                           subdomain: str = "", is_affiliate: bool = False) -> dict:
     db = SessionLocal()
     try:
         # Auto-generate subdomain from name if not provided
@@ -870,6 +870,7 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             api_endpoint=api_endpoint,
             api_token=api_token,
             status="active",
+            is_affiliate=is_affiliate,
         )
         db.add(new_chan)
         db.commit()
