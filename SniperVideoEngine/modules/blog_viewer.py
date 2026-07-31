@@ -56,9 +56,10 @@ def _apply_brand_overrides(blog_info: dict, theme_css: str) -> tuple[str, dict]:
         queries = "&".join(font_imports)
         font_import_css = f'@import url("https://fonts.googleapis.com/css2?{queries}&display=swap");\n'
 
-    css_overrides = font_import_css + ":root {\n"
+    css_overrides = ":root {\n"
     for k, v in c.items():
         css_overrides += f"  --{k}: {v} !important;\n"
+    css_overrides += f"  --header-bg: {c.get('dark2', '#0f172a')} !important;\n"
     if "heading" in f:
         css_overrides += f"  --font-heading: {f['heading']} !important;\n"
     if "body" in f:
@@ -77,17 +78,13 @@ def _apply_brand_overrides(blog_info: dict, theme_css: str) -> tuple[str, dict]:
             
     css_overrides += "}\n"
     
-    css_overrides += "@media (prefers-color-scheme: dark) {\n  :root {\n"
-    for k, v in cd.items():
-        css_overrides += f"    --{k}: {v} !important;\n"
-    css_overrides += "  }\n}\n"
-    
-    css_overrides += "html.dark {\n"
+    css_overrides += "html[data-theme=\"dark\"] {\n"
     for k, v in cd.items():
         css_overrides += f"  --{k}: {v} !important;\n"
+    css_overrides += f"  --header-bg: {cd.get('bg_dark', '#0f172a')} !important;\n"
     css_overrides += "}\n"
     
-    return theme_css + "\n" + css_overrides, brand_config
+    return font_import_css + theme_css + "\n" + css_overrides, brand_config
 
 
 # ─── COMMON JS SNIPPETS ─────────────────────────────────────────────
@@ -156,21 +153,22 @@ _READING_PROGRESS_JS = """
 _BASE_CSS = """
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg,#f8fafc);color:var(--text,#1e293b);min-height:100vh;padding-top:64px;transition:background .3s,color .3s}
+body{font-family:var(--font-body, 'Inter', -apple-system, sans-serif);background:var(--bg,#f8fafc);color:var(--text,#1e293b);min-height:100vh;padding-top:64px;transition:background .3s,color .3s}
+h1,h2,h3,h4,h5,h6,.logo-text,.post-title,.logo-icon{font-family:var(--font-heading, 'Inter', -apple-system, sans-serif);color:var(--dark, #0f172a)}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;height:auto}
 
 /* ─── HEADER ─── */
-.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--dark,#0f172a);border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px);transition:transform .3s ease,background .3s}
+.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--header-bg,#0f172a);border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px);transition:transform .3s ease,background .3s}
 .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;padding:0 20px;height:64px}
 .header-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--gold,#d4a853);border-radius:8px;font-size:18px;color:var(--dark,#0f172a);font-weight:800;overflow:hidden}
+.logo-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--primary, #4f46e5);border-radius:8px;font-size:18px;color:#fff;font-weight:800;overflow:hidden}
 .logo-icon svg{width:22px;height:22px}
 .logo-text{font-size:18px;font-weight:700;color:#fff}
 .header-nav{display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto}
 .nav-link{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;color:rgba(255,255,255,.7);white-space:nowrap;transition:all .15s ease}
 .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
-.nav-link.active{background:rgba(var(--primary-rgb,212,168,83),.15);color:var(--gold,#d4a853)}
+.nav-link.active{background:rgba(var(--primary-rgb,79,70,229),.15);color:var(--primary, #4f46e5)}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .search-toggle,.menu-toggle,.dark-toggle{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s ease}
 .search-toggle:hover,.menu-toggle:hover,.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
@@ -178,12 +176,12 @@ img{max-width:100%;height:auto}
 .dark-toggle{font-size:15px}
 .search-bar{max-width:1200px;margin:0 auto;padding:12px 20px;display:flex;gap:8px;transition:all .3s ease}
 .search-bar input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;font-family:inherit;outline:none}
-.search-bar input:focus{border-color:var(--gold,#d4a853)}
-.search-bar button{padding:10px 20px;border-radius:8px;border:none;background:var(--gold,#d4a853);color:var(--dark,#0f172a);font-weight:600;font-size:13px;cursor:pointer}
+.search-bar input:focus{border-color:var(--primary, #4f46e5)}
+.search-bar button{padding:10px 20px;border-radius:8px;border:none;background:var(--primary, #4f46e5);color:#fff;font-weight:600;font-size:13px;cursor:pointer}
 .search-bar button:hover{opacity:.9}
 
 /* ─── FOOTER ─── */
-.site-footer{background:var(--dark,#0f172a);border-top:1px solid rgba(255,255,255,.06);padding:48px 20px 24px;margin-top:48px;color:rgba(255,255,255,.7);transition:background .3s}
+.site-footer{background:var(--header-bg,#0f172a);border-top:1px solid rgba(255,255,255,.06);padding:48px 20px 24px;margin-top:48px;color:rgba(255,255,255,.7);transition:background .3s}
 .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
 .footer-brand .logo-icon{margin-bottom:8px}
 .footer-brand strong{display:block;font-size:16px;color:#fff;margin-bottom:6px}
@@ -193,7 +191,7 @@ img{max-width:100%;height:auto}
 .footer-links a:hover{color:#fff}
 .social-links{display:flex;gap:8px}
 .social-links a{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:8px;font-size:16px;color:rgba(255,255,255,.6);transition:all .15s ease}
-.social-links a:hover{background:rgba(var(--primary-rgb,212,168,83),.15);color:var(--gold,#d4a853)}
+.social-links a:hover{background:rgba(var(--primary-rgb,79,70,229),.15);color:var(--primary, #4f46e5)}
 .footer-bottom{max-width:1200px;margin:32px auto 0;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);text-align:center;font-size:12px;color:rgba(255,255,255,.35)}
 
 /* ─── BLOG CONTENT ─── */
@@ -255,20 +253,20 @@ img{max-width:100%;height:auto}
 
 /* ─── ADMIN LINK ─── */
 .admin-link{position:fixed;bottom:20px;right:20px;width:40px;height:40px;background:var(--dark,#0f172a);border:1px solid rgba(255,255,255,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:16px;z-index:99;transition:all .15s ease}
-.admin-link:hover{background:var(--gold,#d4a853);color:var(--dark,#0f172a)}
+.admin-link:hover{background:var(--primary);color:#fff}
 
 /* ─── TABLE OF CONTENTS (SUMÁRIO AEVO-STYLE) ─── */
-.table-of-contents{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--gold,#d4a853);border-radius:10px;padding:18px 20px;margin:24px 0 32px;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
+.table-of-contents{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--primary, #4f46e5);border-radius:10px;padding:18px 20px;margin:24px 0 32px;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
 .toc-title{font-size:14px;font-weight:700;color:var(--text,#1e293b);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
 .table-of-contents ul{list-style:none!important;padding-left:0!important;margin-bottom:0!important}
 .table-of-contents li{margin-bottom:8px!important;font-size:14px;line-height:1.4}
 .table-of-contents li:last-child{margin-bottom:0!important}
 .table-of-contents a{color:var(--primary,#6366f1);text-decoration:none;font-weight:500;transition:color .15s ease}
-.table-of-contents a:hover{color:var(--gold,#d4a853);text-decoration:underline}
+.table-of-contents a:hover{color:var(--accent, var(--primary,#6366f1));text-decoration:underline}
 
 /* ─── AUTHOR BOX (E-E-A-T) ─── */
 .author-box{display:flex;gap:16px;background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:20px;margin:40px 0 24px;align-items:center;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
-.author-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0;background:var(--gold,#d4a853);border:2px solid rgba(255,255,255,.2);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.author-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0;background:linear-gradient(135deg,var(--primary, #4f46e5),var(--accent,var(--primary, #4f46e5)));border:2px solid rgba(255,255,255,.2);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .author-info{flex:1}
 .author-title{font-size:14px;font-weight:700;color:var(--text,#1e293b);margin-bottom:4px}
 .author-bio{font-size:13px;color:var(--text-light,#64748b);line-height:1.5;margin-bottom:0!important}
@@ -333,15 +331,28 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
     """Gera pagina HTML completa com SEO, dark mode, e branding profissional.
     slug: usado para link dinamico no cookie banner.
     """
-    google_fonts = "Inter:wght@300;400;500;600;700;800"
-    if "Playfair" in theme_css:
-        google_fonts += "|Playfair+Display:wght@400;700"
-    if "Merriweather" in theme_css:
-        google_fonts += "|Merriweather:wght@300;400;700"
-    if "Lora" in theme_css:
-        google_fonts += "|Lora:wght@400;600;700"
-    if "JetBrains" in theme_css:
-        google_fonts += "|JetBrains+Mono:wght@400;700"
+    requested_fonts = ["Inter:wght@300;400;500;600;700;800"]
+    if brand_config and brand_config.get("fonts"):
+        for fkey, font_name in brand_config["fonts"].items():
+            font_clean = font_name.split(",")[0].replace("'", "").replace('"', '').strip()
+            if font_clean and font_clean not in ["Inter", "sans-serif", "serif", "system-ui"]:
+                font_param = font_clean.replace(" ", "+")
+                if font_clean in ["Lora", "Playfair Display", "Merriweather", "Playfair+Display"]:
+                    requested_fonts.append(f"{font_param}:wght@400;600;700")
+                else:
+                    requested_fonts.append(f"{font_param}:wght@400;500;600;700;800")
+
+    # Fallbacks baseados no CSS
+    if "Playfair" in theme_css and not any("Playfair" in f for f in requested_fonts):
+        requested_fonts.append("Playfair+Display:wght@400;700")
+    if "Merriweather" in theme_css and not any("Merriweather" in f for f in requested_fonts):
+        requested_fonts.append("Merriweather:wght@300;400;700")
+    if "Lora" in theme_css and not any("Lora" in f for f in requested_fonts):
+        requested_fonts.append("Lora:wght@400;600;700")
+    if "JetBrains" in theme_css and not any("JetBrains" in f for f in requested_fonts):
+        requested_fonts.append("JetBrains+Mono:wght@400;700")
+
+    google_fonts = "&".join(f"family={f}" for f in requested_fonts)
 
     # Favicon profissional — usa SVG vetorial em vez de emoji
     if brand_config and brand_config.get("favicon_svg"):
@@ -657,7 +668,10 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     </nav>"""
 
     # Author
-    author_html = f'<span class="meta-item author">&#9997; {author_name}</span>'
+    author_html = f'''<span class="meta-item author" style="display:inline-flex;align-items:center;gap:6px;">
+        <span style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg, var(--primary, #4f46e5), var(--accent, var(--primary, #4f46e5)));color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">{author_name[0].upper()}</span>
+        <strong style="color:var(--dark);">{author_name}</strong>
+    </span>'''
 
     # Sumario Dinamico (TOC) via Regex nos h2
     h2_pattern = re.compile(r'<h2([^>]*)>(.*?)</h2>', re.IGNORECASE | re.DOTALL)
@@ -673,7 +687,38 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
             anchor_id = f"topico-{idx+1}"
             
             new_content += content[last_idx:match.start()]
-            new_content += f'<h2{attrs} id="{anchor_id}">{raw_h2_text}</h2>'
+            
+            # Se for o primeiro H2 e o blog for de afiliado, insere o Veredito Rápido (TL;DR)
+            h2_html = f'<h2{attrs} id="{anchor_id}">{raw_h2_text}</h2>'
+            if idx == 0 and blog_info.get("is_affiliate"):
+                tldr_html = f"""
+                <div class="tldr-box" style="margin: 28px 0; padding: 24px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <span style="font-size: 20px;">⚡</span>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dark); font-family: var(--font-heading);">Veredito Rápido (TL;DR)</h3>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div>
+                            <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--primary); font-family: var(--font-heading);">🟢 Destaques / Prós</h4>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--text); line-height: 1.6; list-style-type: disc;">
+                                <li>Desempenho e durabilidade aprovados.</li>
+                                <li>Excelente custo-benefício editorial.</li>
+                                <li>Foco total em usabilidade e ergonomia.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--accent); font-family: var(--font-heading);">🟡 Pontos de Atenção</h4>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--text); line-height: 1.6; list-style-type: disc;">
+                                <li>Pode exigir pequeno tempo de adaptação.</li>
+                                <li>Disponibilidade de estoque oscila rápido.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                """
+                h2_html = tldr_html + h2_html
+                
+            new_content += h2_html
             last_idx = match.end()
             
             toc_items.append(f'<li><a href="#{anchor_id}">📌 {clean_text}</a></li>')

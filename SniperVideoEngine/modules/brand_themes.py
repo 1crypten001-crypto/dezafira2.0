@@ -459,15 +459,7 @@ def generate_theme_css(nicho: str, blog_name: str = "") -> str:
 --text:{cd["text"]};--text-light:{cd["text_light"]};
 --border:{cd["border"]};
 }}
-@media(prefers-color-scheme:dark){{
-:root:not([data-theme="light"]){{
---primary:{cd["primary"] if "primary" in cd else c["primary"]};
---bg:{cd["bg"]};--bg-dark:{cd["bg_dark"]};
---dark:{cd["dark"]};--dark2:{cd["dark2"]};
---text:{cd["text"]};--text-light:{cd["text_light"]};
---border:{cd["border"]};
-}}
-}}
+
 *,*::before,*::after{{margin:0;padding:0;box-sizing:border-box}}
 html{{scroll-behavior:smooth}}
 body{{font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.7;font-size:var(--fs-base)}}

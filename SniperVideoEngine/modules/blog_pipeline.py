@@ -1234,12 +1234,12 @@ def render_affiliate_ctas(content: str, post_slug: str) -> str:
             
         btn_text_color = text_color
             
-        card_html = f'''<div class="affiliate-card" style="border: 1px solid rgba(255,255,255,0.08); background: rgba(15,17,26,0.65); padding: 20px; border-radius: 12px; margin: 24px 0; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        card_html = f'''<div class="affiliate-card" style="border: 1px solid var(--border); background: var(--bg-dark); padding: 20px; border-radius: 12px; margin: 24px 0; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow, 0 4px 12px rgba(0,0,0,0.03));">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <span style="font-weight: 700; font-size: 16px; color: #fff;">{product_name}</span>
+        <span style="font-weight: 700; font-size: 16px; color: var(--dark);">{product_name}</span>
         <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: {bg}; color: {btn_text_color}; padding: 3px 8px; border-radius: 6px;">{label}</span>
     </div>
-    <p style="font-size: 13px; color: #8a91a5; margin: 0; line-height: 1.5;">Confira o preço atualizado, avaliações reais de outros compradores e garanta a melhor oferta no link abaixo:</p>
+    <p style="font-size: 13px; color: var(--text-light); margin: 0; line-height: 1.5;">Confira o preço atualizado, avaliações reais de outros compradores e garanta a melhor oferta no link abaixo:</p>
     <a href="/go/{post_slug}/{provider}?prod={encoded_prod}" target="_blank" style="display: inline-block; text-align: center; text-decoration: none; padding: 10px 18px; background: linear-gradient(135deg, {grad_start}, {grad_end}); color: {btn_text_color}; border-radius: 8px; font-weight: 700; font-size: 13px; transition: all 0.2s ease;">Ver Preço na {label}</a>
 </div>'''
         return card_html
