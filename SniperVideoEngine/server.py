@@ -2408,8 +2408,8 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
         else:
             return {"error": "Nenhum canal encontrado"}
 
-    from modules.database import get_db_blog_info
-    blog_info = get_db_blog_info(channel_id)
+    from modules.database import get_db_blog_channel
+    blog_info = get_db_blog_channel(channel_id)
     if not blog_info:
         return {"error": "Blog não encontrado"}
 
