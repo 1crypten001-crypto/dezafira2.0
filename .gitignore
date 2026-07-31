@@ -79,5 +79,11 @@ SniperVideoEngine/start_ui_server.py
 *.msi
 SniperVideoEngine/obscura_bin/
 SniperVideoEngine/hyperframes_work/
-open-generative-ai/hyperframes_composer/assets/
 SniperVideoEngine/credentials/
+
+# Caches locais de IAs e ferramentas
+.gemini/
+.freebuff/
+*.db
+*.db-shm
+*.db-wal
