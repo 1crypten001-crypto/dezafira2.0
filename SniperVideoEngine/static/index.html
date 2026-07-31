@@ -249,25 +249,25 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Visao Geral</div>
-      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">­ƒôè</span> Dashboard</a>
+      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</a>
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
-      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">­ƒôØ</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
+      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
-      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">­ƒôù</span> Livros <span class="badge" id="bookCount">-</span></a>
-      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">­ƒÄô</span> Cursos <span class="badge" id="courseCount">-</span></a>
-      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">­ƒÄ¿</span> Imagens</a>
-      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">­ƒùú´©Å</span> Hermes</a>
-      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">­ƒæ®ÔÇì­ƒÆ╗</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
+      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">📚</span> Livros <span class="badge" id="bookCount">-</span></a>
+      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
+      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">🖼️</span> Imagens</a>
+      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🤖</span> Hermes</a>
+      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">🔍</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira v1.0</div>
   </aside>
   <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <main class="main">
     <div class="topbar">
-      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">Ôÿ░</button><h2 id="pageTitle">Dashboard</h2></div>
+      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">░</button><h2 id="pageTitle">Dashboard</h2></div>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="status"><span class="dot"></span>Online</div>
-        <button class="btn btn-sm" onclick="location.reload()">Ôƒ│ Atualizar</button>
+        <button class="btn btn-sm" onclick="location.reload()">🔄 Atualizar</button>
       </div>
     </div>
 
@@ -289,13 +289,13 @@
     </div>
 
     <div class="page" id="page-blogs">
-      <div class="page-header"><h2>­ƒôØ Fabrica de Blogs & ­ƒÅ¡ Esteira de Produ├º├úo</h2><p>Gerencie canais, artigos e acompanhe a esteira de conte├║do em tempo real</p></div>
+      <div class="page-header"><h2>📝 Fabrica de Blogs & ­ƒÅ¡ Esteira de Produção</h2><p>Gerencie canais, artigos e acompanhe a esteira de conteúdo em tempo real</p></div>
       <div class="stats-grid" id="blogStats"></div>
 
-      <!-- Se├º├úo Integrada da Pipeline -->
+      <!-- Seção Integrada da Pipeline -->
       <div class="section" style="margin-bottom:24px">
         <div class="section-header">
-          <h3>­ƒÅ¡ Esteira ├Ünica de Conte├║do (Google Hype)</h3>
+          <h3>­ƒÅ¡ Esteira Única de Conteúdo (Google Hype)</h3>
         </div>
         <div id="pipelineContent" style="background:#12141e;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-top:10px">
           <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
@@ -311,23 +311,23 @@
           </div>
           <div class="conveyor-belt">
             <div class="conveyor-track" id="macroPipelineTrack">
-              <div class="pipeline-empty"><div class="big-icon">­ƒÅù´©Å</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
+              <div class="pipeline-empty"><div class="big-icon">­ƒÅù´©Å</div><h3>Esteira de Produção</h3><p>5 estacoes: Fundação &rarr; Arquitetura &rarr; Produção &rarr; Refino &rarr; Entrega</p></div>
             </div>
           </div>
           <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
             <div class="macro-current-header">
-              <span class="macro-current-badge" id="macroCurrentBadge">­ƒôØ Artigo 1/30</span>
+              <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
               <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
             </div>
             <div class="macro-current-phase-label" id="macroCurrentPhase">ÔÅ│ Iniciando pipeline...</div>
             <div id="macroLiliScore" style="margin-top:8px;display:flex;align-items:center;gap:8px"></div>
           </div>
           <div class="pipeline-log-container" style="margin-top:16px">
-            <div class="pipeline-log-header"><span>­ƒôØ Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
+            <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
             <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
           </div>
           <div class="pipeline-history" style="margin-top:16px">
-            <div class="section-header"><h3>­ƒô£ Histo╠ürico</h3></div>
+            <div class="section-header"><h3>­ƒô£ Histórico</h3></div>
             <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
           </div>
         </div>
@@ -338,7 +338,7 @@
     </div>
 
     <div class="page" id="page-books">
-      <div class="page-header"><h2>­ƒôù Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
+      <div class="page-header"><h2>📚 Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
       <div class="stats-grid" id="bookStats"></div>
       <div class="section">
         <div class="section-header"><h3>­ƒôÜ Biblioteca</h3></div>
@@ -346,7 +346,7 @@
       </div>
     </div>
     <div class="page" id="page-courses">
-      <div class="page-header"><h2>­ƒÄô Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
+      <div class="page-header"><h2>🎓 Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
       <div class="stats-grid" id="courseStats"></div>
       <div class="section">
         <div class="section-header"><h3>­ƒôÜ Catalogo de Cursos</h3></div>
@@ -354,14 +354,14 @@
       </div>
     </div>
     <div class="page" id="page-images">
-      <div class="page-header"><h2>­ƒÄ¿ Imagens</h2><p>Imagens geradas e utilizadas nos artigos</p></div>
+      <div class="page-header"><h2>🖼️ Imagens</h2><p>Imagens geradas e utilizadas nos artigos</p></div>
       <div class="section">
         <div class="section-header"><h3>­ƒô© Galeria de Imagens</h3></div>
         <div class="card-table" id="imageGallery"><div class="empty">Nenhuma imagem gerada ainda</div></div>
       </div>
     </div>
     <div class="page" id="page-hermes">
-      <div class="page-header"><h2>­ƒùú´©Å Hermes</h2><p>Orquestrador inteligente do ecossistema Dezafira</p></div>
+      <div class="page-header"><h2>🤖 Hermes</h2><p>Orquestrador inteligente do ecossistema Dezafira</p></div>
       <div class="card-table" id="hermesChat" style="padding:20px">
         <div style="display:flex;flex-direction:column;gap:12px;max-width:600px;margin:0 auto">
           <div style="background:#12141e;border-radius:12px;padding:16px;min-height:200px;max-height:400px;overflow-y:auto;font-size:13px;line-height:1.6" id="hermesMessages">
@@ -381,7 +381,7 @@
       </div>
     </div>
     <div class="page" id="page-lili">
-      <div class="page-header"><h2>­ƒæ®ÔÇì­ƒÆ╗ LiLi ÔÇö Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
+      <div class="page-header"><h2>🔍 LiLi ÔÇö Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
       <div class="stats-grid" id="liliStats"></div>
       <div class="section">
         <div class="section-header">
@@ -399,14 +399,14 @@
 <script>
 const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
 const STAGES=[
-  {id:"fundacao",name:"Fundacao",icon:"­ƒÅù´©Å",agent:"Seu Hermes + Dona Celia",
-    agents:[{name:"Seu Hermes",emoji:"­ƒæ┤",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"­ƒæ®ÔÇì­ƒÄ¿",role:"Designer",action:"Criando identidade"}]},
+  {id:"fundacao",name:"Fundação",icon:"­ƒÅù´©Å",agent:"Seu Hermes + Dona Celia",
+    agents:[{name:"Seu Hermes",emoji:"­ƒæ┤",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"­ƒæ®ÔÇì🖼️",role:"Designer",action:"Criando identidade"}]},
   {id:"arquitetura",name:"Arquitetura",icon:"­ƒôï",agent:"Joaquim",
     agents:[{name:"Joaquim",emoji:"­ƒöì",role:"Pesquisador",action:"Pesquisando keywords"}]},
-  {id:"producao",name:"Producao",icon:"­ƒôØ",agent:"Carlao + LiLi",
+  {id:"producao",name:"Produção",icon:"📝",agent:"Carlao + LiLi",
     agents:[{name:"Carlao",emoji:"Ô£ì´©Å",role:"Redator",action:"Escrevendo artigos"},{name:"LiLi",emoji:"­ƒî©",role:"Revisora de Qualidade",action:"Revisando artigos e corrigindo erros"}]},
-  {id:"refino",name:"Refino",icon:"­ƒÄ¿",agent:"Tatiana + Seu Ze",
-    agents:[{name:"Tatiana",emoji:"­ƒô©",role:"Fotografa",action:"Buscando imagens"},{name:"Seu Ze",emoji:"­ƒôà",role:"Agendador",action:"Programando publicacao"}]},
+  {id:"refino",name:"Refino",icon:"🖼️",agent:"Tatiana + Seu Zé",
+    agents:[{name:"Tatiana",emoji:"­ƒô©",role:"Fotografa",action:"Buscando imagens"},{name:"Seu Zé",emoji:"­ƒôà",role:"Agendador",action:"Programando publicacao"}]},
   {id:"entrega",name:"Entrega",icon:"Ô£à",agent:"Seu Francisco",
     agents:[{name:"Seu Francisco",emoji:"­ƒæ┤",role:"Supervisor",action:"Conferindo producao"}]}
 ];
@@ -446,7 +446,7 @@ function renderPipeline(){
   t.innerHTML=STAGES.map(function(s,i){
     var c='';if(i<STAGES.length-1)c='<div class="conveyor-connector"><div class="cc-base"></div><div class="cc-glow" id="cg_'+s.id+'"></div><div class="cc-dot" id="cd_'+s.id+'"></div></div>';
     var av=s.agents? s.agents.map(function(a){return '<span title="'+a.name+': '+a.action+'" style="display:inline-block;margin:0 1px">'+a.emoji+'</span>';}).join(''):s.icon;
-    var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' ÔÇó '+a.role;}).join('<br>'):s.agent)+'</div>';
+    var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' • '+a.role;}).join('<br>'):s.agent)+'</div>';
     return '<div class="conveyor-stage-wrapper"><div class="conveyor-stage idle" id="st_'+s.id+'"><div class="cs-border" style="display:none"></div><div class="cs-check" style="display:none">Ô£ô</div>'+
       '<div class="cs-agent-avatar">'+av+'<span class="sparkle">Ô£ª</span><span class="sparkle">Ô£ª</span><span class="sparkle">Ô£ª</span></div>'+
       '<div class="cs-name">'+s.name+'</div>'+
@@ -483,7 +483,7 @@ function updateStage(sid,status,prog,msg,data){
     });
   }
   if(data){
-    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="­ƒôØ Artigo "+data.current_article+"/"+ms.target;updateBar()}
+    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
     if(data.phase_detail){$("macroCurrentPhase").textContent="­ƒöä "+data.phase_detail}
     // LiLi score display
@@ -520,7 +520,7 @@ function addLog(sid,msg,type){
   if(!l)return;
   var e=l.querySelector(".load-log");if(e)e.remove();
   var d=new Date();var t=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
-  var ic={fundacao:"­ƒÅù´©Å",arquitetura:"­ƒôï",producao:"­ƒôØ",refino:"­ƒÄ¿",entrega:"Ô£à"};
+  var ic={fundacao:"­ƒÅù´©Å",arquitetura:"­ƒôï",producao:"📝",refino:"🖼️",entrega:"Ô£à"};
   var el=document.createElement("div");el.className="log-entry";
   el.innerHTML='<span class="log-time">'+t+'</span><span class="log-icon">'+(ic[sid]||"­ƒöä")+'</span><span class="log-msg '+(type||"")+'">'+msg+'</span>';
   l.appendChild(el);l.scrollTop=l.scrollHeight;
@@ -601,9 +601,9 @@ function renderDashboardData(d){
     return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
   }).join(""):'<div class="empty">Nenhum canal</div>';
   $("dashChannels").innerHTML=chHtml;
-  var sum='<div class="table-row cols-3"><div><div class="title">­ƒôØ Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
-  sum+='<div class="table-row cols-3"><div><div class="title">­ƒôù Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
-  sum+='<div class="table-row cols-3"><div><div class="title">­ƒÄô Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
+  var sum='<div class="table-row cols-3"><div><div class="title">📝 Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">📚 Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">🎓 Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
   $("factorySummary").innerHTML=sum;
 }
 
@@ -680,7 +680,7 @@ async function loadDashboard(){
 
     var logoHeader = c.logo_svg ? '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px">'+c.logo_svg+'</div>' : '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>';
     var faviconHtml = c.favicon_svg ? '<img src="'+c.favicon_svg+'" style="width:18px;height:18px;border-radius:4px;vertical-align:middle" />' : '<span>-</span>';
-    var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Prim├íria"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secund├íria"></span></div>';
+    var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Primária"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secundária"></span></div>';
 
     return '<div class="blog-panel'+(i===0?' active':'')+'" id="panel_'+c.id+'">'+
       '<div class="panel-header" style="--panel-color:'+pri+'">'+
@@ -690,9 +690,9 @@ async function loadDashboard(){
         '</div>'+
         '<div class="panel-meta">'+
           '<span>­ƒôä '+totalC+' artigos</span>'+
-          '<span>­ƒôØ '+(pubC||0)+' publicados</span>'+
-          '<span>­ƒôè ~'+avgW+' palavras m├®dia</span>'+
-          '<span>­ƒÄ¿ Cores: '+colorsHtml+'</span>'+
+          '<span>📝 '+(pubC||0)+' publicados</span>'+
+          '<span>📊 ~'+avgW+' palavras média</span>'+
+          '<span>🖼️ Cores: '+colorsHtml+'</span>'+
                     '<span>🖼️ Imagens: '+bar+'</span>'+
           '<span>🤖 Gerador: '+provHtml+'</span>'+
 '<span>­ƒöû Favicon: '+faviconHtml+'</span>'+
@@ -711,7 +711,7 @@ async function loadDashboard(){
               '<option value="10">10</option>'+
             '</select>'+
           '</div>'+
-          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">­ƒöÑ Criar por Tend├¬ncia</button>'+
+          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">­ƒöÑ Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">­ƒî© Revisar Todos</button>'+
         '</div>'+
       '</div>'+
@@ -735,7 +735,7 @@ var activeMonitors = {};
 
 async function generateForBlogHype(channelId, niche, qty) {
   qty = parseInt(qty) || 1;
-  showToast("Minerando tend├¬ncias no Google (" + qty + " artigos) para " + niche + "...");
+  showToast("Minerando tendências no Google (" + qty + " artigos) para " + niche + "...");
   try {
     var res = await api("/api/v1/blog/generate-article-hype", {
       method: "POST",
@@ -747,7 +747,7 @@ async function generateForBlogHype(channelId, niche, qty) {
     }
     showToast(res.message);
     
-    // Configura a esteira ├║nica global para rastrear este lote de artigos
+    // Configura a esteira única global para rastrear este lote de artigos
     ms.running = true;
     ms.taskId = res.task_id;
     ms.topic = res.topic;
@@ -758,20 +758,20 @@ async function generateForBlogHype(channelId, niche, qty) {
     
     // Exibe os componentes visuais da esteira integrada
     $("macroBlogLabel").textContent = niche;
-    $("macroArticleCounter").textContent = "Gera├º├úo por Hype: 0 / " + qty + " artigos";
+    $("macroArticleCounter").textContent = "Geração por Hype: 0 / " + qty + " artigos";
     $("macroTargetLabel").textContent = qty + " artigos";
     $("macroGlobalFill").style.width = "2%";
     $("macroGlobalProgress").style.display = "block";
     $("macroCurrentArticle").style.display = "block";
     $("macroCurrentTitle").textContent = res.topic;
-    $("macroCurrentBadge").textContent = "­ƒöÑ Tend├¬ncia do Google";
+    $("macroCurrentBadge").textContent = "­ƒöÑ Tendência do Google";
     $("macroCurrentPhase").textContent = "Iniciando esteira...";
     $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">­ƒÜÇ Esteira de Hype iniciada para lote. Aguardando progresso...</div>';
     
-    // Inicializa a anima├º├úo e estrutura dos agentes na tela
+    // Inicializa a animação e estrutura dos agentes na tela
     renderPipeline();
     
-    // Inicia cron├┤metro do tempo decorrido
+    // Inicia cronômetro do tempo decorrido
     if(window._mt) clearInterval(window._mt);
     window._mt = setInterval(function(){
       if(!ms.running){clearInterval(window._mt);return}
@@ -779,7 +779,7 @@ async function generateForBlogHype(channelId, niche, qty) {
       $("macroElapsedTime").textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
     },1000);
     
-    // Conecta no WebSocket para a tarefa espec├¡fica
+    // Conecta no WebSocket para a tarefa específica
     if (ws && ws.readyState === WebSocket.OPEN) {
       try { ws.send(JSON.stringify({ type: "subscribe", task_id: res.task_id })); } catch(e) {}
     } else {
@@ -851,7 +851,7 @@ async function loadMonetization(){
       '<div style="margin-bottom:20px;background:#14161f;border-radius:6px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05)">'+
         '<div style="height:100%;width:'+o.progress_pct+'%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa);border-radius:6px;transition:width .8s ease"></div></div>';
     
-    // Grid de Categorias com Crit├®rios individuais do Seu Pereira
+    // Grid de Categorias com Critérios individuais do Seu Pereira
     html += '<div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px">';
     var cats=Object.keys(data.categories||{});
     cats.forEach(function(cat){
@@ -891,7 +891,7 @@ async function loadMonetization(){
     // Recommendations
     if(data.recommendations&&data.recommendations.length>0){
       html+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05)">'+
-        '<div style="font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:10px">­ƒôï Recomenda├º├Áes Priorit├írias para Monetiza├º├úo:</div>'+
+        '<div style="font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:10px">­ƒôï Recomenda├º├Áes Prioritárias para Monetização:</div>'+
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
       data.recommendations.forEach(function(r){
         var pColor=r.prioridade==="alta"?"#f87171":r.prioridade==="media"?"#fbbf24":"#8a91a5";
@@ -905,7 +905,7 @@ async function loadMonetization(){
     }
     
     html+='<div style="margin-top:20px;padding-top:8px;text-align:right;font-size:10px;color:#5c6370">'+
-      '├Ültima avalia├º├úo de monetiza├º├úo: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
+      '├Ültima avaliação de monetização: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
     '</div>';
     
     container.innerHTML=html;
@@ -952,7 +952,7 @@ function _connectWs(){
       if(ms&&ms.taskId){
         try{ws.send(JSON.stringify({type:"subscribe",task_id:ms.taskId}))}catch(e){}
       }
-      // N├âO para o polling aqui! Aguarda primeira mensagem via ws.onmessage.
+      // NÃO para o polling aqui! Aguarda primeira mensagem via ws.onmessage.
       // Se o subscribe falhar, o WebSocket fica aberto sem enviar dados,
       // e sem o polling a UI trava para sempre.
     };
@@ -1024,14 +1024,14 @@ function handleWsMessage(msg){
     var sid=d.stage_id||"",prog=d.progress||0,m=d.message||"",st=d.status||"active";
     if(!sid)return;
     
-    // Atualiza o t├¡tulo do artigo em andamento na tela se ele for descoberto dinamicamente
+    // Atualiza o título do artigo em andamento na tela se ele for descoberto dinamicamente
     if (d && d.topic) {
       ms.topic = d.topic;
       var titleEl = $("macroCurrentTitle");
       if (titleEl) titleEl.textContent = d.topic;
     }
     
-    // Mapeia est├ígios do pipeline de post individual para os agentes da esteira do blog:
+    // Mapeia estágios do pipeline de post individual para os agentes da esteira do blog:
     var stageMapping = {
       "keyword_miner": "fundacao",
       "blog_writer": "producao",
@@ -1069,12 +1069,12 @@ function handleWsMessage(msg){
     $("macroGlobalFill").style.width="100%";
     $("macroElapsedTime").textContent="100%";
     $("macroCurrentPhase").textContent="Finalizado! O artigo foi publicado no blog.";
-    showToast("Artigo por tend├¬ncia publicado!");
+    showToast("Artigo por tendência publicado!");
     setTimeout(loadBlogs, 3000);
   }else if(t==="pipeline_failed"){
     addLog("fundacao","Erro: "+(d.error||""),"error");
     ms.running=false;
-    $("macroCurrentPhase").textContent = "Erro na gera├º├úo: " + (d.error || "Falha na esteira");
+    $("macroCurrentPhase").textContent = "Erro na geração: " + (d.error || "Falha na esteira");
   }
 }
 
