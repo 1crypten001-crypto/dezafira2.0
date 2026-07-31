@@ -247,11 +247,11 @@ def revisar_conteudo(
         })
 
     # --- Palavras minimas ---
-    if word_count < 300:
+    if word_count < 1200:
         issues.append({
             "tipo": "poucas_palavras",
             "severity": "alta",
-            "message": f"Apenas {word_count} palavras. Minimo recomendado: 800",
+            "message": f"Apenas {word_count} palavras. Minimo recomendado: 1200",
             "fix": "Regenerar artigo com mais profundidade.",
             "localizacao": "artigo completo",
         })

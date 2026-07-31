@@ -31,10 +31,9 @@ def fmt_date(d):
 _DARK_MODE_JS = """
 <script>
 (function(){
-  var d=document.documentElement,s=null;
-  try{s=localStorage.getItem('theme');}catch(e){}
-  if(s){d.setAttribute('data-theme',s);}
-  else if(window.matchMedia('(prefers-color-scheme:dark)').matches){d.setAttribute('data-theme','dark');}
+  var d=document.documentElement,s='light';
+  try{s=localStorage.getItem('theme')||'light';}catch(e){}
+  d.setAttribute('data-theme',s);
 })();
 function toggleDark(){
   var d=document.documentElement;
@@ -194,6 +193,27 @@ img{max-width:100%;height:auto}
 .admin-link{position:fixed;bottom:20px;right:20px;width:40px;height:40px;background:var(--dark,#0f172a);border:1px solid rgba(255,255,255,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:16px;z-index:99;transition:all .15s ease}
 .admin-link:hover{background:var(--gold,#d4a853);color:var(--dark,#0f172a)}
 
+/* ─── TABLE OF CONTENTS (SUMÁRIO AEVO-STYLE) ─── */
+.table-of-contents{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--gold,#d4a853);border-radius:10px;padding:18px 20px;margin:24px 0 32px;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
+.toc-title{font-size:14px;font-weight:700;color:var(--text,#1e293b);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.table-of-contents ul{list-style:none!important;padding-left:0!important;margin-bottom:0!important}
+.table-of-contents li{margin-bottom:8px!important;font-size:14px;line-height:1.4}
+.table-of-contents li:last-child{margin-bottom:0!important}
+.table-of-contents a{color:var(--primary,#6366f1);text-decoration:none;font-weight:500;transition:color .15s ease}
+.table-of-contents a:hover{color:var(--gold,#d4a853);text-decoration:underline}
+
+/* ─── AUTHOR BOX (E-E-A-T) ─── */
+.author-box{display:flex;gap:16px;background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:20px;margin:40px 0 24px;align-items:center;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
+.author-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0;background:var(--gold,#d4a853);border:2px solid rgba(255,255,255,.2);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.author-info{flex:1}
+.author-title{font-size:14px;font-weight:700;color:var(--text,#1e293b);margin-bottom:4px}
+.author-bio{font-size:13px;color:var(--text-light,#64748b);line-height:1.5;margin-bottom:0!important}
+
+/* ─── LEIA MAIS INLINE ─── */
+.leia-mais-inline{background:rgba(var(--primary-rgb,99,102,241),.06);border:1px solid rgba(var(--primary-rgb,99,102,241),.15);border-left:4px solid var(--primary,#6366f1);border-radius:8px;padding:12px 16px;margin:24px 0;font-size:14px;font-weight:600}
+.leia-mais-inline a{color:var(--primary,#6366f1);text-decoration:none}
+.leia-mais-inline a:hover{text-decoration:underline;color:var(--gold,#d4a853)}
+
 /* ─── MOBILE ─── */
 @media(max-width:768px){
   body{padding-top:56px}
@@ -207,6 +227,7 @@ img{max-width:100%;height:auto}
   .posts-grid{grid-template-columns:1fr}
   .post-viewer h1{font-size:22px}
   .post-content{font-size:15px}
+  .author-box{flex-direction:column;text-align:center;padding:16px}
 }
 """
 
@@ -397,27 +418,40 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
-    # Hero — artigo mais recente em destaque
+    subdomain = blog_info.get("subdomain", "")
+    subdomain_html = f'<a href="https://{subdomain}.dezafira.com.br" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(var(--primary-rgb),0.08);border:1px solid rgba(var(--primary-rgb),0.15);border-radius:20px;font-size:.8rem;color:var(--primary);text-decoration:none;font-weight:600">&#127760; {subdomain}.dezafira.com.br</a>' if subdomain else ""
+
+    # Hero — artigo mais recente em destaque no formato Split-Screen
     hero_html = ""
     if posts:
         top = posts[0]
         wc = top.get("word_count", 0) or 0
         rt = max(1, round(wc / 200))
         img = top.get("featured_image_url")
-        img_tag = f'<img class="card-image" src="{esc(img)}" alt="{esc(top["title"])}" loading="eager">' if img else f'<div class="card-image-placeholder">{placeholder_icon}</div>'
+        img_tag = f'<img src="{esc(img)}" alt="{esc(top["title"])}" loading="eager">' if img else f'<div class="card-image-placeholder">{placeholder_icon}</div>'
+        
+        hero_img = theme.get("hero_image_url", "")
+        # Degradê dinâmico usando var(--bg) que se adapta perfeitamente ao Light/Dark mode
+        hero_style = f"style=\"background: linear-gradient(to right, var(--bg) 40%, rgba(var(--primary-rgb), 0.08) 100%), url('{hero_img}');\"" if hero_img else ""
+        
         hero_html = f"""
-    <div class="blog-hero">
-      <div class="hero-content">
-        <span class="hero-badge">&#9733; Artigo em Destaque</span>
-        <h1>{blog_name}</h1>
-        <p>Artigos, estudos e reflexoes sobre {blog_niche.lower()}.</p>
-        <a href="/blog/{slug}?post={esc(top["id"])}" class="hero-featured">
-          {img_tag}
-          <div class="hf-body">
-            <h3>{esc(top["title"])}</h3>
-            <p>&#128197; {fmt_date(top.get("created_at"))} &middot; {rt} min de leitura</p>
-          </div>
-        </a>
+    <div class="blog-hero" {hero_style}>
+      <div class="hero-inner-split">
+        <div class="hero-brand-col">
+          <span class="hero-badge">★ Artigo em Destaque</span>
+          <h1>{blog_name}</h1>
+          <p>Artigos, estudos e reflexões sobre {blog_niche.lower()}.</p>
+          {subdomain_html}
+        </div>
+        <div class="hero-featured-col">
+          <a href="/blog/{slug}?post={esc(top["id"])}" class="hero-featured">
+            {img_tag}
+            <div class="hf-body">
+              <h3>{esc(top["title"])}</h3>
+              <p>📅 {fmt_date(top.get("created_at"))} &middot; {rt} min de leitura</p>
+            </div>
+          </a>
+        </div>
       </div>
     </div>"""
 
@@ -458,16 +492,12 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     posts_html = (f'<div class="posts-grid">{cards_html}</div>' if cards_html
                   else f'<div class="empty-state"><div class="icon">{placeholder_icon}</div><p>Nenhum artigo publicado ainda. Volte em breve!</p></div>')
 
-    subdomain = blog_info.get("subdomain", "")
-    subdomain_html = f'<a href="https://{subdomain}.dezafira.com.br" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:20px;padding:6px 14px;background:rgba(255,255,255,.06);border-radius:20px;font-size:.8rem;color:var(--gold,#d4a853);text-decoration:none">&#127760; {subdomain}.dezafira.com.br</a>' if subdomain else ""
-
-    desc = f"Blog sobre {blog_niche}. Artigos, estudos e reflexoes." if blog_niche else blog_name
+    desc = f"Blog sobre {blog_niche}. Artigos, estudos e reflexões." if blog_niche else blog_name
     canonical = f"https://dezafira.com.br/blog/{slug}"
 
     body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
 {hero_html}
 <main class="blog-content">
-  {subdomain_html}
   <h2 style="font-family:var(--font-heading,inherit);font-size:1.5rem;margin-bottom:20px">&#128214; Todos os Artigos</h2>
   <div class="blog-stats" style="margin-bottom:20px">{pcount} artigo{"s" if pcount != 1 else ""}</div>
   {posts_html}
@@ -480,7 +510,8 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
 
 
 def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts: list = None) -> str:
-    """Gera HTML de artigo individual com newsletter, progress bar, related posts."""
+    """Gera HTML de artigo individual com newsletter, progress bar, sumario dinâmico (TOC) e author box."""
+    import re
     blog_name = esc(blog_info["name"])
     blog_niche = esc(blog_info.get("nicho", ""))
     raw_title = post["title"]
@@ -514,6 +545,61 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
 
     # Author
     author_html = f'<span class="meta-item author">&#9997; {author_name}</span>'
+
+    # Sumario Dinamico (TOC) via Regex nos h2
+    h2_pattern = re.compile(r'<h2([^>]*)>(.*?)</h2>', re.IGNORECASE | re.DOTALL)
+    h2_matches = list(h2_pattern.finditer(content))
+    toc_html = ""
+    if h2_matches:
+        toc_items = []
+        new_content = ""
+        last_idx = 0
+        for idx, match in enumerate(h2_matches):
+            attrs, raw_h2_text = match.groups()
+            clean_text = re.sub(r'<[^>]*>', '', raw_h2_text).strip()
+            anchor_id = f"topico-{idx+1}"
+            
+            new_content += content[last_idx:match.start()]
+            new_content += f'<h2{attrs} id="{anchor_id}">{raw_h2_text}</h2>'
+            last_idx = match.end()
+            
+            toc_items.append(f'<li><a href="#{anchor_id}">📌 {clean_text}</a></li>')
+        
+        new_content += content[last_idx:]
+        content = new_content
+        
+        if toc_items:
+            toc_html = f"""
+            <nav class="table-of-contents scroll-fade" aria-label="Sumario">
+              <div class="toc-title">💡 Neste artigo voce vai conferir:</div>
+              <ul>
+                {"".join(toc_items)}
+              </ul>
+            </nav>"""
+
+    # Author Box com Biografia por Nicho (E-E-A-T)
+    nicho_lower = blog_info.get("nicho", "").lower()
+    if "crist" in nicho_lower or "jesus" in nicho_lower:
+        real_author_name = "Carlos de Souza (Carlão)"
+        author_bio = "Carlos é escritor e teólogo especializado em estudos bíblicos, história do cristianismo antigo e análise dos evangelhos. Dedica-se a tornar os ensinamentos de Jesus acessíveis a todos."
+        author_initial = "C"
+    elif "finan" in nicho_lower or "econom" in nicho_lower or "invest" in nicho_lower:
+        real_author_name = "Rosa Guedes (Dona Rosa)"
+        author_bio = "Rosa é consultora financeira e especialista em economia doméstica e planejamento financeiro pessoal. Escreve artigos práticos para ajudar famílias a organizarem suas finanças."
+        author_initial = "R"
+    else:
+        real_author_name = f"Equipe {blog_name}"
+        author_bio = f"Produzido pelo conselho de redatores especializados do blog {blog_name}, focados em trazer guias autoritativos e informativos."
+        author_initial = blog_name[0] if blog_name else "E"
+
+    author_box_html = f"""
+    <div class="author-box scroll-fade">
+      <div class="author-avatar" style="background:var(--primary,#6366f1)">{author_initial}</div>
+      <div class="author-info">
+        <div class="author-title">Escrito por {real_author_name}</div>
+        <p class="author-bio">{author_bio}</p>
+      </div>
+    </div>"""
 
     # Newsletter inline
     newsletter_html = f"""
@@ -568,7 +654,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
         "description": (post.get("excerpt") or "")[:500],
         "wordCount": wc,
         "datePublished": post.get("created_at", ""),
-        "author": {"@type": "Organization", "name": blog_info.get("name", "O Reino")}
+        "author": {"@type": "Person", "name": real_author_name}
     }
     schema = json.dumps(schema_obj, ensure_ascii=False, indent=2)
 
@@ -590,7 +676,9 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
       <span class="meta-item">&#9201; {rt} min de leitura</span>
     </div>
     {f'<div class="post-tags">{tags}</div>' if tags else ''}
+    {toc_html}
     <div class="post-content">{content}</div>
+    {author_box_html}
     {newsletter_html}
     {related_html}
     <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);text-align:center">

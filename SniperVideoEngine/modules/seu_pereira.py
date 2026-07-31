@@ -35,8 +35,8 @@ MONETIZATION_CHECKLIST = [
     {
         "id": "content_word_count",
         "categoria": "📝 Conteúdo",
-        "titulo": "800+ palavras por artigo",
-        "descricao": "Artigos com profundidade mínima de 800 palavras",
+        "titulo": "1200-2000 palavras por artigo",
+        "descricao": "Artigos com profundidade entre 1.200 e 2.000 palavras",
         "peso": 8,
         "check_fn": "check_word_count",
         "depende_de": [],
@@ -399,12 +399,12 @@ class SeuPereira:
 
     def check_word_count(self, data: dict) -> dict:
         avg = data.get("avg_words", 0)
-        if avg >= 800:
+        if avg >= 1200:
             return {"status": "pass", "message": f"Média de {int(avg)} palavras por artigo ✅"}
-        elif avg >= 500:
-            return {"status": "warn", "message": f"Média de {int(avg)} palavras. Ideal: 800+"}
+        elif avg >= 800:
+            return {"status": "warn", "message": f"Média de {int(avg)} palavras. Ideal: 1.200 a 2.000"}
         else:
-            return {"status": "fail", "message": f"Média de apenas {int(avg)} palavras. Mínimo: 800"}
+            return {"status": "fail", "message": f"Média de apenas {int(avg)} palavras. Mínimo: 1.200"}
 
     def check_images(self, data: dict) -> dict:
         total = data.get("total_posts", 0)

@@ -1,8 +1,8 @@
 # SPEC.md — Dezafira Pipeline Specification
 
-> **Versão:** 4.1
-> **Data:** 2026-07-30
-> **Status:** Fábrica de Blogs em produção com 77 artigos, 2 blogs, 100% imagens
+> **Versão:** 4.2
+> **Data:** 2026-07-31
+> **Status:** Fábrica de Blogs em produção com 77 artigos, 2 blogs, 100% imagens, Google Hype Engine e Split Hero UX
 > **Produção:** https://dezafira.com.br
 
 ---
@@ -278,7 +278,10 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 ## 9. Commits em Produção
 
 ```
-3977c2b fix: LiLi auto-corrige html_garbage (& $ # @ dentro de tags)
+0a6508f  feat: Google Hype Engine, esteira assíncrona com monitor de progresso na ADM
+2b878b0  feat: Split Hero UX, imagens conceituais de branding geradas por IA por nicho
+f8432b0  feat: Light Mode por padrão, Sumário (TOC) dinâmico e Caixa de Autor (E-E-A-T)
+3977c2b  fix: LiLi auto-corrige html_garbage (& $ # @ dentro de tags)
 0dd448b  fix: batch endpoint tambem exige imagem (mesma correcao do generate-single)
 2b83ec7  fix: imagem obrigatoria em cada artigo — pipeline bloqueia se falhar
 130b653  feat: instrucoes de redacao especificas por nicho no BlogWriter
@@ -292,7 +295,12 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 
 ## 10. Roadmap
 
-### ✅ Implementado v2.1
+### ✅ Implementado v4.2
+- [x] **Google Hype Engine**: Mineração de tendências reais via Google Autocomplete (`KeywordMiner`) para pautas dinâmicas.
+- [x] **Esteira Assíncrona na ADM**: Monitoramento de progresso da esteira por etapas em tempo real na interface administrativa.
+- [x] **Split Hero UX**: Layout moderno de duas colunas com imagens conceituais de branding exclusivas por nicho (geradas por IA).
+- [x] **Modo Claro Mandatório**: Modo claro como padrão absoluto dos blogs para legibilidade.
+- [x] **Sumário Dinâmico & Caixa de Autor**: Injeção automática de TOC nos posts e rodapé rico (E-E-A-T) com a biografia do redator por nicho.
 - [x] Macro-esteira de Blogs com 5 estágios (conveyor belt UI)
 - [x] 9 agentes com nomes brasileiros na pipeline
 - [x] LiLi — revisora com auto-correção (conteúdo + HTML)
@@ -301,7 +309,7 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] Instruções de redação específicas por nicho (5 nichos)
 - [x] Tópicos dinâmicos gerados por LLM por nicho
 - [x] Temas visuais por nicho (brand_themes.py)
-- [x] Seu Pereira — 19 critérios de monetização (68.4%)
+- [x] Seu Pereira — 19 critérios de monetização (73.6% - meta de 1.200 a 2.000 palavras por artigo)
 - [x] LLM Cascade com 5 provedores
 - [x] Blog viewer público com páginas de sistema
 - [x] Dashboard SPA com métricas em tempo real
@@ -319,4 +327,4 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 
 ---
 
-*SPEC v4.1 — Ecossistema Dezafira — 2026-07-30*
+*SPEC v4.2 — Ecossistema Dezafira — 2026-07-31*

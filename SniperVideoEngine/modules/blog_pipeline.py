@@ -1368,6 +1368,9 @@ if __name__ == "__main__":
 # FUNCAO DE COMPATIBILIDADE — Mini Pipeline (usada pelo endpoint /run-blog)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+ACTIVE_PIPELINE_TASKS = {}
+
+
 async def run_blog_pipeline(topic: str, channel_id: str = "default", language: str = "pt",
                             task_id: str = None, on_progress: callable = None,
                             auto_schedule: bool = True) -> dict:
@@ -1402,6 +1405,7 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
         "schedule": {"status": "idle", "progress": 0, "message": "Aguardando", "started_at": None, "completed_at": None},
     }
     result["stages"] = mini_stages
+    ACTIVE_PIPELINE_TASKS[task_id] = result
 
     def emit(sid, status, progress, msg, data=None):
         nonlocal result
@@ -1415,6 +1419,7 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
                 s["started_at"] = datetime.utcnow().isoformat()
             if status in ("completed", "failed"):
                 s["completed_at"] = datetime.utcnow().isoformat()
+        ACTIVE_PIPELINE_TASKS[task_id] = result
         if on_progress:
             on_progress(task_id, sid, progress, msg, data or {})
 
@@ -1433,7 +1438,7 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
         # Fase 2: Escrever artigo
         emit("blog_writer", "active", 10, "Gerando artigo via LLM...")
         article = await write(topic=topic, channel_id=channel_id, language=language,
-                              target_words=1000, keywords=kw_string)
+                              target_words=1200, keywords=kw_string)
         post_id = article.get("post_id")
         title = article.get("title", topic)
         article_data = article.get("article", {})
@@ -1469,11 +1474,13 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
 
         result["status"] = "completed"
         result["completed_at"] = datetime.utcnow().isoformat()
+        ACTIVE_PIPELINE_TASKS[task_id] = result
 
     except Exception as e:
         result["status"] = "failed"
         result["error"] = str(e)
         result["completed_at"] = datetime.utcnow().isoformat()
+        ACTIVE_PIPELINE_TASKS[task_id] = result
         import traceback
         traceback.print_exc()
 
@@ -1481,3 +1488,79 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
         on_progress(task_id, "__broadcast__", 0, "pipeline_complete", result)
 
     return result
+
+
+async def mine_google_hype(niche: str, language: str = "pt") -> dict:
+    """
+    Minera palavras-chave e tópicos em alta no Google Autocomplete para o nicho,
+    e usa a LLM para gerar um título de artigo inédito e autoral.
+    """
+    from modules.keyword_miner import KeywordMiner
+    from modules.blog_writer import _call_llm
+    import json
+    import re
+    
+    # 1. Sugere sementes de busca baseadas no nicho
+    prompt_seed = (
+        f"Com base no nicho de blog '{niche}', sugira 3 termos de pesquisa curtos (1 a 3 palavras) "
+        f"que as pessoas usariam no Google para buscar novidades, dúvidas ou notícias quentes sobre o assunto.\n"
+        f"Retorne apenas os termos separados por vírgula, sem explicações ou numeração."
+    )
+    system_seed = "Você é um especialista em SEO e tendências de busca na web."
+    try:
+        raw_seeds = await _call_llm(system_seed, prompt_seed, temperature=0.6, max_tokens=100)
+        seeds = [s.strip().replace('"', '').replace("'", "") for s in raw_seeds.split(",") if s.strip()]
+    except Exception:
+        seeds = [niche]
+
+    if not seeds:
+        seeds = [niche]
+
+    # 2. Minera o Autocomplete do Google para cada semente
+    miner = KeywordMiner(use_obscura=False)
+    hot_suggestions = []
+    try:
+        for seed in seeds[:3]:
+            suggestions = await miner._fetch_suggestions(seed, lang=language)
+            if suggestions:
+                hot_suggestions.extend(suggestions[:5])
+    finally:
+        await miner.close()
+
+    # 3. Se não houver sugestões, usa termos gerais do nicho
+    if not hot_suggestions:
+        hot_suggestions = [
+            f"novidades sobre {niche}",
+            f"tendências em {niche}",
+            f"dicas de {niche}"
+        ]
+
+    # 4. Envia as sugestões para a LLM criar o título e keywords
+    prompt_hype = (
+        f"Com base nas seguintes buscas reais que estão em alta no Google sobre o nicho '{niche}':\n"
+        f"{', '.join(hot_suggestions[:12])}\n\n"
+        f"Escolha a tendência mais relevante e crie um título de artigo de blog INÉDITO, altamente engajador, "
+        f"autoral e otimizado para SEO.\n"
+        f"Além disso, forneça uma lista curta de palavras-chave separadas por vírgula para focar no SEO do artigo.\n"
+        f"Retorne APENAS um objeto JSON no formato:\n"
+        f"{{\n"
+        f"  \"title\": \"Título Inédito Criado\",\n"
+        f"  \"keywords\": \"palavra-chave 1, palavra-chave 2, palavra-chave 3\"\n"
+        f"}}"
+    )
+    system_hype = f"Você é o editor-chefe de um portal de notícias especialista em {niche}."
+    
+    try:
+        raw_json = await _call_llm(system_hype, prompt_hype, temperature=0.8, max_tokens=500)
+        json_clean = re.sub(r'```json\s*|\s*```', '', raw_json).strip()
+        data = json.loads(json_clean)
+        return {
+            "topic": data.get("title", f"Novidades em {niche}"),
+            "keywords": data.get("keywords", niche)
+        }
+    except Exception as e:
+        print(f"[HypeEngine] Erro ao obter pauta da IA: {e}")
+        return {
+            "topic": f"Tendências quentes e novidades sobre {niche}",
+            "keywords": niche
+        }

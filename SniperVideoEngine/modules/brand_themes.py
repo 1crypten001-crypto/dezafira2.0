@@ -99,6 +99,7 @@ THEMES = {
         "tag_color": "rgba(212,168,83,0.12)",
         "tag_text": "#a67c2e",
         "tag_border": "rgba(212,168,83,0.2)",
+        "hero_image_url": "/static/images/hero_cristao.jpg",
     },
     "financas": {
         "id": "financas",
@@ -146,6 +147,7 @@ THEMES = {
         "tag_color": "rgba(5,150,105,0.12)",
         "tag_text": "#047857",
         "tag_border": "rgba(5,150,105,0.2)",
+        "hero_image_url": "/static/images/hero_financas.jpg",
     },
     "saude": {
         "id": "saude",
@@ -481,19 +483,21 @@ a:hover{{color:var(--primary-dark)}}
 .logo-text{{font-size:18px;font-weight:700;color:#fff}}
 
 /* ─── HERO SECTION ─── */
-.blog-hero{{padding:4rem 1.5rem;background:var(--hero-grad);border-bottom:1px solid var(--border);text-align:center;position:relative;overflow:hidden}}
-.blog-hero::before{{content:var(--logo-init,"");position:absolute;font-size:200px;opacity:.03;top:-60px;right:-30px;color:var(--primary);font-family:var(--font-heading);font-weight:800}}
-.blog-hero::before{{background:var(--logo-init,"");
-.hero-content{{max-width:740px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:1rem}}
-.hero-badge{{background:var(--primary);color:var(--bg);padding:4px 14px;border-radius:20px;font-size:var(--fs-sm);font-weight:600;opacity:.9}}
-.blog-hero h1{{font-family:var(--font-heading);font-size:var(--fs-lg);font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--dark)}}
-.blog-hero p{{color:var(--text-light);font-size:var(--fs-base);line-height:1.5;max-width:600px}}
-.hero-featured{{margin-top:1.5rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-width:600px;width:100%;text-align:left;transition:transform .2s,box-shadow .2s}}
-.hero-featured:hover{{transform:translateY(-3px);box-shadow:var(--shadow-hover)}}
-.hero-featured img{{width:100%;height:200px;object-fit:cover}}
-.hero-featured .hf-body{{padding:16px 20px}}
-.hero-featured .hf-body h3{{font-size:var(--fs-md);color:var(--dark);margin-bottom:4px}}
-.hero-featured .hf-body p{{font-size:var(--fs-sm);color:var(--text-light)}}
+.blog-hero{{padding:5rem 2rem;border-bottom:1px solid var(--border);position:relative;overflow:hidden;background-size:cover!important;background-position:center!important}}
+.blog-hero::before{{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(var(--primary-rgb),.04),rgba(var(--primary-rgb),.09));z-index:1}}
+.hero-inner-split{{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;position:relative;z-index:2}}
+.hero-brand-col{{display:flex;flex-direction:column;align-items:flex-start;gap:1.2rem;text-align:left}}
+.hero-badge{{background:var(--primary);color:var(--bg);padding:6px 16px;border-radius:20px;font-size:var(--fs-sm);font-weight:600;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(var(--primary-rgb),.2);border:1px solid rgba(255,255,255,.1)}}
+.blog-hero h1{{font-family:var(--font-heading);font-size:3.2rem;font-weight:850;line-height:1.1;letter-spacing:-.03em;color:var(--dark);margin:0}}
+.blog-hero p{{color:var(--text-light);font-size:1.15rem;line-height:1.6;margin:0;max-width:540px}}
+.hero-featured-col{{display:flex;justify-content:center;width:100%}}
+.hero-featured{{background:var(--card-bg,#fff);border:1px solid var(--border);border-radius:16px;overflow:hidden;width:100%;max-width:460px;text-align:left;transition:all .3s cubic-bezier(0.4,0,0.2,1);box-shadow:0 10px 30px rgba(0,0,0,.04);display:block;text-decoration:none}}
+.hero-featured:hover{{transform:translateY(-5px);box-shadow:0 20px 40px rgba(0,0,0,.08);border-color:var(--primary)}}
+.hero-featured img{{width:100%;height:220px;object-fit:cover;transition:transform .5s ease;display:block}}
+.hero-featured:hover img{{transform:scale(1.03)}}
+.hero-featured .hf-body{{padding:20px 24px}}
+.hero-featured .hf-body h3{{font-family:var(--font-heading);font-size:1.3rem;color:var(--dark);margin-bottom:8px;line-height:1.35;font-weight:700}}
+.hero-featured .hf-body p{{font-size:var(--fs-sm);color:var(--text-light);margin:0}}
 
 /* ─── BLOG CONTENT ─── */
 .blog-content{{max-width:var(--content-max,960px);margin:0 auto;padding:32px 20px}}
@@ -607,9 +611,11 @@ body{{padding-top:56px}}
 .nav-link{{width:100%;padding:10px 14px}}
 .menu-toggle{{display:flex}}
 .footer-grid{{grid-template-columns:1fr 1fr}}
+.hero-inner-split{{grid-template-columns:1fr;gap:24px}}
+.hero-brand-col{{align-items:center;text-align:center}}
+.blog-hero{{padding:3.5rem 1.25rem}}
+.blog-hero h1{{font-size:2.3rem}}
 .posts-grid{{grid-template-columns:1fr}}
-.blog-hero{{padding:2.5rem 1rem}}
-.blog-hero h1{{font-size:var(--fs-md)}}
 .post-viewer h1{{font-size:var(--fs-md)}}
 .post-content{{font-size:var(--fs-sm)}}
 }}

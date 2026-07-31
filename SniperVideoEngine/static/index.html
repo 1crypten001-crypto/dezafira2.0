@@ -9,7 +9,7 @@
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   html{font-size:16px;scroll-behavior:smooth}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#07080b;color:#e8edf2;min-height:100vh;overflow-x:hidden}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:radial-gradient(circle at 50% 50%, #0d0f1a 0%, #07080b 100%);color:#e8edf2;min-height:100vh;overflow-x:hidden}
   ::selection{background:rgba(99,102,241,.3);color:#fff}
   ::-webkit-scrollbar{width:6px}
   ::-webkit-scrollbar-track{background:#0d0e14}
@@ -69,14 +69,14 @@
   .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
   .btn-sm{padding:4px 10px;font-size:12px}
   .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px}
-  .stat-card{background:#0b0c12;border:1px solid #14161f;border-radius:12px;padding:16px 20px}
-  .stat-card .label{font-size:12px;color:#5c6370;font-weight:500;margin-bottom:4px}
+  .stat-card{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(15,17,26,0.65);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;box-shadow:0 4px 30px rgba(0,0,0,0.2)}
+  .stat-card .label{font-size:12px;color:#8a91a5;font-weight:500;margin-bottom:4px}
   .stat-card .value{font-size:28px;font-weight:800;color:#f0f2f5;line-height:1.2}
   .stat-card .sub{font-size:12px;color:#5c6370;margin-top:2px}
   .section{margin-bottom:28px}
   .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-  .section-header h3{font-size:16px;font-weight:700}
-  .card-table{background:#0b0c12;border:1px solid #14161f;border-radius:12px;overflow:hidden}
+  .section-header h3{font-size:16px;font-weight:700;color:#e8edf2}
+  .card-table{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(15,17,26,0.65);border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,0.2)}
   .table-row{display:grid;gap:12px;padding:12px 20px;border-bottom:1px solid #14161f;align-items:center}
   .table-row:last-child{border-bottom:none}
   .table-row .title{font-weight:600;font-size:14px;color:#e8edf2}
@@ -645,7 +645,8 @@ async function loadDashboard(){
     var totalCountPerBlog = c.post_count || blogPosts.length;
     var pri=c.brand_primary||'#6366f1';
     var init=(c.name||'B')[0];
-    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" style="'+(i===0?'--tab-color:'+pri:'')+'" onclick="switchBlogTab(\''+c.id+'\')"><span class="tab-logo" style="background:'+pri+'">'+init+'</span>'+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
+    var logoHtml = c.logo_svg ? '<div class="tab-logo" style="background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden">'+c.logo_svg.replace('<svg ', '<svg style="width:100%;height:100%;object-fit:contain" ')+'</div>' : '<span class="tab-logo" style="background:'+pri+'">'+init+'</span>';
+    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" style="'+(i===0?'--tab-color:'+pri:'')+'" onclick="switchBlogTab(\''+c.id+'\')">'+logoHtml+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
   }).join('');
   $("blogTabs").innerHTML=tabsHtml;
 
@@ -675,25 +676,33 @@ async function loadDashboard(){
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 
+    var logoHeader = c.logo_svg ? '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px">'+c.logo_svg+'</div>' : '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>';
+    var faviconHtml = c.favicon_svg ? '<img src="'+c.favicon_svg+'" style="width:18px;height:18px;border-radius:4px;vertical-align:middle" />' : '<span>-</span>';
+    var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Primária"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secundária"></span></div>';
+
     return '<div class="blog-panel'+(i===0?' active':'')+'" id="panel_'+c.id+'">'+
       '<div class="panel-header" style="--panel-color:'+pri+'">'+
         '<div class="ph-top">'+
-          '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>'+
+          logoHeader+
           '<div><h3>'+escapeHtml(c.name)+'</h3><div style="font-size:12px;color:#5c6370">'+escapeHtml(c.nicho)+'</div></div>'+
         '</div>'+
         '<div class="panel-meta">'+
           '<span>📄 '+totalC+' artigos</span>'+
           '<span>📝 '+(pubC||0)+' publicados</span>'+
           '<span>📊 ~'+avgW+' palavras média</span>'+
+          '<span>🎨 Cores: '+colorsHtml+'</span>'+
+          '<span>🔖 Favicon: '+faviconHtml+'</span>'+
           '<span>🔗 <a href="'+blogUrl+'" target="_blank" style="color:#a5b4fc">Ver Blog</a></span>'+
           subTxt+
         '</div>'+
         '<div class="panel-actions">'+
           '<button class="btn btn-sm" onclick="window.open(\''+blogUrl+'\')">🔗 Abrir Blog</button>'+
           '<button class="btn btn-sm btn-primary" onclick="generateForBlog(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\')">✍️ Novo Artigo</button>'+
+          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\')">🔥 Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
         '</div>'+
       '</div>'+
+      '<div id="pipeline_container_'+c.id+'" class="pipeline-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px"></div>'+
       '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
     '</div>';
   }).join('');
@@ -707,6 +716,84 @@ function switchBlogTab(channelId){
   if(tab)tab.classList.add("active");
   var panel=$("panel_"+channelId);
   if(panel)panel.classList.add("active");
+}
+
+var activeMonitors = {};
+
+async function generateForBlogHype(channelId, niche) {
+  showToast("Minerando tendências no Google para " + niche + "...");
+  try {
+    var res = await api("/api/v1/blog/generate-article-hype", {
+      method: "POST",
+      body: JSON.stringify({ channel_id: channelId })
+    });
+    if (res.error) {
+      showToast("Erro: " + res.error);
+      return;
+    }
+    showToast(res.message);
+    startPipelineMonitor(channelId, res.task_id);
+  } catch (e) {
+    showToast("Erro: " + e.message);
+  }
+}
+
+function startPipelineMonitor(channelId, taskId) {
+  if (activeMonitors[taskId]) return;
+  
+  var container = $("pipeline_container_" + channelId);
+  if (!container) return;
+  container.style.display = "block";
+  
+  var taskEl = document.createElement("div");
+  taskEl.id = "task_progress_" + taskId;
+  taskEl.style.marginBottom = "12px";
+  taskEl.style.padding = "10px";
+  taskEl.style.background = "rgba(0,0,0,0.2)";
+  taskEl.style.borderRadius = "8px";
+  container.appendChild(taskEl);
+
+  async function update() {
+    try {
+      var res = await api("/api/v1/pipeline/blog-factory/status/" + taskId);
+      if (res.status === "unknown" || !res.status) return;
+
+      var progress = res.progress || 0;
+      var phase = res.phase || "Processando esteira...";
+      var topic = res.topic || "Geração Automática";
+      var status = res.status;
+
+      var barColor = "#6366f1";
+      var statusIcon = "⚙️";
+      if (status === "completed") { barColor = "#22c55e"; statusIcon = "✅"; progress = 100; }
+      else if (status === "failed") { barColor = "#ef4444"; statusIcon = "❌"; }
+
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px">' +
+        '<span>' + statusIcon + ' <strong>' + escapeHtml(topic) + '</strong></span>' +
+        '<span style="color:#8a91a5;font-weight:600">' + progress + '%</span>' +
+      '</div>' +
+      '<div style="height:6px;background:#14161f;border-radius:3px;overflow:hidden;margin-bottom:6px">' +
+        '<div style="height:100%;width:' + progress + '%;background:' + barColor + ';border-radius:3px;transition:width .4s ease"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#8a91a5;display:flex;justify-content:space-between">' +
+        '<span>Fase: ' + escapeHtml(phase) + '</span>' +
+        '<span>Status: ' + status.toUpperCase() + '</span>' +
+      '</div>';
+
+      taskEl.innerHTML = html;
+
+      if (status === "completed" || status === "failed") {
+        clearInterval(activeMonitors[taskId]);
+        delete activeMonitors[taskId];
+        setTimeout(loadBlogs, 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  update();
+  activeMonitors[taskId] = setInterval(update, 3000);
 }
 
 async function generateForBlog(channelId,niche){
@@ -774,43 +861,67 @@ async function loadMonetization(){
     }
     var html='<div style="padding:16px 20px">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
-        '<div><strong style="font-size:15px">'+data.blog_name+'</strong><div style="font-size:12px;color:#5c6370">'+data.niche+'</div></div>'+
-        '<div style="text-align:right"><div style="font-size:24px;font-weight:800;color:'+(o.progress_pct>=80?"#4ade80":o.progress_pct>=50?"#fbbf24":"#f87171")+'">'+o.progress_pct+'%</div><div style="font-size:11px;color:#5c6370">'+o.label.slice(0,60)+'</div></div>'+
+        '<div><strong style="font-size:16px;color:#f0f2f5">'+data.blog_name+'</strong><div style="font-size:12px;color:#8a91a5;margin-top:2px">'+data.niche+'</div></div>'+
+        '<div style="text-align:right"><div style="font-size:26px;font-weight:850;color:'+(o.progress_pct>=80?"#4ade80":o.progress_pct>=50?"#fbbf24":"#f87171")+'">'+o.progress_pct+'%</div><div style="font-size:11px;color:#8a91a5">'+o.label.slice(0,60)+'</div></div>'+
       '</div>'+
-      '<div style="margin-bottom:16px;background:#14161f;border-radius:6px;height:10px;overflow:hidden">'+
+      '<div style="margin-bottom:20px;background:#14161f;border-radius:6px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05)">'+
         '<div style="height:100%;width:'+o.progress_pct+'%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa);border-radius:6px;transition:width .8s ease"></div></div>';
     
-    // Categories
+    // Grid de Categorias com Critérios individuais do Seu Pereira
+    html += '<div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px">';
     var cats=Object.keys(data.categories||{});
     cats.forEach(function(cat){
       var c=data.categories[cat];
       var pct=c.total>0?Math.round((c.pass/c.total)*100):0;
-      var color=pct>=80?"#22c55e":pct>=50?"#f59e0b":"#ef4444";
+      var catColor=pct>=80?"#4ade80":pct>=50?"#fbbf24":"#f87171";
       
-      html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #14161f">'+
-        '<div style="flex:1;font-size:12px;color:#8a91a5">'+cat+'</div>'+
-        '<div style="display:flex;align-items:center;gap:6px">'+
-          '<div style="width:60px;height:4px;background:#14161f;border-radius:2px;overflow:hidden">'+
-            '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:2px"></div></div>'+
-          '<span style="font-size:11px;color:'+color+';font-weight:600">'+c.pass+'/'+c.total+'</span></div></div>';
+      html += '<div style="backdrop-filter:blur(8px);background:rgba(20,22,35,0.4);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:14px;box-shadow:0 4px 15px rgba(0,0,0,0.15)">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:8px">'+
+          '<span style="font-size:13px;font-weight:700;color:#e8edf2">'+cat+'</span>'+
+          '<span style="font-size:11px;font-weight:600;color:'+catColor+';background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:6px">'+c.pass+'/'+c.total+'</span>'+
+        '</div>';
+        
+      c.items.forEach(function(item){
+        var badgeColor = "#ef4444", bgLight = "rgba(239,68,68,0.06)", icon = "❌";
+        if (item.status === "pass") {
+          badgeColor = "#22c55e"; bgLight = "rgba(34,197,94,0.06)"; icon = "✅";
+        } else if (item.status === "warn") {
+          badgeColor = "#fbbf24"; bgLight = "rgba(245,158,11,0.06)"; icon = "⚠️";
+        } else if (item.status === "blocked") {
+          badgeColor = "#8a91a5"; bgLight = "rgba(255,255,255,0.04)"; icon = "🔒";
+        }
+        
+        html += '<div style="background:'+bgLight+';border:1px solid '+badgeColor+'18;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:flex-start;gap:8px;font-size:11px;transition:all .15s ease">'+
+          '<span style="font-size:12px;line-height:1;margin-top:1px">'+icon+'</span>'+
+          '<div style="flex:1">'+
+            '<strong style="color:#e8edf2;font-size:11px;font-weight:600">'+escapeHtml(item.titulo)+'</strong>'+
+            '<div style="color:#8a91a5;font-size:10px;margin-top:2px;line-height:1.3">'+escapeHtml(item.message || item.descricao)+'</div>'+
+          '</div>'+
+        '</div>';
+      });
+      
+      html += '</div>';
     });
+    html += '</div>';
     
     // Recommendations
     if(data.recommendations&&data.recommendations.length>0){
-      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid #14161f">'+
-        '<div style="font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:8px">📋 Proximos Passos:</div>';
+      html+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05)">'+
+        '<div style="font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:10px">📋 Recomendações Prioritárias para Monetização:</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
       data.recommendations.forEach(function(r){
         var pColor=r.prioridade==="alta"?"#f87171":r.prioridade==="media"?"#fbbf24":"#8a91a5";
-        html+='<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">'+
+        var pBg=r.prioridade==="alta"?"rgba(239,68,68,0.06)":r.prioridade==="media"?"rgba(245,158,11,0.06)":"rgba(255,255,255,0.02)";
+        html+='<div style="background:'+pBg+';border:1px solid '+pColor+'20;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px">'+
           '<span style="width:8px;height:8px;border-radius:50%;background:'+pColor+';flex-shrink:0"></span>'+
-          '<span style="flex:1;color:#e8edf2">'+r.titulo+'</span>'+
-          '<span style="color:'+pColor+';font-size:10px;font-weight:600">'+r.prioridade.toUpperCase()+'</span></div>';
+          '<div style="flex:1;font-size:11px;color:#e8edf2">'+escapeHtml(r.acao)+'</div>'+
+          '<span style="color:'+pColor+';font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:rgba(255,255,255,0.03);padding:2px 5px;border-radius:4px">'+r.prioridade+'</span></div>';
       });
-      html+='</div>';
+      html+='</div></div>';
     }
     
-    html+='<div style="margin-top:12px;padding-top:8px;text-align:right;font-size:10px;color:#3b4050">'+
-      'Ultima avaliacao: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
+    html+='<div style="margin-top:20px;padding-top:8px;text-align:right;font-size:10px;color:#5c6370">'+
+      'Última avaliação de monetização: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
     '</div>';
     
     container.innerHTML=html;

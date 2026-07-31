@@ -676,6 +676,7 @@ async def get_ze_status():
 async def blog_factory_dashboard():
     """Dashboard consolidado com metricas de todas as fabricas."""
     from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course
+    from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
     from sqlalchemy import func
 
     db = SessionLocal()
@@ -708,6 +709,10 @@ async def blog_factory_dashboard():
                         BlogPost.channel_id == c.id,
                         BlogPost.featured_image_url.is_(None)
                     ).count(),
+                    "brand_primary": detect_theme(c.nicho)["colors"]["primary"] if c.nicho else "#6366f1",
+                    "brand_secondary": detect_theme(c.nicho)["colors"]["accent"] if c.nicho else "#8b5cf6",
+                    "logo_svg": get_logo_svg(c.nicho) if c.nicho else "",
+                    "favicon_svg": get_favicon_svg(c.nicho) if c.nicho else "",
                 } for c in channels],
             },
             "posts": {
@@ -1016,6 +1021,7 @@ async def rag_index():
 async def blog_factory_dashboard():
     """Dashboard consolidado com metricas de todas as fabricas."""
     from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course
+    from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
     from sqlalchemy import func
 
     db = SessionLocal()
@@ -1040,6 +1046,18 @@ async def blog_factory_dashboard():
                     "published_count": db.query(BlogPost).filter(
                         BlogPost.channel_id == c.id, BlogPost.status == "published"
                     ).count(),
+                    "posts_with_images": db.query(BlogPost).filter(
+                        BlogPost.channel_id == c.id,
+                        BlogPost.featured_image_url.isnot(None)
+                    ).count(),
+                    "posts_without_images": db.query(BlogPost).filter(
+                        BlogPost.channel_id == c.id,
+                        BlogPost.featured_image_url.is_(None)
+                    ).count(),
+                    "brand_primary": detect_theme(c.nicho)["colors"]["primary"] if c.nicho else "#6366f1",
+                    "brand_secondary": detect_theme(c.nicho)["colors"]["accent"] if c.nicho else "#8b5cf6",
+                    "logo_svg": get_logo_svg(c.nicho) if c.nicho else "",
+                    "favicon_svg": get_favicon_svg(c.nicho) if c.nicho else "",
                 } for c in channels],
             },
             "posts": {
@@ -2373,6 +2391,128 @@ async def get_blog_factory_status(task_id: str):
         # Tenta buscar no banco
         return {"status": "unknown", "task_id": task_id, "message": "Pipeline nao encontrada ou ainda nao iniciada"}
     return result
+
+
+@app.post("/api/v1/blog/generate-article-hype")
+async def generate_article_hype_endpoint(payload: dict, background_tasks: BackgroundTasks):
+    """
+    Minera tendências no Google para o nicho do blog, define um tema original
+    e dispara a esteira de criação do artigo em segundo plano.
+    """
+    channel_id = payload.get("channel_id", "")
+    if not channel_id:
+        from modules.database import get_db_blog_channels
+        channels = get_db_blog_channels()
+        if channels and len(channels) > 0:
+            channel_id = channels[0]["id"]
+        else:
+            return {"error": "Nenhum canal encontrado"}
+
+    from modules.database import get_db_blog_info
+    blog_info = get_db_blog_info(channel_id)
+    if not blog_info:
+        return {"error": "Blog não encontrado"}
+
+    nicho = blog_info.get("nicho", "")
+    if not nicho:
+        return {"error": "Nicho do blog não configurado"}
+
+    from modules.blog_pipeline import mine_google_hype, run_blog_pipeline as _run_pipeline
+    import uuid
+    import asyncio
+    
+    # 1. Minera o hype no Google Search/Autocomplete e gera o tema
+    try:
+        pauta = await mine_google_hype(nicho)
+        topic = pauta["topic"]
+        keywords = pauta["keywords"]
+    except Exception as e:
+        print(f"[HypeEndpoint] Erro ao minerar hype: {e}")
+        topic = f"Novidades e Tendências em {nicho}"
+        keywords = nicho
+
+    task_id = f"blg_{uuid.uuid4().hex[:8]}"
+
+    # 2. Armazena estado inicial para consulta via GET
+    _macro_results[task_id] = {
+        "status": "starting", "topic": topic, "channel_id": channel_id,
+        "phase": "minerando_hype", "progress": 5, "data": None
+    }
+
+    # 3. Função ws que atualiza progresso
+    async def _run_with_ws(tid, top, ch, lang, keywords_str):
+        hub = _ws_hub
+        def on_progress(pid, stage_id, progress, message, data):
+            _macro_results[pid] = {
+                "status": "active", "topic": top, "channel_id": ch,
+                "phase": message or stage_id, "progress": progress, "data": data
+            }
+            if stage_id == "__broadcast__":
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(hub.broadcast(message, data))
+                except Exception:
+                    pass
+                return
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(hub.broadcast("pipeline_progress", {
+                    "task_id": pid, "stage_id": stage_id,
+                    "progress": progress, "message": message,
+                    "status": "completed" if progress >= 100 else "active",
+                    "data": data,
+                }))
+            except Exception:
+                pass
+        try:
+            result = await _run_pipeline(
+                topic=top, channel_id=ch, language=lang, task_id=tid, 
+                on_progress=on_progress, auto_schedule=True
+            )
+            _macro_results[tid] = {
+                "status": "completed", "topic": top, "channel_id": ch,
+                "phase": "concluido", "progress": 100, "data": result
+            }
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(hub.broadcast("pipeline_complete", result))
+            except Exception:
+                pass
+        except Exception as e:
+            _macro_results[tid] = {
+                "status": "failed", "topic": top, "channel_id": ch,
+                "phase": "erro", "progress": 0, "error": str(e)
+            }
+
+    background_tasks.add_task(_run_with_ws, task_id, topic, channel_id, "pt", keywords)
+    return {
+        "task_id": task_id, 
+        "topic": topic, 
+        "status": "starting",
+        "message": f"Tendência detectada: '{topic}'. Esteira de redação iniciada!",
+    }
+
+
+@app.get("/api/v1/pipeline/active-tasks")
+async def get_active_pipeline_tasks(channel_id: str = None):
+    """
+    Retorna a lista de todas as tarefas de pipeline ativas ou recentes filtradas por blog.
+    """
+    tasks = []
+    for tid, info in _macro_results.items():
+        if channel_id and info.get("channel_id") != channel_id:
+            continue
+        tasks.append({
+            "task_id": tid,
+            "topic": info.get("topic"),
+            "channel_id": info.get("channel_id"),
+            "status": info.get("status"),
+            "phase": info.get("phase"),
+            "progress": info.get("progress"),
+            "error": info.get("error"),
+        })
+    return {"tasks": tasks}
+
 
 @app.post("/api/v1/blog/import-posts")
 async def import_blog_posts(payload: dict):
