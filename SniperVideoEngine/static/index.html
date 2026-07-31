@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -217,7 +217,7 @@
   .lili-issue-tag.low{background:rgba(59,130,246,.15);color:#60a5fa}
   .lili-score-bar{width:80px;height:6px;background:#14161f;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
 
-  /* Blog tabs v2 — branding profissional */
+  /* Blog tabs v2 ÔÇö branding profissional */
   .blog-tabs{display:flex;gap:0;margin-bottom:0;overflow-x:auto;overflow-y:hidden;position:relative;background:#0b0c12;border:1px solid #14161f;border-radius:12px 12px 0 0}
   .blog-tab{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;color:#5c6370;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s ease;white-space:nowrap;flex-shrink:0}
   .blog-tab:hover{color:#e8edf2;background:#12141e}
@@ -249,36 +249,36 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Visao Geral</div>
-      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</a>
+      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">­ƒôè</span> Dashboard</a>
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
-      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
+      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">­ƒôØ</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
-      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">📗</span> Livros <span class="badge" id="bookCount">-</span></a>
-      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
-      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">🎨</span> Imagens</a>
-      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🗣️</span> Hermes</a>
-      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">👩‍💻</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
+      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">­ƒôù</span> Livros <span class="badge" id="bookCount">-</span></a>
+      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">­ƒÄô</span> Cursos <span class="badge" id="courseCount">-</span></a>
+      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">­ƒÄ¿</span> Imagens</a>
+      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">­ƒùú´©Å</span> Hermes</a>
+      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">­ƒæ®ÔÇì­ƒÆ╗</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira v1.0</div>
   </aside>
   <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <main class="main">
     <div class="topbar">
-      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">☰</button><h2 id="pageTitle">Dashboard</h2></div>
+      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">Ôÿ░</button><h2 id="pageTitle">Dashboard</h2></div>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="status"><span class="dot"></span>Online</div>
-        <button class="btn btn-sm" onclick="location.reload()">⟳ Atualizar</button>
+        <button class="btn btn-sm" onclick="location.reload()">Ôƒ│ Atualizar</button>
       </div>
     </div>
 
     <div class="page active" id="page-dashboard">
       <div class="page-header"><p>Visao geral de todas as fabricas</p></div>
       <div class="stats-grid" id="dashStats"></div>
-      <div class="section"><div class="section-header"><h3>📋 Resumo das Fabricas</h3></div><div class="card-table" id="factorySummary"></div></div>
-      <div class="section"><div class="section-header"><h3>📡 Canais</h3></div><div class="card-table" id="dashChannels"></div></div>
+      <div class="section"><div class="section-header"><h3>­ƒôï Resumo das Fabricas</h3></div><div class="card-table" id="factorySummary"></div></div>
+      <div class="section"><div class="section-header"><h3>­ƒôí Canais</h3></div><div class="card-table" id="dashChannels"></div></div>
     <div class="section" id="monetizationSection">
       <div class="section-header">
-        <h3>👴 Seu Pereira — Analista de Monetizacao</h3>
+        <h3>­ƒæ┤ Seu Pereira ÔÇö Analista de Monetizacao</h3>
         <span class="tag tag-blue" id="monetizationScore">Carregando...</span>
       </div>
       <div class="card-table" id="monetizationPanel">
@@ -289,13 +289,13 @@
     </div>
 
     <div class="page" id="page-blogs">
-      <div class="page-header"><h2>📝 Fabrica de Blogs & 🏭 Esteira de Produção</h2><p>Gerencie canais, artigos e acompanhe a esteira de conteúdo em tempo real</p></div>
+      <div class="page-header"><h2>­ƒôØ Fabrica de Blogs & ­ƒÅ¡ Esteira de Produ├º├úo</h2><p>Gerencie canais, artigos e acompanhe a esteira de conte├║do em tempo real</p></div>
       <div class="stats-grid" id="blogStats"></div>
 
-      <!-- Seção Integrada da Pipeline -->
+      <!-- Se├º├úo Integrada da Pipeline -->
       <div class="section" style="margin-bottom:24px">
         <div class="section-header">
-          <h3>🏭 Esteira Única de Conteúdo (Google Hype)</h3>
+          <h3>­ƒÅ¡ Esteira ├Ünica de Conte├║do (Google Hype)</h3>
         </div>
         <div id="pipelineContent" style="background:#12141e;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-top:10px">
           <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
@@ -305,29 +305,29 @@
             </div>
             <div class="macro-global-bar-bg"><div class="macro-global-bar-fill" id="macroGlobalFill"></div></div>
             <div class="macro-global-stats">
-              <span>⏱️ <span id="macroElapsedTime">00:00</span></span>
-              <span>🎯 <span id="macroTargetLabel">30 artigos</span></span>
+              <span>ÔÅ▒´©Å <span id="macroElapsedTime">00:00</span></span>
+              <span>­ƒÄ» <span id="macroTargetLabel">30 artigos</span></span>
             </div>
           </div>
           <div class="conveyor-belt">
             <div class="conveyor-track" id="macroPipelineTrack">
-              <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
+              <div class="pipeline-empty"><div class="big-icon">­ƒÅù´©Å</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
             </div>
           </div>
           <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
             <div class="macro-current-header">
-              <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
+              <span class="macro-current-badge" id="macroCurrentBadge">­ƒôØ Artigo 1/30</span>
               <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
             </div>
-            <div class="macro-current-phase-label" id="macroCurrentPhase">⏳ Iniciando pipeline...</div>
+            <div class="macro-current-phase-label" id="macroCurrentPhase">ÔÅ│ Iniciando pipeline...</div>
             <div id="macroLiliScore" style="margin-top:8px;display:flex;align-items:center;gap:8px"></div>
           </div>
           <div class="pipeline-log-container" style="margin-top:16px">
-            <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
+            <div class="pipeline-log-header"><span>­ƒôØ Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
             <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
           </div>
           <div class="pipeline-history" style="margin-top:16px">
-            <div class="section-header"><h3>📜 Histórico</h3></div>
+            <div class="section-header"><h3>­ƒô£ Histo╠ürico</h3></div>
             <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
           </div>
         </div>
@@ -338,35 +338,35 @@
     </div>
 
     <div class="page" id="page-books">
-      <div class="page-header"><h2>📗 Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
+      <div class="page-header"><h2>­ƒôù Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
       <div class="stats-grid" id="bookStats"></div>
       <div class="section">
-        <div class="section-header"><h3>📚 Biblioteca</h3></div>
+        <div class="section-header"><h3>­ƒôÜ Biblioteca</h3></div>
         <div class="card-table" id="bookList"><div class="empty">Nenhum livro cadastrado</div></div>
       </div>
     </div>
     <div class="page" id="page-courses">
-      <div class="page-header"><h2>🎓 Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
+      <div class="page-header"><h2>­ƒÄô Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
       <div class="stats-grid" id="courseStats"></div>
       <div class="section">
-        <div class="section-header"><h3>📚 Catalogo de Cursos</h3></div>
+        <div class="section-header"><h3>­ƒôÜ Catalogo de Cursos</h3></div>
         <div class="card-table" id="courseList"><div class="empty">Nenhum curso cadastrado</div></div>
       </div>
     </div>
     <div class="page" id="page-images">
-      <div class="page-header"><h2>🎨 Imagens</h2><p>Imagens geradas e utilizadas nos artigos</p></div>
+      <div class="page-header"><h2>­ƒÄ¿ Imagens</h2><p>Imagens geradas e utilizadas nos artigos</p></div>
       <div class="section">
-        <div class="section-header"><h3>📸 Galeria de Imagens</h3></div>
+        <div class="section-header"><h3>­ƒô© Galeria de Imagens</h3></div>
         <div class="card-table" id="imageGallery"><div class="empty">Nenhuma imagem gerada ainda</div></div>
       </div>
     </div>
     <div class="page" id="page-hermes">
-      <div class="page-header"><h2>🗣️ Hermes</h2><p>Orquestrador inteligente do ecossistema Dezafira</p></div>
+      <div class="page-header"><h2>­ƒùú´©Å Hermes</h2><p>Orquestrador inteligente do ecossistema Dezafira</p></div>
       <div class="card-table" id="hermesChat" style="padding:20px">
         <div style="display:flex;flex-direction:column;gap:12px;max-width:600px;margin:0 auto">
           <div style="background:#12141e;border-radius:12px;padding:16px;min-height:200px;max-height:400px;overflow-y:auto;font-size:13px;line-height:1.6" id="hermesMessages">
             <div style="display:flex;gap:8px;margin-bottom:12px">
-              <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>
+              <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">­ƒñû</div>
               <div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">
                 <strong style="color:#a5b4fc;font-size:12px">Hermes</strong>
                 <p style="margin-top:4px;color:#8a91a5">Ola! Sou o Hermes, orquestrador do sistema Dezafira. Como posso ajudar?</p>
@@ -381,13 +381,13 @@
       </div>
     </div>
     <div class="page" id="page-lili">
-      <div class="page-header"><h2>👩‍💻 LiLi — Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
+      <div class="page-header"><h2>­ƒæ®ÔÇì­ƒÆ╗ LiLi ÔÇö Revisora de Qualidade</h2><p>Score de qualidade de cada artigo com opcoes de correcao</p></div>
       <div class="stats-grid" id="liliStats"></div>
       <div class="section">
         <div class="section-header">
-          <h3>📄 Artigos Revisados</h3>
+          <h3>­ƒôä Artigos Revisados</h3>
           <div style="display:flex;gap:8px">
-            <button class="btn btn-sm btn-primary" id="liliReviewAllBtn" onclick="liliReviewAll()">🔄 Revisar Todos</button>
+            <button class="btn btn-sm btn-primary" id="liliReviewAllBtn" onclick="liliReviewAll()">­ƒöä Revisar Todos</button>
           </div>
         </div>
         <div class="card-table" id="liliResults"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Revisando artigos...</div></div>
@@ -399,16 +399,16 @@
 <script>
 const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
 const STAGES=[
-  {id:"fundacao",name:"Fundacao",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
-    agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
-  {id:"arquitetura",name:"Arquitetura",icon:"📋",agent:"Joaquim",
-    agents:[{name:"Joaquim",emoji:"🔍",role:"Pesquisador",action:"Pesquisando keywords"}]},
-  {id:"producao",name:"Producao",icon:"📝",agent:"Carlao + LiLi",
-    agents:[{name:"Carlao",emoji:"✍️",role:"Redator",action:"Escrevendo artigos"},{name:"LiLi",emoji:"🌸",role:"Revisora de Qualidade",action:"Revisando artigos e corrigindo erros"}]},
-  {id:"refino",name:"Refino",icon:"🎨",agent:"Tatiana + Seu Ze",
-    agents:[{name:"Tatiana",emoji:"📸",role:"Fotografa",action:"Buscando imagens"},{name:"Seu Ze",emoji:"📅",role:"Agendador",action:"Programando publicacao"}]},
-  {id:"entrega",name:"Entrega",icon:"✅",agent:"Seu Francisco",
-    agents:[{name:"Seu Francisco",emoji:"👴",role:"Supervisor",action:"Conferindo producao"}]}
+  {id:"fundacao",name:"Fundacao",icon:"­ƒÅù´©Å",agent:"Seu Hermes + Dona Celia",
+    agents:[{name:"Seu Hermes",emoji:"­ƒæ┤",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"­ƒæ®ÔÇì­ƒÄ¿",role:"Designer",action:"Criando identidade"}]},
+  {id:"arquitetura",name:"Arquitetura",icon:"­ƒôï",agent:"Joaquim",
+    agents:[{name:"Joaquim",emoji:"­ƒöì",role:"Pesquisador",action:"Pesquisando keywords"}]},
+  {id:"producao",name:"Producao",icon:"­ƒôØ",agent:"Carlao + LiLi",
+    agents:[{name:"Carlao",emoji:"Ô£ì´©Å",role:"Redator",action:"Escrevendo artigos"},{name:"LiLi",emoji:"­ƒî©",role:"Revisora de Qualidade",action:"Revisando artigos e corrigindo erros"}]},
+  {id:"refino",name:"Refino",icon:"­ƒÄ¿",agent:"Tatiana + Seu Ze",
+    agents:[{name:"Tatiana",emoji:"­ƒô©",role:"Fotografa",action:"Buscando imagens"},{name:"Seu Ze",emoji:"­ƒôà",role:"Agendador",action:"Programando publicacao"}]},
+  {id:"entrega",name:"Entrega",icon:"Ô£à",agent:"Seu Francisco",
+    agents:[{name:"Seu Francisco",emoji:"­ƒæ┤",role:"Supervisor",action:"Conferindo producao"}]}
 ];
 var ms={running:false,taskId:null,stages:{},log:[],history:[],gen:0,cur:0,topic:"",target:30,start:0};
 var ws=null,tt;
@@ -446,13 +446,13 @@ function renderPipeline(){
   t.innerHTML=STAGES.map(function(s,i){
     var c='';if(i<STAGES.length-1)c='<div class="conveyor-connector"><div class="cc-base"></div><div class="cc-glow" id="cg_'+s.id+'"></div><div class="cc-dot" id="cd_'+s.id+'"></div></div>';
     var av=s.agents? s.agents.map(function(a){return '<span title="'+a.name+': '+a.action+'" style="display:inline-block;margin:0 1px">'+a.emoji+'</span>';}).join(''):s.icon;
-    var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' • '+a.role;}).join('<br>'):s.agent)+'</div>';
-    return '<div class="conveyor-stage-wrapper"><div class="conveyor-stage idle" id="st_'+s.id+'"><div class="cs-border" style="display:none"></div><div class="cs-check" style="display:none">✓</div>'+
-      '<div class="cs-agent-avatar">'+av+'<span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span></div>'+
+    var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' ÔÇó '+a.role;}).join('<br>'):s.agent)+'</div>';
+    return '<div class="conveyor-stage-wrapper"><div class="conveyor-stage idle" id="st_'+s.id+'"><div class="cs-border" style="display:none"></div><div class="cs-check" style="display:none">Ô£ô</div>'+
+      '<div class="cs-agent-avatar">'+av+'<span class="sparkle">Ô£ª</span><span class="sparkle">Ô£ª</span><span class="sparkle">Ô£ª</span></div>'+
       '<div class="cs-name">'+s.name+'</div>'+
-      '<div class="cs-agent-action" id="ac_'+s.id+'">⏳ <span id="al_'+s.id+'">Aguardando</span> <span class="cs-agent-gear">⚙</span></div>'+
+      '<div class="cs-agent-action" id="ac_'+s.id+'">ÔÅ│ <span id="al_'+s.id+'">Aguardando</span> <span class="cs-agent-gear">ÔÜÖ</span></div>'+
       '<div class="cs-progress"><div class="cs-progress-bar" id="cp_'+s.id+'"></div></div>'+
-      '<div class="cs-status idle" id="cs_'+s.id+'">⏳</div>'+
+      '<div class="cs-status idle" id="cs_'+s.id+'">ÔÅ│</div>'+
       '<div class="cs-message" id="cm_'+s.id+'"></div>'+tp+'</div>'+c+'</div>';
   }).join("");
 }
@@ -461,7 +461,7 @@ function updateStage(sid,status,prog,msg,data){
   var el=$("st_"+sid),st=$("cs_"+sid),pr=$("cp_"+sid),ms=$("cm_"+sid),al=$("al_"+sid),ac=$("ac_"+sid);
   if(!el)return;
   el.className="conveyor-stage "+status;
-  if(st){st.className="cs-status "+status;var lb={idle:"⏳",active:"🔄",completed:"✅",failed:"❌"};st.textContent=lb[status]||status}
+  if(st){st.className="cs-status "+status;var lb={idle:"ÔÅ│",active:"­ƒöä",completed:"Ô£à",failed:"ÔØî"};st.textContent=lb[status]||status}
   var ck=el.querySelector(".cs-check");
   if(ck){ck.style.display=status==="completed"?"flex":"none";if(status==="completed")ck.style.animation="checkPop .4s cubic-bezier(.34,1.56,.64,1)"}
   if(pr){pr.className="cs-progress-bar "+status;if(status==="active"&&prog>0)pr.style.width=prog+"%"}
@@ -471,7 +471,7 @@ function updateStage(sid,status,prog,msg,data){
     var actions={idle:"Aguardando",active:"Trabalhando...",completed:"Concluido!",failed:"Erro"};
     al.textContent=actions[status]||status;
   }
-  if(ac)ac.innerHTML=(status==="active"?"🔄 ":"⏳ ")+'<span id="al_'+sid+'">'+(al?al.textContent:"")+'</span> <span class="cs-agent-gear">⚙</span>';
+  if(ac)ac.innerHTML=(status==="active"?"­ƒöä ":"ÔÅ│ ")+'<span id="al_'+sid+'">'+(al?al.textContent:"")+'</span> <span class="cs-agent-gear">ÔÜÖ</span>';
   // Belt animation
   var belt=document.querySelector(".conveyor-belt");
   if(belt)belt.classList.toggle("running",status==="active");
@@ -483,18 +483,18 @@ function updateStage(sid,status,prog,msg,data){
     });
   }
   if(data){
-    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
+    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="­ƒôØ Artigo "+data.current_article+"/"+ms.target;updateBar()}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
-    if(data.phase_detail){$("macroCurrentPhase").textContent="🔄 "+data.phase_detail}
+    if(data.phase_detail){$("macroCurrentPhase").textContent="­ƒöä "+data.phase_detail}
     // LiLi score display
     if(data.lili_score!==undefined||data.lili_approved!==undefined){
       var ls=$("macroLiliScore");
       if(ls){
         var scr=data.lili_score||0;
         var color=scr>=80?'#4ade80':scr>=50?'#fbbf24':'#f87171';
-        var icon=data.lili_approved?'✅':'🚫';
+        var icon=data.lili_approved?'Ô£à':'­ƒÜ½';
         var label=data.lili_approved?'LiLi Aprovou':'LiLi Reprovou';
-        ls.innerHTML='<span style="font-size:11px;color:#8a91a5">🌸</span>'+
+        ls.innerHTML='<span style="font-size:11px;color:#8a91a5">­ƒî©</span>'+
           '<span style="font-size:12px;color:'+color+';font-weight:600">'+icon+' '+label+': '+scr+'/100</span>'+
           '<div style="flex:1;max-width:120px;height:4px;background:#14161f;border-radius:2px;overflow:hidden">'+
           '<div style="height:100%;width:'+scr+'%;background:'+color+';border-radius:2px;transition:width .5s ease"></div></div>'+
@@ -520,9 +520,9 @@ function addLog(sid,msg,type){
   if(!l)return;
   var e=l.querySelector(".load-log");if(e)e.remove();
   var d=new Date();var t=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
-  var ic={fundacao:"🏗️",arquitetura:"📋",producao:"📝",refino:"🎨",entrega:"✅"};
+  var ic={fundacao:"­ƒÅù´©Å",arquitetura:"­ƒôï",producao:"­ƒôØ",refino:"­ƒÄ¿",entrega:"Ô£à"};
   var el=document.createElement("div");el.className="log-entry";
-  el.innerHTML='<span class="log-time">'+t+'</span><span class="log-icon">'+(ic[sid]||"🔄")+'</span><span class="log-msg '+(type||"")+'">'+msg+'</span>';
+  el.innerHTML='<span class="log-time">'+t+'</span><span class="log-icon">'+(ic[sid]||"­ƒöä")+'</span><span class="log-msg '+(type||"")+'">'+msg+'</span>';
   l.appendChild(el);l.scrollTop=l.scrollHeight;
 }
 
@@ -552,7 +552,7 @@ async function startMacroPipeline(){
   addLog("fundacao","\u{1F4CB} Alvo: "+ms.target+" artigos");
   var res=await api("/api/v1/pipeline/run-blog-factory",{method:"POST",body:JSON.stringify({blog_name:name,niche:niche,language:"pt",target_articles:ms.target})});
   if(res.error){showToast("Erro: "+res.error);ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";return}
-  ms.taskId=res.task_id;_connectWs();showToast("✅ Pipeline iniciada!");
+  ms.taskId=res.task_id;_connectWs();showToast("Ô£à Pipeline iniciada!");
 }
 
 function resetMacroPipeline(){
@@ -601,9 +601,9 @@ function renderDashboardData(d){
     return '<div class="table-row cols-4"><div><div class="title">'+c.name+'</div><div class="meta">'+c.nicho+'</div>'+bar+'</div><div><span class="tag tag-blue">'+c.lang+'</span></div><div><a href="'+blogUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver Blog</a></div></div>';
   }).join(""):'<div class="empty">Nenhum canal</div>';
   $("dashChannels").innerHTML=chHtml;
-  var sum='<div class="table-row cols-3"><div><div class="title">📝 Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
-  sum+='<div class="table-row cols-3"><div><div class="title">📗 Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
-  sum+='<div class="table-row cols-3"><div><div class="title">🎓 Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
+  var sum='<div class="table-row cols-3"><div><div class="title">­ƒôØ Blog</div></div><div><span class="tag tag-green">'+(d.posts?.total||0)+' artigos</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">­ƒôù Livros</div></div><div><span class="tag tag-yellow">'+(d.books_count||0)+' livros</span></div></div>';
+  sum+='<div class="table-row cols-3"><div><div class="title">­ƒÄô Cursos</div></div><div><span class="tag tag-purple">'+(d.courses_count||0)+' cursos</span></div></div>';
   $("factorySummary").innerHTML=sum;
 }
 
@@ -621,7 +621,7 @@ async function loadDashboard(){
   var stats='<div class="stat-card"><div class="label">Canais</div><div class="value">'+(d.channels?.total||0)+'</div></div>';
   stats+='<div class="stat-card"><div class="label">Artigos</div><div class="value">'+(d.posts?.total||0)+'</div>';
   stats+='<div class="sub">'+(d.posts?.total_words||0).toLocaleString()+" palavras</div></div>";
-  stats+='<div class="stat-card"><div class="label">🖼️ Com Imagem</div><div class="value">'+withImg+'/'+totalP+'</div><div class="sub">'+imgPct+'% dos artigos</div></div>';
+  stats+='<div class="stat-card"><div class="label">­ƒû╝´©Å Com Imagem</div><div class="value">'+withImg+'/'+totalP+'</div><div class="sub">'+imgPct+'% dos artigos</div></div>';
   $("blogStats").innerHTML=stats;
 
   if(!chs.length){
@@ -647,7 +647,7 @@ async function loadDashboard(){
     var blogUrl=c.site_url||blogSlug(c.name);
     var pri=c.brand_primary||'#6366f1';
     var init=(c.name||'B')[0];
-    var subTxt=c.subdomain?'<span>🌐 <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" style="color:#a5b4fc">'+c.subdomain+'.dezafira.com.br</a></span>':'';
+    var subTxt=c.subdomain?'<span>­ƒîÉ <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" style="color:#a5b4fc">'+c.subdomain+'.dezafira.com.br</a></span>':'';
     var withImgC=c.posts_with_images||0;
     var withoutImgC=c.posts_without_images||0;
     var totalC=c.post_count||(withImgC+withoutImgC)||0;
@@ -658,18 +658,29 @@ async function loadDashboard(){
 
     var postsList=blogPosts.length?blogPosts.map(function(p){
       var artUrl=blogUrl+'?post='+p.id;
-      var hasImg=p.featured_image_url?true:false;
-      var imgBadge=hasImg
-        ?'<span class="tag tag-green" style="background:rgba(34,197,94,.12);color:#4ade80">🖼️</span>'
-        :'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171">🚫 Img</span>';
-      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
-    }).join(''):'<div class="blog-empty-state">Nenhum artigo neste blog</div>';
+      var provMap={'flux':{icon:'⚡',label:'FLUX IA',color:'#a855f7'},'gemini':{icon:'🎨',label:'Gemini IA',color:'#3b82f6'},'pexels':{icon:'📷',label:'Pexels',color:'#10b981'},'unsplash':{icon:'📷',label:'Unsplash',color:'#06b6d4'},'placeholder':{icon:'🎭',label:'SVG',color:'#6b7280'}};
+      var prov=(p.image_provider||'').toLowerCase();
+      var pm=provMap[prov]||(p.featured_image_url?provMap['pexels']:null);
+      var imgBadge=pm?'<span class="tag" style="background:'+pm.color+'22;color:'+pm.color+';font-size:10px">'+pm.icon+' '+pm.label+'</span>':'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171;font-size:10px">🚫 Sem Img</span>';
+      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',' + '\'' + escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
+    }).join(''):' + "'<div class=\"blog-empty-state\">Nenhum artigo neste blog</div>'";
+
+    // Estatistica de provedores de imagem
+    var provCount={flux:0,gemini:0,pexels:0,unsplash:0,placeholder:0};
+    blogPosts.forEach(function(p){var k=(p.image_provider||'pexels').toLowerCase();if(provCount[k]!==undefined)provCount[k]++;});
+    var provParts=[];
+    if(provCount.flux>0)provParts.push('<span style="color:#a855f7">⚡ FLUX: '+provCount.flux+'</span>');
+    if(provCount.gemini>0)provParts.push('<span style="color:#3b82f6">🎨 Gemini: '+provCount.gemini+'</span>');
+    if(provCount.pexels>0)provParts.push('<span style="color:#10b981">📷 Pexels: '+provCount.pexels+'</span>');
+    if(provCount.unsplash>0)provParts.push('<span style="color:#06b6d4">📷 Unsplash: '+provCount.unsplash+'</span>');
+    if(provCount.placeholder>0)provParts.push('<span style="color:#6b7280">🎭 SVG: '+provCount.placeholder+'</span>');
+    var provHtml=provParts.length?provParts.join(' &bull; '):'—';
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 
     var logoHeader = c.logo_svg ? '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px">'+c.logo_svg+'</div>' : '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>';
     var faviconHtml = c.favicon_svg ? '<img src="'+c.favicon_svg+'" style="width:18px;height:18px;border-radius:4px;vertical-align:middle" />' : '<span>-</span>';
-    var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Primária"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secundária"></span></div>';
+    var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Prim├íria"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secund├íria"></span></div>';
 
     return '<div class="blog-panel'+(i===0?' active':'')+'" id="panel_'+c.id+'">'+
       '<div class="panel-header" style="--panel-color:'+pri+'">'+
@@ -678,16 +689,18 @@ async function loadDashboard(){
           '<div><h3>'+escapeHtml(c.name)+'</h3><div style="font-size:12px;color:#5c6370">'+escapeHtml(c.nicho)+'</div></div>'+
         '</div>'+
         '<div class="panel-meta">'+
-          '<span>📄 '+totalC+' artigos</span>'+
-          '<span>📝 '+(pubC||0)+' publicados</span>'+
-          '<span>📊 ~'+avgW+' palavras média</span>'+
-          '<span>🎨 Cores: '+colorsHtml+'</span>'+
-          '<span>🔖 Favicon: '+faviconHtml+'</span>'+
-          '<span>🔗 <a href="'+blogUrl+'" target="_blank" style="color:#a5b4fc">Ver Blog</a></span>'+
+          '<span>­ƒôä '+totalC+' artigos</span>'+
+          '<span>­ƒôØ '+(pubC||0)+' publicados</span>'+
+          '<span>­ƒôè ~'+avgW+' palavras m├®dia</span>'+
+          '<span>­ƒÄ¿ Cores: '+colorsHtml+'</span>'+
+                    '<span>🖼️ Imagens: '+bar+'</span>'+
+          '<span>🤖 Gerador: '+provHtml+'</span>'+
+'<span>­ƒöû Favicon: '+faviconHtml+'</span>'+
+          '<span>­ƒöù <a href="'+blogUrl+'" target="_blank" style="color:#a5b4fc">Ver Blog</a></span>'+
           subTxt+
         '</div>'+
         '<div class="panel-actions">'+
-          '<button class="btn btn-sm" onclick="window.open(\''+blogUrl+'\')">🔗 Abrir Blog</button>'+
+          '<button class="btn btn-sm" onclick="window.open(\''+blogUrl+'\')">­ƒöù Abrir Blog</button>'+
           '<div style="display:inline-flex;align-items:center;gap:6px;margin:0 4px">'+
             '<span style="font-size:11px;color:#8a91a5">Qtd:</span>'+
             '<select id="hype_qty_'+c.id+'" style="background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:3px 6px;font-size:12px;font-weight:600;outline:none">'+
@@ -698,12 +711,12 @@ async function loadDashboard(){
               '<option value="10">10</option>'+
             '</select>'+
           '</div>'+
-          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">🔥 Criar por Tendência</button>'+
-          '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
+          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">­ƒöÑ Criar por Tend├¬ncia</button>'+
+          '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">­ƒî© Revisar Todos</button>'+
         '</div>'+
       '</div>'+
       '<div id="pipeline_container_'+c.id+'" class="pipeline-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px"></div>'+
-      '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
+      '<div class="section"><div class="section-header"><h3>­ƒôä Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
     '</div>';
   }).join('');
   $("blogPanels").innerHTML=panelsHtml;
@@ -722,7 +735,7 @@ var activeMonitors = {};
 
 async function generateForBlogHype(channelId, niche, qty) {
   qty = parseInt(qty) || 1;
-  showToast("Minerando tendências no Google (" + qty + " artigos) para " + niche + "...");
+  showToast("Minerando tend├¬ncias no Google (" + qty + " artigos) para " + niche + "...");
   try {
     var res = await api("/api/v1/blog/generate-article-hype", {
       method: "POST",
@@ -734,7 +747,7 @@ async function generateForBlogHype(channelId, niche, qty) {
     }
     showToast(res.message);
     
-    // Configura a esteira única global para rastrear este lote de artigos
+    // Configura a esteira ├║nica global para rastrear este lote de artigos
     ms.running = true;
     ms.taskId = res.task_id;
     ms.topic = res.topic;
@@ -745,20 +758,20 @@ async function generateForBlogHype(channelId, niche, qty) {
     
     // Exibe os componentes visuais da esteira integrada
     $("macroBlogLabel").textContent = niche;
-    $("macroArticleCounter").textContent = "Geração por Hype: 0 / " + qty + " artigos";
+    $("macroArticleCounter").textContent = "Gera├º├úo por Hype: 0 / " + qty + " artigos";
     $("macroTargetLabel").textContent = qty + " artigos";
     $("macroGlobalFill").style.width = "2%";
     $("macroGlobalProgress").style.display = "block";
     $("macroCurrentArticle").style.display = "block";
     $("macroCurrentTitle").textContent = res.topic;
-    $("macroCurrentBadge").textContent = "🔥 Tendência do Google";
+    $("macroCurrentBadge").textContent = "­ƒöÑ Tend├¬ncia do Google";
     $("macroCurrentPhase").textContent = "Iniciando esteira...";
-    $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">🚀 Esteira de Hype iniciada para lote. Aguardando progresso...</div>';
+    $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">­ƒÜÇ Esteira de Hype iniciada para lote. Aguardando progresso...</div>';
     
-    // Inicializa a animação e estrutura dos agentes na tela
+    // Inicializa a anima├º├úo e estrutura dos agentes na tela
     renderPipeline();
     
-    // Inicia cronômetro do tempo decorrido
+    // Inicia cron├┤metro do tempo decorrido
     if(window._mt) clearInterval(window._mt);
     window._mt = setInterval(function(){
       if(!ms.running){clearInterval(window._mt);return}
@@ -766,7 +779,7 @@ async function generateForBlogHype(channelId, niche, qty) {
       $("macroElapsedTime").textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
     },1000);
     
-    // Conecta no WebSocket para a tarefa específica
+    // Conecta no WebSocket para a tarefa espec├¡fica
     if (ws && ws.readyState === WebSocket.OPEN) {
       try { ws.send(JSON.stringify({ type: "subscribe", task_id: res.task_id })); } catch(e) {}
     } else {
@@ -838,7 +851,7 @@ async function loadMonetization(){
       '<div style="margin-bottom:20px;background:#14161f;border-radius:6px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05)">'+
         '<div style="height:100%;width:'+o.progress_pct+'%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a78bfa);border-radius:6px;transition:width .8s ease"></div></div>';
     
-    // Grid de Categorias com Critérios individuais do Seu Pereira
+    // Grid de Categorias com Crit├®rios individuais do Seu Pereira
     html += '<div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:16px">';
     var cats=Object.keys(data.categories||{});
     cats.forEach(function(cat){
@@ -853,13 +866,13 @@ async function loadMonetization(){
         '</div>';
         
       c.items.forEach(function(item){
-        var badgeColor = "#ef4444", bgLight = "rgba(239,68,68,0.06)", icon = "❌";
+        var badgeColor = "#ef4444", bgLight = "rgba(239,68,68,0.06)", icon = "ÔØî";
         if (item.status === "pass") {
-          badgeColor = "#22c55e"; bgLight = "rgba(34,197,94,0.06)"; icon = "✅";
+          badgeColor = "#22c55e"; bgLight = "rgba(34,197,94,0.06)"; icon = "Ô£à";
         } else if (item.status === "warn") {
-          badgeColor = "#fbbf24"; bgLight = "rgba(245,158,11,0.06)"; icon = "⚠️";
+          badgeColor = "#fbbf24"; bgLight = "rgba(245,158,11,0.06)"; icon = "ÔÜá´©Å";
         } else if (item.status === "blocked") {
-          badgeColor = "#8a91a5"; bgLight = "rgba(255,255,255,0.04)"; icon = "🔒";
+          badgeColor = "#8a91a5"; bgLight = "rgba(255,255,255,0.04)"; icon = "­ƒöÆ";
         }
         
         html += '<div style="background:'+bgLight+';border:1px solid '+badgeColor+'18;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:flex-start;gap:8px;font-size:11px;transition:all .15s ease">'+
@@ -878,7 +891,7 @@ async function loadMonetization(){
     // Recommendations
     if(data.recommendations&&data.recommendations.length>0){
       html+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05)">'+
-        '<div style="font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:10px">📋 Recomendações Prioritárias para Monetização:</div>'+
+        '<div style="font-size:13px;font-weight:700;color:#e8edf2;margin-bottom:10px">­ƒôï Recomenda├º├Áes Priorit├írias para Monetiza├º├úo:</div>'+
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">';
       data.recommendations.forEach(function(r){
         var pColor=r.prioridade==="alta"?"#f87171":r.prioridade==="media"?"#fbbf24":"#8a91a5";
@@ -892,7 +905,7 @@ async function loadMonetization(){
     }
     
     html+='<div style="margin-top:20px;padding-top:8px;text-align:right;font-size:10px;color:#5c6370">'+
-      'Última avaliação de monetização: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
+      '├Ültima avalia├º├úo de monetiza├º├úo: '+new Date(data.evaluated_at).toLocaleString("pt-BR")+'</div>'+
     '</div>';
     
     container.innerHTML=html;
@@ -939,7 +952,7 @@ function _connectWs(){
       if(ms&&ms.taskId){
         try{ws.send(JSON.stringify({type:"subscribe",task_id:ms.taskId}))}catch(e){}
       }
-      // NÃO para o polling aqui! Aguarda primeira mensagem via ws.onmessage.
+      // N├âO para o polling aqui! Aguarda primeira mensagem via ws.onmessage.
       // Se o subscribe falhar, o WebSocket fica aberto sem enviar dados,
       // e sem o polling a UI trava para sempre.
     };
@@ -1001,7 +1014,7 @@ function _startPolling(tid){
       warnEl.style.color="#fbbf24";
     }else if(elapsed<60&&warnEl.style.color==="#fbbf24"){
       warnEl.style.color="";
-      warnEl.textContent="⏳ Pipeline em execucao...";
+      warnEl.textContent="ÔÅ│ Pipeline em execucao...";
     }
   },8000);
 }
@@ -1011,14 +1024,14 @@ function handleWsMessage(msg){
     var sid=d.stage_id||"",prog=d.progress||0,m=d.message||"",st=d.status||"active";
     if(!sid)return;
     
-    // Atualiza o título do artigo em andamento na tela se ele for descoberto dinamicamente
+    // Atualiza o t├¡tulo do artigo em andamento na tela se ele for descoberto dinamicamente
     if (d && d.topic) {
       ms.topic = d.topic;
       var titleEl = $("macroCurrentTitle");
       if (titleEl) titleEl.textContent = d.topic;
     }
     
-    // Mapeia estágios do pipeline de post individual para os agentes da esteira do blog:
+    // Mapeia est├ígios do pipeline de post individual para os agentes da esteira do blog:
     var stageMapping = {
       "keyword_miner": "fundacao",
       "blog_writer": "producao",
@@ -1051,17 +1064,17 @@ function handleWsMessage(msg){
     $("macroCurrentPhase").textContent = m || "Escrevendo e revisando artigo...";
     
   }else if(t==="pipeline_complete"){
-    addLog("entrega","🎉 Artigo COMPLETO e publicado!","success");
+    addLog("entrega","­ƒÄë Artigo COMPLETO e publicado!","success");
     ms.running=false;
     $("macroGlobalFill").style.width="100%";
     $("macroElapsedTime").textContent="100%";
     $("macroCurrentPhase").textContent="Finalizado! O artigo foi publicado no blog.";
-    showToast("Artigo por tendência publicado!");
+    showToast("Artigo por tend├¬ncia publicado!");
     setTimeout(loadBlogs, 3000);
   }else if(t==="pipeline_failed"){
     addLog("fundacao","Erro: "+(d.error||""),"error");
     ms.running=false;
-    $("macroCurrentPhase").textContent = "Erro na geração: " + (d.error || "Falha na esteira");
+    $("macroCurrentPhase").textContent = "Erro na gera├º├úo: " + (d.error || "Falha na esteira");
   }
 }
 
@@ -1310,13 +1323,13 @@ window.sendHermes=function(){
   userDiv.style.cssText="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end";
   userDiv.innerHTML='<div style="background:#1e2030;border-radius:12px;padding:10px 14px;flex:0 1 auto;max-width:80%">'+
     '<p style="color:#e8edf2;font-size:13px">'+escapeHtml(text)+'</p></div>'+
-    '<div style="width:32px;height:32px;background:#2a2d3e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">👤</div>';
+    '<div style="width:32px;height:32px;background:#2a2d3e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">­ƒæñ</div>';
   msgEl.appendChild(userDiv);
   // Add bot thinking
   var botDiv=document.createElement("div");
   botDiv.style.cssText="display:flex;gap:8px;margin-bottom:12px";
   botDiv.id="hermesThinking";
-  botDiv.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>'+
+  botDiv.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">­ƒñû</div>'+
     '<div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">'+
     '<strong style="color:#a5b4fc;font-size:12px">Hermes</strong><p style="margin-top:4px;color:#8a91a5"><span class="spinner" style="width:12px;height:12px"></span> Pensando...</p></div>';
   msgEl.appendChild(botDiv);
@@ -1325,7 +1338,7 @@ window.sendHermes=function(){
   setTimeout(function(){
     var thinking=$("hermesThinking");
     if(thinking){
-      thinking.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🤖</div>'+
+      thinking.innerHTML='<div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">­ƒñû</div>'+
         '<div style="background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:10px 14px;flex:1">'+
         '<strong style="color:#a5b4fc;font-size:12px">Hermes</strong><p style="margin-top:4px;color:#8a91a5">Funcionalidade de chat em desenvolvimento. Em breve o Hermes respondera com dados reais do sistema!</p></div>';
     }

@@ -1506,38 +1506,53 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
             emit("seo_optimizer", "completed", 100, "SEO básico configurado")
 
         # Fase 4: Geração Obrigatória de Imagem & Publicação
-        emit("publish", "active", 10, "Tatiana gerando imagem de destaque...")
+        emit("publish", "active", 10, "Tatiana rodando a cascata de imagens (Flux → Gemini → Pexels)...")
         featured_image_url = None
-        if post_id:
-            try:
-                from modules.image_factory import ImageGeneratorAgent
-                img_agent = ImageGeneratorAgent()
-                img_res = await img_agent.generate_image_for_post(
-                    prompt_idea=title,
-                    niche=nicho,
-                    post_id=post_id
-                )
-                if img_res and img_res.get("image_url"):
-                    featured_image_url = img_res["image_url"]
-                    update_db_blog_post(post_id, featured_image_url=featured_image_url)
-                    emit("publish", "active", 50, "Imagem gerada com sucesso!")
-                else:
-                    raise Exception("Sem URL de retorno do provedor")
-            except Exception as e_img:
-                print(f"[Pipeline] Falha ao gerar imagem por IA: {e_img}. Tentando fallback...")
-                # Fallback Pexels/SVG
-                try:
-                    from modules.ricardo import gerar_imagens_pendentes
-                    await gerar_imagens_pendentes(channel_id=channel_id)
-                    emit("publish", "active", 70, "Imagem de fallback adicionada!")
-                except Exception as e_fall:
-                    print(f"[Pipeline] Falha no fallback de imagem: {e_fall}")
+        image_provider = "placeholder"
+        
+        try:
+            from modules.image_factory import ImageGeneratorAgent
+            img_agent = ImageGeneratorAgent()
+            # A cascata já é garantida — nunca retorna None
+            img_res = await img_agent.generate_image_for_post(
+                prompt_idea=title,
+                niche=nicho,
+                post_id=post_id
+            )
+            featured_image_url = img_res["image_url"]
+            image_provider = img_res.get("provider", "placeholder")
+            provider_label = {
+                "flux": "⚡ FLUX (IA)",
+                "gemini": "🎨 Gemini IA",
+                "pexels": "📷 Pexels",
+                "unsplash": "📷 Unsplash",
+                "placeholder": "🎭 SVG local",
+            }.get(image_provider, image_provider)
             
-            # Garante que o post está publicado no final
+            # Salva imagem + provedor no banco
+            update_db_blog_post(post_id, featured_image_url=featured_image_url, image_provider=image_provider)
+            emit("publish", "active", 60, f"Imagem gerada por {provider_label}!")
+        except Exception as e_img:
+            # Segurança extra: gera SVG local como último recurso
+            print(f"[Pipeline] Cascata de imagem falhou ({e_img}). Gerando SVG local como backstop.")
+            from modules.image_factory import ImageGeneratorAgent
+            fallback_agent = ImageGeneratorAgent()
+            svg_url = fallback_agent._generate_svg_placeholder(title, 1200, 630)
+            featured_image_url = svg_url
+            image_provider = "placeholder"
+            update_db_blog_post(post_id, featured_image_url=svg_url, image_provider="placeholder")
+            emit("publish", "active", 60, "Imagem SVG gerada como backup!")
+
+        # Publica o post no banco de dados
+        if post_id:
             from modules.database import update_db_blog_post_status
             update_db_blog_post_status(post_id, "published")
             
-        emit("publish", "completed", 100, "Artigo e imagens publicados!", {"post_id": post_id, "featured_image_url": featured_image_url})
+        emit("publish", "completed", 100, "Artigo e imagem publicados!", {
+            "post_id": post_id,
+            "featured_image_url": featured_image_url,
+            "image_provider": image_provider,
+        })
 
         # Fase 5: Agendamento & Indexação
         if auto_schedule:

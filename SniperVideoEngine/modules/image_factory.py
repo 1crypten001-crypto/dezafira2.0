@@ -1,199 +1,292 @@
 """
 ImageFactory — Motor de Geração de Imagens para Artigos.
 
-Gera imagens de destaque para artigos de blog usando:
-  1. Pexels API (primário — chave do .env)
-  2. Unsplash (fallback gratuito, sem chave)
-  3. Placeholder (último recurso)
+Cascata de provedores:
+  1. 🤖 FLUX (Pollinations.ai) — geração por IA, 100% gratuito, sem chave
+  2. 🎨 Gemini Imagen (Google) — geração por IA, usa GEMINI_API_KEY do .env
+  3. 🖼️ Pexels API — busca de fotos, usa PEXELS_API_KEY do .env
+  4. 🖼️ Unsplash — busca de fotos, usa UNSPLASH_ACCESS_KEY do .env (opcional)
+  5. 🎭 SVG Placeholder — fallback garantido, gerado localmente
 
-Uso:
-    agent = ImageGeneratorAgent()
-    img = await agent.generate(prompt="Jesus ensinando", style="blog")
-    print(img["image_url"])
+NUNCA termina sem imagem. A cascata tenta cada provedor em ordem.
 """
 import os
 import base64
 import httpx
 import random
 import re
+import asyncio
+from typing import Optional
 from dotenv import load_dotenv
+
 load_dotenv()
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Prompt de estilo visual por nicho
+NICHE_STYLE_PROMPTS = {
+    "cristao": "dramatic biblical scene, golden divine light, ethereal atmosphere, cinematic, 8k, hyperrealistic",
+    "reino": "dramatic biblical scene, golden divine light, ethereal atmosphere, cinematic, 8k, hyperrealistic",
+    "jesus": "spiritual scene, soft divine glow, peaceful atmosphere, photorealistic, cinematic lighting",
+    "financ": "modern financial concept, clean 3D render, glassmorphism, blue gradient, professional, minimalist, 8k",
+    "invest": "modern financial concept, clean 3D render, glassmorphism, blue gradient, professional, minimalist, 8k",
+    "dinheiro": "money concept, elegant financial art, dark background with gold accents, 8k, cinematic",
+    "saude": "health and wellness concept, bright clean aesthetic, modern medical, 8k",
+    "default": "professional blog hero image, cinematic, 8k, hyperrealistic, beautiful composition",
+}
+
+
+def _get_niche_style(niche: str, title: str) -> str:
+    """Detecta o nicho e retorna o prompt de estilo visual adequado."""
+    combined = (niche + " " + title).lower()
+    for key, style in NICHE_STYLE_PROMPTS.items():
+        if key in combined:
+            return style
+    return NICHE_STYLE_PROMPTS["default"]
 
 
 class ImageGeneratorAgent:
-    """Gera imagens para artigos usando Pexels como primário e Unsplash como fallback."""
+    """
+    Gera imagens com cascata: Flux IA → Gemini IA → Pexels → Unsplash → SVG.
+    Nunca retorna sem imagem.
+    """
 
     def __init__(self):
         self.last_provider = None
         self.last_url = None
 
-    async def generate(self, prompt: str, style: str = "blog", width: int = 1200, height: int = 630) -> dict:
+    async def generate_image_for_post(
+        self,
+        prompt_idea: str,
+        niche: str = "",
+        post_id: str = None,
+        width: int = 1200,
+        height: int = 630,
+    ) -> dict:
         """
-        Gera/reúne uma imagem para o prompt dado.
-
-        Args:
-            prompt: Descrição da imagem desejada (ex: "Jesus ensinando a multidão")
-            style: Estilo visual (blog, book, course, thumbnail)
-            width, height: Dimensões desejadas
+        Gera imagem para um post, com cascata completa de provedores.
 
         Returns:
-            dict com image_url, alt_text, provider, credit
+            dict com image_url, provider, alt_text, credit
         """
-        # Sanitizar prompt para busca
-        search_query = self._sanitize_prompt(prompt)
+        style = _get_niche_style(niche, prompt_idea)
+        full_prompt = f"{prompt_idea}, {style}"
+        search_query = self._sanitize_for_search(prompt_idea)
 
-        # Tentativa 1: Pexels
+        # === 1. FLUX via Pollinations.ai (IA gratuita) ===
+        result = await self._flux_pollinations(full_prompt, width, height)
+        if result:
+            self.last_provider = "flux"
+            return result
+
+        # === 2. Gemini Imagen (Google) ===
+        if GEMINI_API_KEY:
+            result = await self._gemini_imagen(full_prompt, width, height)
+            if result:
+                self.last_provider = "gemini"
+                return result
+
+        # === 3. Pexels (busca de fotos) ===
         if PEXELS_API_KEY:
             result = await self._search_pexels(search_query, width, height)
-            if result and result.get("image_url"):
+            if result:
                 self.last_provider = "pexels"
                 return result
 
-        # Tentativa 2: Unsplash
+        # === 4. Unsplash (busca de fotos) ===
         result = await self._search_unsplash(search_query, width, height)
-        if result and result.get("image_url"):
+        if result:
             self.last_provider = "unsplash"
             return result
 
-        # Fallback ABSOLUTO: placeholder local (sempre funciona)
+        # === 5. SVG Placeholder (NUNCA falha) ===
         self.last_provider = "placeholder"
-        fallback_url = self._generate_fallback_placeholder(search_query, width, height)
         return {
-            "image_url": fallback_url,
-            "alt_text": prompt,
+            "image_url": self._generate_svg_placeholder(prompt_idea, width, height),
+            "alt_text": prompt_idea,
             "provider": "placeholder",
-            "credit": "",
+            "credit": "Dezafira",
         }
 
-    def _sanitize_prompt(self, prompt: str) -> str:
-        """Converte prompt de artigo em termos de busca."""
-        # Remove nomes de seções e palavras genéricas
-        prompt = re.sub(r'(Introdução|Conclusão|Seção|Capítulo)\s*[:\-]?\s*', '', prompt, flags=re.IGNORECASE)
-        # Pega as primeiras palavras significativas
-        words = prompt.split()[:8]
-        # Remove palavras muito genéricas
-        stopwords = {'sobre', 'para', 'com', 'uma', 'uma', 'dos', 'das', 'nos', 'nas', 'em', 'de', 'da', 'do', 'que', 'é', 'como', 'por', 'ao', 'aos'}
-        keywords = [w for w in words if w.lower() not in stopwords]
-        return " ".join(keywords[:5]) or prompt
+    # ── método legado para compatibilidade ──────────────────────────────────
+    async def generate(self, prompt: str, style: str = "blog", width: int = 1200, height: int = 630) -> dict:
+        return await self.generate_image_for_post(prompt_idea=prompt, width=width, height=height)
 
-    async def _search_pexels(self, query: str, width: int, height: int) -> dict:
-        """Busca imagem no Pexels."""
+    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "") -> dict:
+        combined = title
+        if keywords:
+            combined += " " + " ".join(keywords.split(",")[:3])
+        return await self.generate_image_for_post(prompt_idea=combined)
+
+    # ── PROVEDOR 1: FLUX via Pollinations.ai ────────────────────────────────
+
+    async def _flux_pollinations(self, prompt: str, width: int, height: int) -> Optional[dict]:
+        """
+        Gera imagem via FLUX no Pollinations.ai (gratuito, sem chave).
+        Endpoint: https://image.pollinations.ai/prompt/{encoded_prompt}?width=W&height=H&model=flux
+        """
         try:
-            orientation = "landscape" if width > height else "portrait"
-            url = "https://api.pexels.com/v1/search"
-            headers = {"Authorization": PEXELS_API_KEY}
-            params = {"query": query, "per_page": 5, "orientation": orientation, "page": random.randint(1, 10)}
+            import urllib.parse
+            clean_prompt = re.sub(r"[^\w\s,.-]", "", prompt)[:500]
+            encoded = urllib.parse.quote(clean_prompt)
+            # Usa um seed aleatório para variar a imagem gerada
+            seed = random.randint(1, 999999)
+            url = (
+                f"https://image.pollinations.ai/prompt/{encoded}"
+                f"?width={width}&height={height}&model=flux&seed={seed}&nologo=true"
+            )
+            async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+                r = await client.get(url)
+                if r.status_code == 200 and "image" in r.headers.get("content-type", ""):
+                    return {
+                        "image_url": str(r.url),
+                        "alt_text": clean_prompt[:150],
+                        "provider": "flux",
+                        "credit": "Gerada por FLUX (Pollinations.ai)",
+                    }
+                print(f"[ImageFactory/Flux] HTTP {r.status_code}")
+        except Exception as e:
+            print(f"[ImageFactory/Flux] Erro: {e}")
+        return None
 
-            async with httpx.AsyncClient(timeout=15) as client:
-                r = await client.get(url, headers=headers, params=params)
+    # ── PROVEDOR 2: Gemini Imagen ────────────────────────────────────────────
+
+    async def _gemini_imagen(self, prompt: str, width: int, height: int) -> Optional[dict]:
+        """
+        Gera imagem via Google Gemini Imagen 3 (gemini-2.0-flash-preview-image-generation).
+        Retorna a imagem como data URI base64.
+        """
+        try:
+            import json
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"gemini-2.0-flash-preview-image-generation:generateContent"
+                f"?key={GEMINI_API_KEY}"
+            )
+            payload = {
+                "contents": [{"parts": [{"text": prompt[:500]}]}],
+                "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]},
+            }
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                r = await client.post(url, json=payload)
                 if r.status_code == 200:
                     data = r.json()
-                    photos = data.get("photos", [])
+                    candidates = data.get("candidates", [])
+                    for cand in candidates:
+                        for part in cand.get("content", {}).get("parts", []):
+                            inline = part.get("inlineData")
+                            if inline and inline.get("data"):
+                                mime = inline.get("mimeType", "image/png")
+                                b64 = inline["data"]
+                                data_uri = f"data:{mime};base64,{b64}"
+                                return {
+                                    "image_url": data_uri,
+                                    "alt_text": prompt[:150],
+                                    "provider": "gemini",
+                                    "credit": "Gerada por Gemini Imagen (Google)",
+                                }
+                print(f"[ImageFactory/Gemini] HTTP {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            print(f"[ImageFactory/Gemini] Erro: {e}")
+        return None
+
+    # ── PROVEDOR 3: Pexels ───────────────────────────────────────────────────
+
+    async def _search_pexels(self, query: str, width: int, height: int) -> Optional[dict]:
+        try:
+            orientation = "landscape" if width > height else "portrait"
+            headers = {"Authorization": PEXELS_API_KEY}
+            params = {"query": query, "per_page": 5, "orientation": orientation, "page": random.randint(1, 8)}
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.get("https://api.pexels.com/v1/search", headers=headers, params=params)
+                if r.status_code == 200:
+                    photos = r.json().get("photos", [])
                     if photos:
-                        # Pega a primeira foto (ou aleatória entre as top 3)
-                        photo = photos[0] if len(photos) == 1 else random.choice(photos[:3])
+                        photo = random.choice(photos[:3]) if len(photos) >= 3 else photos[0]
                         src = photo.get("src", {})
-                        # Escolhe o tamanho adequado
-                        img_url = src.get("large") or src.get("medium") or src.get("original")
+                        img_url = src.get("large2x") or src.get("large") or src.get("medium")
                         return {
                             "image_url": img_url,
                             "alt_text": photo.get("alt", query),
                             "provider": "pexels",
-                            "credit": f"Photo by {photo.get('photographer', 'Pexels')} on Pexels",
+                            "credit": f"Foto por {photo.get('photographer','Pexels')} no Pexels",
                             "photographer_url": photo.get("photographer_url", ""),
-                            "pexels_url": photo.get("url", ""),
                         }
-                elif r.status_code == 401:
-                    print("[ImageFactory] Pexels: chave inválida")
-                else:
-                    print(f"[ImageFactory] Pexels: {r.status_code}")
         except Exception as e:
-            print(f"[ImageFactory] Pexels error: {e}")
+            print(f"[ImageFactory/Pexels] Erro: {e}")
         return None
 
-    async def _search_unsplash(self, query: str, width: int, height: int) -> dict:
-        """Busca imagem no Unsplash (via API oficial, ou fallback placehold)."""
-        try:
-            headers = {}
-            if UNSPLASH_ACCESS_KEY:
-                headers["Authorization"] = f"Client-ID {UNSPLASH_ACCESS_KEY}"
-                url = "https://api.unsplash.com/search/photos"
-                params = {"query": query, "per_page": 3, "orientation": "landscape" if width > height else "portrait"}
-                async with httpx.AsyncClient(timeout=15) as client:
-                    r = await client.get(url, headers=headers, params=params)
-                    if r.status_code == 200:
-                        data = r.json()
-                        results = data.get("results", [])
-                        if results:
-                            photo = results[0]
-                            urls = photo.get("urls", {})
-                            img_url = urls.get("regular") or urls.get("small")
-                            return {
-                                "image_url": img_url,
-                                "alt_text": photo.get("alt_description", query),
-                                "provider": "unsplash",
-                                "credit": f"Photo by {photo.get('user', {}).get('name', 'Unsplash')} on Unsplash",
-                                "photographer_url": photo.get("user", {}).get("links", {}).get("html", ""),
-                            }
-            # Fallback: Unsplash sem chave (via source.unsplash.com) - pode falhar, é normal
+    # ── PROVEDOR 4: Unsplash ─────────────────────────────────────────────────
+
+    async def _search_unsplash(self, query: str, width: int, height: int) -> Optional[dict]:
+        if not UNSPLASH_ACCESS_KEY:
             return None
+        try:
+            headers = {"Authorization": f"Client-ID {UNSPLASH_ACCESS_KEY}"}
+            params = {"query": query, "per_page": 3, "orientation": "landscape" if width > height else "portrait"}
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.get("https://api.unsplash.com/search/photos", headers=headers, params=params)
+                if r.status_code == 200:
+                    results = r.json().get("results", [])
+                    if results:
+                        photo = results[0]
+                        urls = photo.get("urls", {})
+                        img_url = urls.get("regular") or urls.get("small")
+                        return {
+                            "image_url": img_url,
+                            "alt_text": photo.get("alt_description", query),
+                            "provider": "unsplash",
+                            "credit": f"Foto por {photo.get('user',{}).get('name','Unsplash')} no Unsplash",
+                        }
         except Exception as e:
-            print(f"[ImageFactory] Unsplash error: {e}")
+            print(f"[ImageFactory/Unsplash] Erro: {e}")
         return None
 
-    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "") -> dict:
-        """
-        Gera imagem ideal para um artigo de blog.
-        Usa título + keywords para fazer a busca mais relevante.
-        """
-        # Constrói prompt combinado
-        prompt_parts = [title]
-        if keywords:
-            kw_list = keywords.split(",")[:3]
-            prompt_parts.extend(kw_list)
-        if topic:
-            prompt_parts.append(topic)
+    # ── PROVEDOR 5: SVG Placeholder (NUNCA falha) ────────────────────────────
 
-        search = " ".join(prompt_parts[:5])
-        return await self.generate(prompt=search, style="blog")
-
-    def _generate_fallback_placeholder(self, query: str, width: int, height: int) -> str:
-        """Gera um placeholder local que SEMPRE funciona (SVG data URI)."""
-        # Cores temáticas
-        colors = [
-            ("#1a1410", "#d4a853"),  # Dark + Gold
-            ("#2a2219", "#f0d68a"),  # Dark2 + Gold light
-            ("#3d3227", "#c0392b"),  # Text + Accent
-            ("#8b2500", "#f0e8d5"),  # Accent + Cream
+    def _generate_svg_placeholder(self, text: str, width: int, height: int) -> str:
+        themes = [
+            ("#0d1117", "#f0c040"),
+            ("#1a1410", "#d4a853"),
+            ("#0a1628", "#4f8ef7"),
+            ("#10151f", "#8b5cf6"),
         ]
-        bg, fg = random.choice(colors)
-        
-        # Texto para exibir no placeholder
-        words = query.split()[:4]
-        display_text = " ".join(words) if words else "Imagem"
-        
-        # Gera SVG como data URI (suportado em 100% dos navegadores)
+        bg, accent = random.choice(themes)
+        words = " ".join(text.split()[:5]) if text else "Dezafira"
         svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-  <rect width="{width}" height="{height}" fill="{bg}"/>
-  <rect x="{(width-200)//2}" y="{(height-200)//2}" width="200" height="200" rx="100" fill="{fg}" opacity="0.15"/>
-  <text x="{width//2}" y="{height//2-10}" font-family="serif" font-size="28" fill="{fg}" text-anchor="middle" font-weight="bold">{display_text}</text>
-  <text x="{width//2}" y="{height//2+30}" font-family="sans-serif" font-size="14" fill="{fg}" text-anchor="middle" opacity="0.6">Dezafira Blog</text>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:{bg}"/>
+      <stop offset="100%" style="stop-color:{accent}22"/>
+    </linearGradient>
+  </defs>
+  <rect width="{width}" height="{height}" fill="url(#g)"/>
+  <circle cx="{width//2}" cy="{height//2}" r="{min(width,height)//3}" fill="{accent}" opacity="0.07"/>
+  <text x="{width//2}" y="{height//2-10}" font-family="Georgia,serif" font-size="30" fill="{accent}"
+        text-anchor="middle" font-weight="bold" opacity="0.9">{words}</text>
+  <text x="{width//2}" y="{height//2+35}" font-family="sans-serif" font-size="14" fill="{accent}"
+        text-anchor="middle" opacity="0.5">dezafira.com.br</text>
 </svg>'''
-        
-        # Codifica como data URI (suportado em todos os navegadores)
-        encoded = base64.b64encode(svg.encode('utf-8')).decode('ascii')
+        encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
         return f"data:image/svg+xml;base64,{encoded}"
 
+    # ── Helpers ──────────────────────────────────────────────────────────────
+
+    def _sanitize_for_search(self, text: str) -> str:
+        text = re.sub(r"(Introdução|Conclusão|Seção|Capítulo)\s*[:\-]?\s*", "", text, flags=re.IGNORECASE)
+        stopwords = {"sobre","para","com","uma","dos","das","nos","nas","em","de","da","do","que","é","como","por","ao"}
+        words = [w for w in text.split()[:8] if w.lower() not in stopwords]
+        return " ".join(words[:5]) or text
+
     def get_attribution_html(self, result: dict) -> str:
-        """Retorna HTML de atribuição para a imagem."""
         provider = result.get("provider", "")
         credit = result.get("credit", "")
-
-        if provider == "pexels":
+        if provider in ("pexels", "unsplash"):
             return f'<small style="font-size:10px;color:#7a6b5a">{credit}</small>'
-        elif provider == "unsplash":
-            return f'<small style="font-size:10px;color:#7a6b5a">{credit}</small>'
+        if provider == "flux":
+            return '<small style="font-size:10px;color:#7a6b5a">⚡ Imagem gerada por IA (FLUX)</small>'
+        if provider == "gemini":
+            return '<small style="font-size:10px;color:#7a6b5a">🎨 Imagem gerada por IA (Gemini)</small>'
         return ""

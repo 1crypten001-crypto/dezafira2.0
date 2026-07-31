@@ -169,6 +169,7 @@ class BlogPost(Base):
     excerpt = Column(String(1000), nullable=True)
     keywords = Column(String(1000), nullable=True)
     featured_image_url = Column(String(1000), nullable=True)
+    image_provider = Column(String(100), default="pexels", nullable=True)
     status = Column(String(30), default="draft")
     platform_status = Column(String(30), nullable=True)
     platform_post_id = Column(String(100), nullable=True)
@@ -385,6 +386,14 @@ try:
             conn.execute(text("ALTER TABLE blog_channels ADD COLUMN subdomain VARCHAR(100);"))
             conn.commit()
             print("[Database] Coluna subdomain adicionada na tabela blog_channels.")
+        except Exception:
+            pass
+
+        # image_provider na tabela blog_posts
+        try:
+            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN image_provider VARCHAR(100);"))
+            conn.commit()
+            print("[Database] Coluna image_provider adicionada na tabela blog_posts.")
         except Exception:
             pass
 
@@ -910,6 +919,7 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
                 "excerpt": p.excerpt,
                 "keywords": p.keywords,
                 "featured_image_url": p.featured_image_url,
+                "image_provider": getattr(p, "image_provider", "pexels") or "pexels",
                 "status": p.status,
                 "platform_status": p.platform_status,
                 "platform_url": p.platform_url,
@@ -938,6 +948,7 @@ def get_db_blog_post(post_id: str) -> dict:
                 "excerpt": p.excerpt,
                 "keywords": p.keywords,
                 "featured_image_url": p.featured_image_url,
+                "image_provider": getattr(p, "image_provider", "pexels") or "pexels",
                 "status": p.status,
                 "platform_status": p.platform_status,
                 "platform_post_id": p.platform_post_id,
