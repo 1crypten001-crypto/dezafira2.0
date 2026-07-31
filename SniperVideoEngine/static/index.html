@@ -662,8 +662,8 @@ async function loadDashboard(){
       var prov=(p.image_provider||'').toLowerCase();
       var pm=provMap[prov]||(p.featured_image_url?provMap['pexels']:null);
       var imgBadge=pm?'<span class="tag" style="background:'+pm.color+'22;color:'+pm.color+';font-size:10px">'+pm.icon+' '+pm.label+'</span>':'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171;font-size:10px">🚫 Sem Img</span>';
-      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',' + '\'' + escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
-    }).join(''):' + "'<div class=\"blog-empty-state\">Nenhum artigo neste blog</div>'";
+      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
+    }).join(''):'<div class="blog-empty-state" >Nenhum artigo neste blog</div>';
 
     // Estatistica de provedores de imagem
     var provCount={flux:0,gemini:0,pexels:0,unsplash:0,placeholder:0};
