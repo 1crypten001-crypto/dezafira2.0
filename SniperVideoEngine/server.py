@@ -592,6 +592,25 @@ async def startup_event():
 
     init_telegram_bot(on_telegram_chat, on_telegram_produce)
 
+    # ══ Job Recovery: retoma jobs de regeneracao persistidos (sobrevive a restarts) ══
+    try:
+        from modules.database import (
+            get_db_running_regeneration_jobs,
+            reset_db_stuck_job_items,
+        )
+        running_jobs = get_db_running_regeneration_jobs(limit=10)
+        if running_jobs:
+            print(f'[Startup] Encontrados {len(running_jobs)} jobs de regeneracao pendentes. Retomando...')
+            for j in running_jobs:
+                try:
+                    reset_db_stuck_job_items(j['id'])
+                    asyncio.create_task(_process_regeneration_job(j['id']))
+                    print(f'  - Job {j["id"]} retomado em background ({j.get("processed",0)}/{j.get("total",0)} processados)')
+                except Exception as e:
+                    print(f'  - Falha ao retomar job {j["id"]}: {e}')
+    except Exception as e:
+        print(f'[Startup] Erro na recuperacao de jobs de regeneracao: {e}')
+
     # Inicia WebSocket keepalive para detectar conexoes mortas
     try:
         from pipeline.websocket import WebSocketHub
@@ -3429,9 +3448,10 @@ async def regenerate_blog_post_image(post_id: str):
 
 
 @app.post("/api/v1/lili/regenerate-batch")
-async def lili_regenerate_batch(payload: dict, background_tasks: BackgroundTasks):
+async def lili_regenerate_batch(payload: dict):
     """Regenera em lote os artigos reprovados pela LiLi (score < 70 ou nao aprovados).
-    Roda em background via BackgroundTasks para nao travar a UI."""
+    O job e PERSISTIDO no banco — se o Railway reiniciar no meio, o startup retoma.
+    Retorna imediatamente com o job_id para acompanhamento."""
     try:
         limit = int(payload.get("limit") or 10)
     except (TypeError, ValueError):
@@ -3439,7 +3459,11 @@ async def lili_regenerate_batch(payload: dict, background_tasks: BackgroundTasks
     limit = max(1, min(limit, 50))  # max 50 por lote
     channel_id = payload.get("channel_id") or ""
 
-    from modules.database import get_db_all_posts_with_meta
+    from modules.database import (
+        get_db_all_posts_with_meta,
+        create_db_regeneration_job,
+        add_db_regeneration_job_item,
+    )
 
     posts = get_db_all_posts_with_meta()
     if channel_id:
@@ -3457,24 +3481,117 @@ async def lili_regenerate_batch(payload: dict, background_tasks: BackgroundTasks
     if not target:
         return {"success": True, "queued": 0, "message": "Nenhum artigo reprovado encontrado"}
 
-    async def _run_batch(post_ids):
-        for pid in post_ids:
-            try:
-                r = await regenerate_blog_post(pid)
-                if r.get("success"):
-                    print(f"[Batch] {pid}: OK -> {r.get('post_id')}")
-                else:
-                    print(f"[Batch] {pid}: FALHA -> {r.get('error')}")
-            except Exception as e:
-                print(f"[Batch] Erro em {pid}: {e}")
+    job = create_db_regeneration_job(total=len(target))
+    if not job:
+        return {"success": False, "error": "Falha ao criar job no banco"}
 
-    background_tasks.add_task(_run_batch, [p["id"] for p in target])
+    job_id = job["id"]
+    for p in target:
+        add_db_regeneration_job_item(job_id, p["id"], p.get("title") or "")
+
+    # Agenda o processamento em task asyncio desacoplada (nao so BackgroundTasks)
+    try:
+        asyncio.create_task(_process_regeneration_job(job_id))
+    except Exception as e:
+        print(f"[Batch] Falha ao agendar job {job_id}: {e}")
+
     return {
         "success": True,
         "queued": len(target),
+        "job_id": job_id,
         "post_ids": [p["id"] for p in target],
-        "message": f"{len(target)} artigos reprovados agendados para regeneracao em background",
+        "message": f"{len(target)} artigos reprovados agendados (job {job_id} persistido)",
     }
+
+
+async def _process_regeneration_job(job_id: str):
+    """Worker de um job persistido: processa cada item pendente, atualizando status.
+    Idempotente — pode ser chamado de novo apos restart para retomar itens pendentes."""
+    from modules.database import (
+        get_db_regeneration_job,
+        update_db_regeneration_job,
+        update_db_regeneration_job_item,
+        reset_db_stuck_job_items,
+    )
+
+    job = get_db_regeneration_job(job_id)
+    if not job:
+        return
+
+    # Crash no meio de um item: itens em 'processing' voltam para 'pending'
+    reset_db_stuck_job_items(job_id)
+
+    total = job.get("total") or len(job.get("items") or [])
+    print(f"[BatchJob {job_id}] Iniciando processamento de {total} itens...")
+
+    done = 0
+    failed = 0
+    for item in job.get("items") or []:
+        if item.get("status") == "done":
+            done += 1
+            continue
+        if item.get("status") == "failed":
+            failed += 1
+            continue
+
+        item_id = item["id"]
+        post_id = item["post_id"]
+        try:
+            update_db_regeneration_job_item(item_id, status="processing")
+            r = await regenerate_blog_post(post_id)
+            if r.get("success"):
+                update_db_regeneration_job_item(item_id, status="done")
+                done += 1
+                print(f"[BatchJob {job_id}] {post_id}: OK -> {r.get('post_id')}")
+            elif r.get("error") and "nao encontrado" in str(r.get("error")):
+                # Crash-apos-sucesso: o artigo antigo ja foi substituido no meio do batch
+                # anterior (post deletado). Considera o item concluido — nao eh falha real.
+                update_db_regeneration_job_item(item_id, status="done")
+                done += 1
+                print(f"[BatchJob {job_id}] {post_id}: ja regenerado antes do restart (post antigo nao existe). Marcado done.")
+            else:
+                update_db_regeneration_job_item(
+                    item_id, status="failed", error=str(r.get("error"))
+                )
+                failed += 1
+                print(f"[BatchJob {job_id}] {post_id}: FALHA -> {r.get('error')}")
+        except Exception as e:
+            update_db_regeneration_job_item(item_id, status="failed", error=str(e))
+            failed += 1
+            print(f"[BatchJob {job_id}] Erro em {post_id}: {e}")
+
+        update_db_regeneration_job(
+            job_id, processed=done + failed, succeeded=done, failed=failed
+        )
+
+    final_status = "done" if failed == 0 else ("failed" if done == 0 else "partial")
+    update_db_regeneration_job(
+        job_id,
+        status=final_status,
+        processed=done + failed,
+        succeeded=done,
+        failed=failed,
+    )
+    print(f"[BatchJob {job_id}] Concluido: {done} OK, {failed} falhas. Status: {final_status}")
+
+
+@app.get("/api/v1/lili/regenerate-jobs/{job_id}")
+async def get_regeneration_job_status(job_id: str):
+    """Status detalhado de um job de regeneracao persistido."""
+    from modules.database import get_db_regeneration_job
+
+    job = get_db_regeneration_job(job_id)
+    if not job:
+        return {"error": "Job nao encontrado"}
+    return job
+
+
+@app.get("/api/v1/lili/regenerate-jobs")
+async def list_regeneration_jobs(limit: int = 10):
+    """Lista os jobs recentes de regeneracao (mais recentes primeiro)."""
+    from modules.database import get_db_recent_regeneration_jobs
+
+    return {"jobs": get_db_recent_regeneration_jobs(limit=limit)}
 
 
 @app.post("/api/v1/blog/generate-article")

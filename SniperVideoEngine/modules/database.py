@@ -229,6 +229,35 @@ class BlogPipelineRun(Base):
     error = Column(String(2000), nullable=True)
 
 
+class RegenerationJob(Base):
+    """Job de regeneracao em lote (persistido para sobreviver a restarts)."""
+    __tablename__ = "regeneration_jobs"
+
+    id = Column(String(50), primary_key=True, index=True)
+    status = Column(String(20), default="running")  # running, done, failed
+    total = Column(Integer, default=0)
+    processed = Column(Integer, default=0)
+    succeeded = Column(Integer, default=0)
+    failed = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    error = Column(String(2000), nullable=True)
+
+
+class RegenerationJobItem(Base):
+    """Item de um job de regeneracao (1 linha por artigo)."""
+    __tablename__ = "regeneration_job_items"
+
+    id = Column(String(50), primary_key=True, index=True)
+    job_id = Column(String(50), ForeignKey("regeneration_jobs.id"), index=True)
+    post_id = Column(String(50), index=True)
+    post_title = Column(String(500), nullable=True)
+    status = Column(String(20), default="pending")  # pending, processing, done, failed
+    error = Column(String(2000), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODELOS — FABRICA DE LIVROS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1653,6 +1682,187 @@ def delete_db_course(course_id: str) -> bool:
     except Exception as e:
         db.rollback()
         return False
+    finally:
+        db.close()
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELPERS — JOBS DE REGENERACAO EM LOTE (LiLi)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_regeneration_job(total: int = 0):
+    """Cria um job persistido e retorna o dict com id."""
+    job_id = "job_" + uuid.uuid4().hex[:10]
+    db = SessionLocal()
+    try:
+        job = RegenerationJob(id=job_id, status="running", total=total)
+        db.add(job)
+        db.commit()
+        return {"id": job_id, "status": "running", "total": total}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar job: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def add_db_regeneration_job_item(job_id: str, post_id: str, post_title: str = ""):
+    """Adiciona um item (artigo) ao job."""
+    db = SessionLocal()
+    try:
+        item = RegenerationJobItem(
+            id="itm_" + uuid.uuid4().hex[:10],
+            job_id=job_id,
+            post_id=post_id,
+            post_title=post_title,
+            status="pending",
+        )
+        db.add(item)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar item do job: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def get_db_regeneration_job(job_id: str):
+    """Retorna o job com lista de itens."""
+    db = SessionLocal()
+    try:
+        job = db.query(RegenerationJob).filter(RegenerationJob.id == job_id).first()
+        if not job:
+            return None
+        items = db.query(RegenerationJobItem).filter(
+            RegenerationJobItem.job_id == job_id
+        ).order_by(RegenerationJobItem.created_at.asc()).all()
+        return {
+            "id": job.id,
+            "status": job.status,
+            "total": job.total,
+            "processed": job.processed,
+            "succeeded": job.succeeded,
+            "failed": job.failed,
+            "created_at": job.created_at.strftime("%d/%m %H:%M") if job.created_at else "",
+            "updated_at": job.updated_at.strftime("%d/%m %H:%M") if job.updated_at else "",
+            "error": job.error,
+            "items": [
+                {
+                    "id": i.id,
+                    "post_id": i.post_id,
+                    "post_title": i.post_title,
+                    "status": i.status,
+                    "error": i.error,
+                }
+                for i in items
+            ],
+        }
+    finally:
+        db.close()
+
+
+def update_db_regeneration_job(job_id: str, **kwargs):
+    """Atualiza campos do job (status, contadores, erro)."""
+    db = SessionLocal()
+    try:
+        job = db.query(RegenerationJob).filter(RegenerationJob.id == job_id).first()
+        if not job:
+            return False
+        for key, value in kwargs.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+        job.updated_at = datetime.utcnow()
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao atualizar job {job_id}: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def update_db_regeneration_job_item(item_id: str, **kwargs):
+    """Atualiza um item do job (status, erro)."""
+    db = SessionLocal()
+    try:
+        item = db.query(RegenerationJobItem).filter(
+            RegenerationJobItem.id == item_id
+        ).first()
+        if not item:
+            return False
+        for key, value in kwargs.items():
+            if hasattr(item, key):
+                setattr(item, key, value)
+        item.updated_at = datetime.utcnow()
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao atualizar item {item_id}: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def get_db_recent_regeneration_jobs(limit: int = 10):
+    """Jobs recentes (qualquer status) para listagem na UI."""
+    db = SessionLocal()
+    try:
+        jobs = db.query(RegenerationJob).order_by(
+            RegenerationJob.created_at.desc()
+        ).limit(limit).all()
+        return [
+            {
+                "id": j.id,
+                "status": j.status,
+                "total": j.total,
+                "processed": j.processed,
+                "succeeded": j.succeeded,
+                "failed": j.failed,
+                "created_at": j.created_at.strftime("%d/%m %H:%M") if j.created_at else "",
+                "updated_at": j.updated_at.strftime("%d/%m %H:%M") if j.updated_at else "",
+                "error": j.error,
+            }
+            for j in jobs
+        ]
+    finally:
+        db.close()
+
+
+def get_db_running_regeneration_jobs(limit: int = 5):
+    """Jobs com status running (para retomar apos restart)."""
+    db = SessionLocal()
+    try:
+        jobs = db.query(RegenerationJob).filter(
+            RegenerationJob.status == "running"
+        ).order_by(RegenerationJob.created_at.desc()).limit(limit).all()
+        return [{"id": j.id, "total": j.total, "processed": j.processed} for j in jobs]
+    finally:
+        db.close()
+
+
+def reset_db_stuck_job_items(job_id: str):
+    """Reabre itens que ficaram em 'processing' (crash no meio do item)."""
+    db = SessionLocal()
+    try:
+        items = db.query(RegenerationJobItem).filter(
+            RegenerationJobItem.job_id == job_id,
+            RegenerationJobItem.status == "processing",
+        ).all()
+        for item in items:
+            item.status = "pending"
+            item.updated_at = datetime.utcnow()
+        db.commit()
+        return len(items)
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao resetar itens do job {job_id}: {e}")
+        return 0
     finally:
         db.close()
 
