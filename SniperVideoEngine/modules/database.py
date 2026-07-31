@@ -2,7 +2,7 @@ import os
 import uuid
 import re
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, text, Text
+from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # 1. Determinar URL do banco de dados (Railway Postgres ou SQLite local)
@@ -178,6 +178,9 @@ class BlogPost(Base):
     topic = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime, nullable=True)
+    lili_score = Column(Integer, nullable=True)
+    lili_approved = Column(Boolean, nullable=True)
+    lili_reviewed_at = Column(DateTime, nullable=True)
 
 
 class BlogSubdomain(Base):
@@ -396,6 +399,9 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS author VARCHAR(200) DEFAULT 'Equipe Dezafira';", "blog_posts.author")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;", "blog_posts.updated_at")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP;", "blog_posts.published_at")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_score INTEGER;", "blog_posts.lili_score")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_approved BOOLEAN;", "blog_posts.lili_approved")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_reviewed_at TIMESTAMP;", "blog_posts.lili_reviewed_at")
 
 except Exception as table_err:
     print(f"[Database]  Falha ao criar tabelas no banco original: {str(table_err)}")
@@ -979,6 +985,46 @@ def update_db_blog_post_status(post_id: str, status: str) -> bool:
     if status == "published":
         kwargs["published_at"] = datetime.utcnow()
     return update_db_blog_post(post_id, **kwargs)
+
+
+def save_db_lili_score(post_id: str, score: int, approved: bool) -> bool:
+    """Persiste o score LiLi de um artigo no banco (cache)."""
+    return update_db_blog_post(
+        post_id,
+        lili_score=score,
+        lili_approved=bool(approved),
+        lili_reviewed_at=datetime.utcnow(),
+    )
+
+
+def get_db_all_posts_with_meta():
+    """Lista todos os artigos com metadados para ranking global (sem content)."""
+    db = SessionLocal()
+    try:
+        rows = db.query(
+            BlogPost.id, BlogPost.channel_id, BlogPost.title, BlogPost.slug,
+            BlogPost.status, BlogPost.word_count, BlogPost.topic,
+            BlogPost.featured_image_url, BlogPost.image_provider,
+            BlogPost.lili_score, BlogPost.lili_approved, BlogPost.lili_reviewed_at,
+            BlogPost.created_at,
+        ).all()
+        return [{
+            "id": r.id,
+            "channel_id": r.channel_id,
+            "title": r.title,
+            "slug": r.slug,
+            "status": r.status,
+            "word_count": r.word_count or 0,
+            "topic": r.topic,
+            "featured_image_url": r.featured_image_url,
+            "image_provider": r.image_provider,
+            "lili_score": r.lili_score,
+            "lili_approved": r.lili_approved,
+            "lili_reviewed_at": r.lili_reviewed_at.isoformat() if r.lili_reviewed_at else None,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        } for r in rows]
+    finally:
+        db.close()
 
 
 def get_db_blog_channel(channel_id: str) -> dict:

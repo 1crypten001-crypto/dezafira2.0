@@ -682,16 +682,27 @@ async def blog_factory_dashboard():
     db = SessionLocal()
 
     def _lili_check(post):
-        """Calcula score LiLi do artigo (regex puro, barato) com fallback seguro."""
+        """Score LiLi com cache no banco: usa lili_score persistido quando existir."""
+        cached = getattr(post, "lili_score", None)
+        if cached is not None:
+            return int(cached), bool(getattr(post, "lili_approved", False))
         try:
             from modules.lili import revisar_conteudo
+            from modules.database import save_db_lili_score
             r = revisar_conteudo(
                 post.id,
                 post.title or "",
                 post.content or "",
                 post.keywords or "",
             )
-            return r.get("score"), bool(r.get("approved"))
+            score = r.get("score")
+            approved = bool(r.get("approved"))
+            if score is not None:
+                try:
+                    save_db_lili_score(post.id, score, approved)
+                except Exception:
+                    pass
+            return score, approved
         except Exception as e:
             print(f"[Dashboard] Falha ao calcular score LiLi de {post.id}: {e}")
             return None, None
@@ -3205,6 +3216,189 @@ async def lili_correct_post(post_id: str):
         "message": f"{len(review['content_review']['issues'])} issues restantes apos correcao",
         "review": review,
     }
+
+
+@app.get("/api/v1/lili/ranking")
+async def lili_ranking(channel_id: str = None, status: str = None):
+    """Ranking global de artigos por score LiLi (todos os blogs)."""
+    from modules.database import (
+        get_db_all_posts_with_meta,
+        get_db_blog_channels,
+        get_db_blog_post,
+        save_db_lili_score,
+    )
+    from modules.lili import revisar_conteudo
+
+    posts = get_db_all_posts_with_meta()
+    if channel_id:
+        posts = [p for p in posts if p["channel_id"] == channel_id]
+    if status:
+        posts = [p for p in posts if p["status"] == status]
+
+    channels = get_db_blog_channels()
+    ch_map = {c["id"]: c["name"] for c in channels}
+
+    results = []
+    for p in posts:
+        score = p.get("lili_score")
+        approved = p.get("lili_approved")
+        if score is None:
+            # Sem cache: calcula e persiste para as proximas leituras
+            full = get_db_blog_post(p["id"])
+            if full:
+                try:
+                    r = await asyncio.to_thread(
+                        revisar_conteudo,
+                        full["id"],
+                        full["title"] or "",
+                        full["content"] or "",
+                        full["keywords"] or "",
+                    )
+                    score = r.get("score")
+                    approved = bool(r.get("approved"))
+                    if score is not None:
+                        try:
+                            save_db_lili_score(p["id"], score, approved)
+                        except Exception:
+                            pass
+                except Exception:
+                    score, approved = None, None
+        results.append({
+            "id": p["id"],
+            "channel_id": p["channel_id"],
+            "channel_name": ch_map.get(p["channel_id"], p["channel_id"] or ""),
+            "title": p["title"],
+            "slug": p["slug"],
+            "status": p["status"],
+            "word_count": p["word_count"] or 0,
+            "topic": p["topic"],
+            "featured_image_url": p["featured_image_url"],
+            "image_provider": p["image_provider"],
+            "lili_score": score,
+            "lili_approved": approved,
+            "lili_reviewed_at": p.get("lili_reviewed_at"),
+            "created_at": p.get("created_at"),
+        })
+
+    results.sort(key=lambda x: (x["lili_score"] is None, -(x["lili_score"] or 0)))
+    scored = [x for x in results if x["lili_score"] is not None]
+    avg = round(sum(x["lili_score"] for x in scored) / len(scored), 1) if scored else 0
+    approved_count = sum(1 for x in results if x["lili_approved"])
+
+    return {
+        "total": len(results),
+        "approved": approved_count,
+        "reproved": len(results) - approved_count,
+        "avg_score": avg,
+        "results": results,
+        "channels": [{"id": c["id"], "name": c["name"]} for c in channels],
+    }
+
+
+@app.post("/api/v1/blog/post/{post_id}/regenerate")
+async def regenerate_blog_post(post_id: str):
+    """Regenera um artigo do zero com o mesmo topico (deleta o reprovado e recria)."""
+    from modules.database import get_db_blog_post, delete_db_blog_post
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        return {"error": "Post nao encontrado"}
+
+    channel_id = post.get("channel_id")
+    topic = post.get("topic") or post.get("title")
+    keywords = post.get("keywords") or topic
+    if not channel_id:
+        return {"error": "Post sem canal associado"}
+
+    # NAO deleta o antigo ainda: so apos o novo artigo estiver completo.
+    try:
+        from modules.blog_writer import write as blog_write
+        from modules.database import update_db_blog_post
+
+        result = await blog_write(
+            topic=topic,
+            channel_id=channel_id,
+            language="pt",
+            target_words=1500,
+            keywords=keywords,
+        )
+        if not result.get("success"):
+            return {"success": False, "error": result.get("error", "Erro desconhecido")}
+
+        new_post_id = result.get("post_id")
+        title = result.get("title", topic)
+
+        # Imagem obrigatoria — falha deleta o novo artigo
+        img_url = None
+        if new_post_id:
+            try:
+                from modules.image_factory import ImageGeneratorAgent
+                agent = ImageGeneratorAgent()
+                img = await agent.generate_for_article(
+                    title=title,
+                    keywords=keywords,
+                    topic=topic,
+                )
+                img_url = img.get("image_url", "")
+                if img_url:
+                    update_db_blog_post(new_post_id, featured_image_url=img_url)
+                else:
+                    raise RuntimeError("Nenhuma imagem retornada pelo ImageGeneratorAgent")
+            except Exception as e_img:
+                from modules.database import delete_db_blog_post as ddb
+                ddb(new_post_id)
+                return {"success": False, "error": f"Falha ao gerar imagem: {str(e_img)}"}
+            # Preserva o status do artigo antigo (draft/publicado) no novo artigo
+            try:
+                update_db_blog_post(new_post_id, status=post.get("status") or "draft")
+            except Exception as e_st:
+                print(f"[Regenerate] Falha ao preservar status: {e_st}")
+
+        # Revisao LiLi + cache do score
+        lili_review = None
+        if new_post_id:
+            try:
+                from modules.lili import lili_review_after_generation
+                lili_review = await lili_review_after_generation(new_post_id)
+                # Persiste o score no banco imediatamente (cache consistente)
+                if lili_review:
+                    cr = (lili_review.get("content_review") or {})
+                    score = cr.get("score")
+                    if score is None:
+                        score = lili_review.get("overall_score")
+                    if isinstance(score, (int, float)):
+                        try:
+                            from modules.database import save_db_lili_score
+                            save_db_lili_score(
+                                new_post_id,
+                                int(score),
+                                bool(lili_review.get("approved") or (cr or {}).get("approved")),
+                            )
+                        except Exception as e_save:
+                            print(f"[Regenerate] Falha ao persistir score: {e_save}")
+            except Exception as e_lili:
+                print(f"[Regenerate] Lili error: {e_lili}")
+
+        # Novo artigo 100% completo (texto + imagem + revisao) — agora sim deleta o antigo
+        try:
+            delete_db_blog_post(post_id)
+        except Exception as e_del:
+            print(f"[Regenerate] Falha ao deletar post antigo {post_id}: {e_del}")
+
+        return {
+            "success": True,
+            "post_id": new_post_id,
+            "title": title,
+            "word_count": result.get("word_count", 0),
+            "topic": topic,
+            "featured_image_url": img_url,
+            "lili_review": lili_review,
+            "deleted_id": post_id,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/api/v1/blog/generate-article")
