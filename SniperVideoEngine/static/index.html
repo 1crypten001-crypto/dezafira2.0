@@ -289,25 +289,15 @@
     </div>
 
     <div class="page" id="page-blogs">
-      <div class="page-header"><h2>📝 Fabrica de Blogs & 🏭 Pipeline</h2><p>Crie novos blogs na esteira e gerencie canais e artigos existentes</p></div>
+      <div class="page-header"><h2>📝 Fabrica de Blogs & 🏭 Esteira de Produção</h2><p>Gerencie canais, artigos e acompanhe a esteira de conteúdo em tempo real</p></div>
       <div class="stats-grid" id="blogStats"></div>
 
       <!-- Seção Integrada da Pipeline -->
       <div class="section" style="margin-bottom:24px">
         <div class="section-header">
-          <h3>🏭 Esteira de Produção & Novo Blog</h3>
+          <h3>🏭 Esteira Única de Conteúdo (Google Hype)</h3>
         </div>
         <div id="pipelineContent" style="background:#12141e;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-top:10px">
-          <div class="pipeline-input-area" style="margin-bottom:20px">
-            <label>🏗️ Novo Blog:</label>
-            <input type="text" id="macroBlogName" placeholder='Nome (ex: "O Reino")' style="flex:1;min-width:150px">
-            <input type="text" id="macroNiche" placeholder='Nicho (ex: "Ensinamentos de Jesus")' style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter') startMacroPipeline()">
-            <input type="number" id="macroTargetArticles" value="30" min="1" max="100" style="width:80px" placeholder="Qtd">
-            <div class="pipeline-controls">
-              <button class="btn btn-primary" id="startMacroBtn" onclick="startMacroPipeline()">🏗️ Iniciar</button>
-              <button class="btn btn-sm" id="resetMacroBtn" onclick="resetMacroPipeline()" style="display:none">⟳ Novo</button>
-            </div>
-          </div>
           <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
             <div class="macro-global-header">
               <span id="macroBlogLabel">O Reino</span>
@@ -722,6 +712,7 @@ function switchBlogTab(channelId){
 var activeMonitors = {};
 
 async function generateForBlogHype(channelId, niche) {
+async function generateForBlogHype(channelId, niche) {
   showToast("Minerando tendências no Google para " + niche + "...");
   try {
     var res = await api("/api/v1/blog/generate-article-hype", {
@@ -733,68 +724,49 @@ async function generateForBlogHype(channelId, niche) {
       return;
     }
     showToast(res.message);
-    startPipelineMonitor(channelId, res.task_id);
+    
+    // Configura a esteira única global para rastrear este artigo individual
+    ms.running = true;
+    ms.taskId = res.task_id;
+    ms.topic = res.topic;
+    ms.target = 1;
+    ms.gen = 0;
+    ms.cur = 1;
+    ms.start = Date.now();
+    
+    // Exibe os componentes visuais da esteira integrada
+    $("macroBlogLabel").textContent = niche;
+    $("macroArticleCounter").textContent = "Geração por Hype: 1 Artigo";
+    $("macroTargetLabel").textContent = "1 artigo";
+    $("macroGlobalFill").style.width = "5%";
+    $("macroGlobalProgress").style.display = "block";
+    $("macroCurrentArticle").style.display = "block";
+    $("macroCurrentTitle").textContent = res.topic;
+    $("macroCurrentBadge").textContent = "🔥 Tendência do Google";
+    $("macroCurrentPhase").textContent = "Iniciando esteira...";
+    $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">🚀 Esteira de Hype iniciada. Aguardando progresso...</div>';
+    
+    // Inicializa a animação e estrutura dos agentes na tela
+    renderPipeline();
+    
+    // Inicia cronômetro do tempo decorrido
+    if(window._mt) clearInterval(window._mt);
+    window._mt = setInterval(function(){
+      if(!ms.running){clearInterval(window._mt);return}
+      var sec=Math.floor((Date.now()-ms.start)/1000);
+      $("macroElapsedTime").textContent=String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
+    },1000);
+    
+    // Conecta no WebSocket para a tarefa específica
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: "subscribe", task_id: res.task_id })); } catch(e) {}
+    } else {
+      _connectWs();
+    }
+    
   } catch (e) {
     showToast("Erro: " + e.message);
   }
-}
-
-function startPipelineMonitor(channelId, taskId) {
-  if (activeMonitors[taskId]) return;
-  
-  var container = $("pipeline_container_" + channelId);
-  if (!container) return;
-  container.style.display = "block";
-  
-  var taskEl = document.createElement("div");
-  taskEl.id = "task_progress_" + taskId;
-  taskEl.style.marginBottom = "12px";
-  taskEl.style.padding = "10px";
-  taskEl.style.background = "rgba(0,0,0,0.2)";
-  taskEl.style.borderRadius = "8px";
-  container.appendChild(taskEl);
-
-  async function update() {
-    try {
-      var res = await api("/api/v1/pipeline/blog-factory/status/" + taskId);
-      if (res.status === "unknown" || !res.status) return;
-
-      var progress = res.progress || 0;
-      var phase = res.phase || "Processando esteira...";
-      var topic = res.topic || "Geração Automática";
-      var status = res.status;
-
-      var barColor = "#6366f1";
-      var statusIcon = "⚙️";
-      if (status === "completed") { barColor = "#22c55e"; statusIcon = "✅"; progress = 100; }
-      else if (status === "failed") { barColor = "#ef4444"; statusIcon = "❌"; }
-
-      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px">' +
-        '<span>' + statusIcon + ' <strong>' + escapeHtml(topic) + '</strong></span>' +
-        '<span style="color:#8a91a5;font-weight:600">' + progress + '%</span>' +
-      '</div>' +
-      '<div style="height:6px;background:#14161f;border-radius:3px;overflow:hidden;margin-bottom:6px">' +
-        '<div style="height:100%;width:' + progress + '%;background:' + barColor + ';border-radius:3px;transition:width .4s ease"></div>' +
-      '</div>' +
-      '<div style="font-size:11px;color:#8a91a5;display:flex;justify-content:space-between">' +
-        '<span>Fase: ' + escapeHtml(phase) + '</span>' +
-        '<span>Status: ' + status.toUpperCase() + '</span>' +
-      '</div>';
-
-      taskEl.innerHTML = html;
-
-      if (status === "completed" || status === "failed") {
-        clearInterval(activeMonitors[taskId]);
-        delete activeMonitors[taskId];
-        setTimeout(loadBlogs, 4000);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  update();
-  activeMonitors[taskId] = setInterval(update, 3000);
 }
 
 async function generateForBlog(channelId,niche){
@@ -1040,17 +1012,51 @@ function handleWsMessage(msg){
   if(t==="pipeline_progress"){
     var sid=d.stage_id||"",prog=d.progress||0,m=d.message||"",st=d.status||"active";
     if(!sid)return;
-    addLog(sid,m,st==="completed"?"success":"info");
-    updateStage(sid,st,prog,m,d);
-    if(d&&d.articles_generated!==undefined)ms.gen=d.articles_generated;
+    
+    // Mapeia estágios do pipeline de post individual para os agentes da esteira do blog:
+    var stageMapping = {
+      "keyword_miner": "fundacao",
+      "blog_writer": "producao",
+      "seo_optimizer": "arquitetura",
+      "publish": "refino",
+      "schedule": "entrega"
+    };
+    var mappedSid = stageMapping[sid] || sid;
+    
+    addLog(mappedSid, m, st==="completed"?"success":"info");
+    updateStage(mappedSid, st, prog, m, d);
+    
+    // Calcula progresso aproximado na barra global (para 1 artigo)
+    var stagePercentages = {
+      "keyword_miner": 20,
+      "blog_writer": 60,
+      "seo_optimizer": 80,
+      "publish": 95,
+      "schedule": 100
+    };
+    var basePct = stagePercentages[sid] || 10;
+    var currentPct = basePct;
+    if (st === "active") {
+      var nextPct = sid === "keyword_miner" ? 60 : (sid === "blog_writer" ? 80 : (sid === "seo_optimizer" ? 95 : 100));
+      currentPct = basePct + ((nextPct - basePct) * (prog / 100));
+    }
+    
+    $("macroGlobalFill").style.width = currentPct + "%";
+    $("macroElapsedTime").textContent = String(Math.round(currentPct)) + "%";
+    $("macroCurrentPhase").textContent = m || "Escrevendo e revisando artigo...";
+    
   }else if(t==="pipeline_complete"){
-    var gen=d.articles_generated||ms.gen||0;
-    addLog("entrega","\uD83C\uDF89 Blog COMPLETO! "+gen+" artigos!","success");
-    ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";$("resetMacroBtn").style.display="";
-    showToast("Blog completo!");
+    addLog("entrega","🎉 Artigo COMPLETO e publicado!","success");
+    ms.running=false;
+    $("macroGlobalFill").style.width="100%";
+    $("macroElapsedTime").textContent="100%";
+    $("macroCurrentPhase").textContent="Finalizado! O artigo foi publicado no blog.";
+    showToast("Artigo por tendência publicado!");
+    setTimeout(loadBlogs, 3000);
   }else if(t==="pipeline_failed"){
     addLog("fundacao","Erro: "+(d.error||""),"error");
-    ms.running=false;$("startMacroBtn").disabled=false;$("startMacroBtn").textContent="\u{1F3D7}\uFE0F Iniciar";$("resetMacroBtn").style.display="";
+    ms.running=false;
+    $("macroCurrentPhase").textContent = "Erro na geração: " + (d.error || "Falha na esteira");
   }
 }
 
