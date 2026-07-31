@@ -317,6 +317,15 @@
               <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Produção</h3><p>5 estacoes: Fundação &rarr; Arquitetura &rarr; Produção &rarr; Refino &rarr; Entrega</p></div>
             </div>
           </div>
+          <!-- Painel Seu Reddit (10 Maiores Dúvidas) -->
+          <div id="redditQuestionsWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(99,102,241,.04) 100%);border:1px solid rgba(99,102,241,.15);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:18px">🤖</span>
+              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Seu Reddit — 10 Maiores Dúvidas e Dores Reais do Público</h4>
+            </div>
+            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Tópicos e dúvidas reais minerados em fóruns públicos do Reddit sobre este nicho:</div>
+            <ol id="redditQuestionsList" style="margin:0;padding-left:20px;color:#a5b4fc;font-size:13px;line-height:1.8;font-weight:500"></ol>
+          </div>
           <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
             <div class="macro-current-header">
               <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
@@ -488,6 +497,15 @@ function updateStage(sid,status,prog,msg,data){
     });
   }
   if(data){
+    var questions = data.reddit_questions || (data.data?.state?.reddit_questions) || (data.data?.reddit_questions);
+    if(questions && questions.length){
+      var qw = $("redditQuestionsWrapper");
+      var ql = $("redditQuestionsList");
+      if(qw && ql){
+        ql.innerHTML = questions.map(function(q){ return '<li>' + escapeHtml(q) + '</li>'; }).join('');
+        qw.style.display = "block";
+      }
+    }
     if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
     if(data.phase_detail){$("macroCurrentPhase").textContent="🔄 "+data.phase_detail}
@@ -568,7 +586,9 @@ function resetMacroPipeline(){
   $("resetMacroBtn").style.display="none";
   $("macroPipelineLog").innerHTML='<div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div>';
   var gp=$("macroGlobalProgress");if(gp)gp.style.display="none";
-  $("macroCurrentArticle").style.display="none";renderPipeline();
+  $("macroCurrentArticle").style.display="none";
+  var qw = $("redditQuestionsWrapper"); if(qw) qw.style.display = "none";
+  renderPipeline();
 }
 
 function loadHistory(){
@@ -1108,7 +1128,8 @@ function _startPolling(tid){
           phase_detail:data.phase||stageId,
           lili_score:data.data?.lili_score,
           lili_approved:data.data?.lili_approved,
-          article_title:data.data?.article_title
+          article_title:data.data?.article_title,
+          reddit_questions: data.data?.state?.reddit_questions || data.data?.reddit_questions
         }});
       }
       if(data.status==="completed"&&data.data){

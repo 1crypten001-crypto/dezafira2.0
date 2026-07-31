@@ -3916,6 +3916,7 @@ async def run_blog_factory_frontend(payload: dict):
                             "task_id": pid,
                             "articles_generated": (data or {}).get("state", {}).get("articles_generated", 0),
                             "target_articles": (data or {}).get("state", {}).get("target_articles", 0),
+                            "reddit_questions": (data or {}).get("state", {}).get("reddit_questions", []) if isinstance(data, dict) else [],
                         },
                         task_id=pid,
                     ))

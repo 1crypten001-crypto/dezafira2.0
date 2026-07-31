@@ -97,6 +97,82 @@ TOTAL_TARGET = DEFAULT_TOTAL
 # Cache de topicos por nicho (evita gerar repetidamente)
 _TOPICS_CACHE = {}
 
+async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
+    """
+    Busca no Google usando Obscura por discussões do Reddit sobre o nicho
+    e extrai as 10 principais perguntas/dúvidas.
+    """
+    from services.obscura_bridge import ObscuraBridge
+    from urllib.parse import quote
+    import json
+    
+    query = f'site:reddit.com "{niche}" ("como" OR "por que" OR "vale a pena" OR "dúvida" OR "melhor" OR "erro" OR "problema" OR "ajuda")'
+    if lang == "en":
+        query = f'site:reddit.com "{niche}" ("how" OR "why" OR "worth it" OR "question" OR "best" OR "error" OR "problem" OR "help")'
+        
+    search_url = f"https://www.google.com/search?q={quote(query)}&hl={'pt-BR' if lang == 'pt' else 'en'}"
+    print(f"[Seu Reddit] Buscando discussões em: {search_url}")
+    
+    bridge = ObscuraBridge()
+    questions = []
+    try:
+        connected = await bridge.connect()
+        if connected:
+            await bridge.navigate_and_get_html(search_url)
+            js_code = """
+                (() => {
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const results = [];
+                    links.forEach(a => {
+                        const href = a.getAttribute('href') || '';
+                        if (href.includes('reddit.com') && !href.includes('google.com')) {
+                            const h3 = a.querySelector('h3');
+                            if (h3) {
+                                const txt = h3.textContent.trim();
+                                if (txt && !results.includes(txt) && txt.length > 8) {
+                                    results.push(txt);
+                                }
+                            }
+                        }
+                    });
+                    if (results.length === 0) {
+                        document.querySelectorAll('h3').forEach(h3 => {
+                            const txt = h3.textContent.trim();
+                            if (txt && txt.length > 12 && !results.includes(txt)) {
+                                results.push(txt);
+                            }
+                        });
+                    }
+                    return JSON.stringify(results.slice(0, 10));
+                })()
+            """
+            res_json = await bridge.execute_js(js_code)
+            await bridge.disconnect()
+            if res_json:
+                questions = json.loads(res_json)
+    except Exception as e:
+        print(f"[Seu Reddit] Erro ao extrair dúvidas do Reddit: {e}")
+        try:
+            await bridge.disconnect()
+        except Exception:
+            pass
+            
+    # Fallback caso não encontre nada ou Obscura esteja desativado
+    if not questions:
+        questions = [
+            f"Como escolher o melhor {niche} para começar?",
+            f"Quais os erros mais comuns ao trabalhar com {niche}?",
+            f"Qual o custo-benefício de {niche} hoje em dia?",
+            f"Dicas práticas de {niche} para iniciantes",
+            f"Como resolver o problema principal de {niche}?",
+            f"Vale a pena investir em {niche} atualmente?",
+            f"O que ninguém te conta sobre {niche}?",
+            f"Comparativo completo: as melhores opções de {niche}",
+            f"Como otimizar meus resultados com {niche}?",
+            f"Guia definitivo de dúvidas frequentes sobre {niche}"
+        ]
+    return questions
+
 async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False) -> list:
     """
     Gera topicos de artigos variados usando LLM, especificos para o nicho.
@@ -237,6 +313,7 @@ class MacroState:
         self.language = language
         self.target_articles = target_articles
         self.is_affiliate = is_affiliate
+        self.reddit_questions = []
         self.channel_id = None       # Set after Phase 1
         self.pipeline_run_id = None  # Set after Phase 1
         self.sections = []           # Set after Phase 2
@@ -292,6 +369,7 @@ class MacroState:
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "error": self.error,
+            "reddit_questions": self.reddit_questions,
         }
 
 
@@ -365,6 +443,7 @@ class BlogMacroPipeline:
                         for a in self.state.articles
                     ],
                     "sections": self.state.sections,
+                    "reddit_questions": getattr(self.state, "reddit_questions", []),
                 },
             )
         except Exception as e:
@@ -600,7 +679,19 @@ class BlogMacroPipeline:
             from modules.keyword_miner import research_keywords, find_low_hanging_fruits
             from modules.database import create_db_blog_section
 
-            # 1. Keyword research geral
+            # 1. Pesquisa de discussões do Reddit (Seu Reddit)
+            self._update_macro(sid, "active", 10,
+                "🤖 Agente Seu Reddit pesquisando dores e dúvidas reais dos usuários...")
+            try:
+                reddit_qs = await get_reddit_questions(niche, self.state.language)
+                self.state.reddit_questions = reddit_qs
+                self._update_macro(sid, "active", 12,
+                    f"✓ Seu Reddit encontrou {len(reddit_qs)} dúvidas no Reddit!",
+                    data={"reddit_questions": reddit_qs})
+            except Exception as e_red:
+                print(f"[Arquitetura] Erro ao obter dúvidas do Reddit: {e_red}")
+
+            # 2. Keyword research geral
             self._update_macro(sid, "active", 15,
                 "🔍 Pesquisando keywords principais com Obscura...")
 
@@ -688,6 +779,7 @@ class BlogMacroPipeline:
                     "easy_keywords": easy_kw,
                     "low_hanging_fruits": lh_count,
                     "sections": saved_sections,
+                    "reddit_questions": getattr(self.state, "reddit_questions", []),
                 })
 
         except ImportError as e:
