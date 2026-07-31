@@ -662,7 +662,9 @@ async function loadDashboard(){
       var prov=(p.image_provider||'').toLowerCase();
       var pm=provMap[prov]||(p.featured_image_url?provMap['pexels']:null);
       var imgBadge=pm?'<span class="tag" style="background:'+pm.color+'22;color:'+pm.color+';font-size:10px">'+pm.icon+' '+pm.label+'</span>':'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171;font-size:10px">🚫 Sem Img</span>';
-      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
+      var liliScore=(typeof p.lili_score==='number')?p.lili_score:null;
+      var liliBadge=liliScore!==null?'<span class="tag" title="'+(p.lili_approved?'✅ Aprovado':'❌ Reprovado')+' pela LiLi" style="background:'+(liliScore>=85?'rgba(16,185,129,.15);color:#34d399':liliScore>=70?'rgba(251,191,36,.15);color:#fbbf24':'rgba(239,68,68,.15);color:#f87171')+';font-size:10px">🌸 '+liliScore+'/100</span>':'';
+      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+(liliBadge?' &#8226; '+liliBadge:'')+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
     }).join(''):'<div class="blog-empty-state" >Nenhum artigo neste blog</div>';
 
     // Estatistica de provedores de imagem
@@ -675,6 +677,9 @@ async function loadDashboard(){
     if(provCount.unsplash>0)provParts.push('<span style="color:#06b6d4">📷 Unsplash: '+provCount.unsplash+'</span>');
     if(provCount.placeholder>0)provParts.push('<span style="color:#6b7280">🎭 SVG: '+provCount.placeholder+'</span>');
     var provHtml=provParts.length?provParts.join(' &bull; '):'—';
+    var liliScores=blogPosts.map(function(p){return (typeof p.lili_score==='number')?p.lili_score:null;}).filter(function(s){return s!==null;});
+    var avgLili=liliScores.length?Math.round(liliScores.reduce(function(a,b){return a+b;},0)/liliScores.length):null;
+    var avgLiliHtml=avgLili!==null?'<span title="Média dos artigos recentes">🌸 LiLi: <b style="color:'+(avgLili>=85?'#34d399':avgLili>=70?'#fbbf24':'#f87171')+'">'+avgLili+'/100</b></span>':'';
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 
@@ -696,6 +701,7 @@ async function loadDashboard(){
                     '<span>🖼️ Imagens: '+bar+'</span>'+
           '<span>🤖 Gerador: '+provHtml+'</span>'+
 '<span>🔖 Favicon: '+faviconHtml+'</span>'+
+          avgLiliHtml+
           '<span>🔗 <a href="'+blogUrl+'" target="_blank" style="color:#a5b4fc">Ver Blog</a></span>'+
           subTxt+
         '</div>'+

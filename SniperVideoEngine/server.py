@@ -680,6 +680,22 @@ async def blog_factory_dashboard():
     from sqlalchemy import func
 
     db = SessionLocal()
+
+    def _lili_check(post):
+        """Calcula score LiLi do artigo (regex puro, barato) com fallback seguro."""
+        try:
+            from modules.lili import revisar_conteudo
+            r = revisar_conteudo(
+                post.id,
+                post.title or "",
+                post.content or "",
+                post.keywords or "",
+            )
+            return r.get("score"), bool(r.get("approved"))
+        except Exception as e:
+            print(f"[Dashboard] Falha ao calcular score LiLi de {post.id}: {e}")
+            return None, None
+
     try:
         channels = db.query(BlogChannel).order_by(BlogChannel.created_at.desc()).all()
         posts = db.query(BlogPost).order_by(BlogPost.created_at.desc()).limit(10).all()
@@ -689,6 +705,19 @@ async def blog_factory_dashboard():
         total_words = db.query(func.coalesce(func.sum(BlogPost.word_count), 0)).scalar()
         books_count = db.query(Book).count()
         courses_count = db.query(Course).count()
+        recent_posts = []
+        for p in posts:
+            lili_score, lili_approved = await asyncio.to_thread(_lili_check, p)
+            recent_posts.append({
+                "id": p.id, "title": p.title, "slug": p.slug,
+                "status": p.status, "word_count": p.word_count or 0,
+                "featured_image_url": p.featured_image_url,
+                "channel_id": p.channel_id,
+                "image_provider": p.image_provider,
+                "lili_score": lili_score,
+                "lili_approved": lili_approved,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
         return {
             "channels": {
                 "total": len(channels),
@@ -720,14 +749,7 @@ async def blog_factory_dashboard():
                 "published": published,
                 "drafts": drafts,
                 "total_words": total_words or 0,
-                "recent": [{
-                    "id": p.id, "title": p.title, "slug": p.slug,
-                    "status": p.status, "word_count": p.word_count or 0,
-                    "featured_image_url": p.featured_image_url,
-                    "channel_id": p.channel_id,
-                    "image_provider": p.image_provider,
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                } for p in posts],
+                "recent": recent_posts,
             },
             "keywords": {"total": 0, "easy": 0, "groups": []},
             "scheduler": {"running": True, "jobs": [], "job_count": 0},
