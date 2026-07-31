@@ -2379,6 +2379,17 @@ async def run_blog_pipeline_endpoint(payload: dict, background_tasks: Background
         "message": "Pipeline da Fabrica de Blogs iniciado! Acompanhe o progresso em tempo real na aba Pipeline.",
     }
 
+@app.get("/api/v1/pipeline/blog-factory/history")
+async def get_blog_factory_history():
+    """Retorna o historico real de execucoes do pipeline da fabrica de blogs."""
+    try:
+        from modules.database import get_db_blog_pipeline_runs
+        runs = get_db_blog_pipeline_runs(limit=10)
+        return {"pipelines": runs}
+    except Exception as e:
+        print(f"[API] Erro ao buscar historico de pipelines: {e}")
+        return {"pipelines": []}
+
 @app.get("/api/v1/pipeline/blog/history")
 async def get_blog_pipeline_history():
     return {"pipelines": []}

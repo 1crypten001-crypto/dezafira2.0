@@ -251,9 +251,7 @@
       <div class="nav-section">Visao Geral</div>
       <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</a>
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
-      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs <span class="badge" id="blogCount">-</span></a>
-      <div class="nav-section" style="margin-top:4px">Producao</div>
-      <a class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">🏭</span> Pipeline <span class="pipeline-dot" id="pipelineDot"></span></a>
+      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
       <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">📗</span> Livros <span class="badge" id="bookCount">-</span></a>
       <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
@@ -290,57 +288,61 @@
 
     </div>
 
-    <div class="page" id="page-pipeline">
-      <div class="page-header"><h2>🏭 Pipeline &mdash; Fabrica de Blogs</h2><p>Esteira unica: criacao do blog + producao em massa de artigos</p></div>
-      <div id="pipelineContent">
-        <div class="pipeline-input-area">
-          <label>🏗️ Novo Blog:</label>
-          <input type="text" id="macroBlogName" placeholder='Nome (ex: "O Reino")' style="flex:1;min-width:150px">
-          <input type="text" id="macroNiche" placeholder='Nicho (ex: "Ensinamentos de Jesus")' style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter') startMacroPipeline()">
-          <input type="number" id="macroTargetArticles" value="30" min="1" max="100" style="width:80px" placeholder="Qtd">
-          <div class="pipeline-controls">
-            <button class="btn btn-primary" id="startMacroBtn" onclick="startMacroPipeline()">🏗️ Iniciar</button>
-            <button class="btn btn-sm" id="resetMacroBtn" onclick="resetMacroPipeline()" style="display:none">⟳ Novo</button>
-          </div>
+    <div class="page" id="page-blogs">
+      <div class="page-header"><h2>📝 Fabrica de Blogs & 🏭 Pipeline</h2><p>Crie novos blogs na esteira e gerencie canais e artigos existentes</p></div>
+      <div class="stats-grid" id="blogStats"></div>
+
+      <!-- Seção Integrada da Pipeline -->
+      <div class="section" style="margin-bottom:24px">
+        <div class="section-header">
+          <h3>🏭 Esteira de Produção & Novo Blog</h3>
         </div>
-        <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
-          <div class="macro-global-header">
-            <span id="macroBlogLabel">O Reino</span>
-            <span class="macro-article-counter" id="macroArticleCounter">0 / 30 artigos</span>
+        <div id="pipelineContent" style="background:#12141e;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-top:10px">
+          <div class="pipeline-input-area" style="margin-bottom:20px">
+            <label>🏗️ Novo Blog:</label>
+            <input type="text" id="macroBlogName" placeholder='Nome (ex: "O Reino")' style="flex:1;min-width:150px">
+            <input type="text" id="macroNiche" placeholder='Nicho (ex: "Ensinamentos de Jesus")' style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter') startMacroPipeline()">
+            <input type="number" id="macroTargetArticles" value="30" min="1" max="100" style="width:80px" placeholder="Qtd">
+            <div class="pipeline-controls">
+              <button class="btn btn-primary" id="startMacroBtn" onclick="startMacroPipeline()">🏗️ Iniciar</button>
+              <button class="btn btn-sm" id="resetMacroBtn" onclick="resetMacroPipeline()" style="display:none">⟳ Novo</button>
+            </div>
           </div>
-          <div class="macro-global-bar-bg"><div class="macro-global-bar-fill" id="macroGlobalFill"></div></div>
-          <div class="macro-global-stats">
-            <span>⏱️ <span id="macroElapsedTime">00:00</span></span>
-            <span>🎯 <span id="macroTargetLabel">30 artigos</span></span>
+          <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
+            <div class="macro-global-header">
+              <span id="macroBlogLabel">O Reino</span>
+              <span class="macro-article-counter" id="macroArticleCounter">0 / 30 artigos</span>
+            </div>
+            <div class="macro-global-bar-bg"><div class="macro-global-bar-fill" id="macroGlobalFill"></div></div>
+            <div class="macro-global-stats">
+              <span>⏱️ <span id="macroElapsedTime">00:00</span></span>
+              <span>🎯 <span id="macroTargetLabel">30 artigos</span></span>
+            </div>
           </div>
-        </div>
-        <div class="conveyor-belt">
-          <div class="conveyor-track" id="macroPipelineTrack">
-            <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
+          <div class="conveyor-belt">
+            <div class="conveyor-track" id="macroPipelineTrack">
+              <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Producao</h3><p>5 estacoes: Fundacao &rarr; Arquitetura &rarr; Producao &rarr; Refino &rarr; Entrega</p></div>
+            </div>
           </div>
-        </div>
-        <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
-          <div class="macro-current-header">
-            <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
-            <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
+          <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
+            <div class="macro-current-header">
+              <span class="macro-current-badge" id="macroCurrentBadge">📝 Artigo 1/30</span>
+              <span class="macro-current-title" id="macroCurrentTitle">Aguardando...</span>
+            </div>
+            <div class="macro-current-phase-label" id="macroCurrentPhase">⏳ Iniciando pipeline...</div>
+            <div id="macroLiliScore" style="margin-top:8px;display:flex;align-items:center;gap:8px"></div>
           </div>
-          <div class="macro-current-phase-label" id="macroCurrentPhase">⏳ Iniciando pipeline...</div>
-          <div id="macroLiliScore" style="margin-top:8px;display:flex;align-items:center;gap:8px"></div>
-        </div>
-        <div class="pipeline-log-container">
-          <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
-          <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
-        </div>
-        <div class="pipeline-history">
-          <div class="section-header"><h3>📜 Histórico</h3></div>
-          <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
+          <div class="pipeline-log-container" style="margin-top:16px">
+            <div class="pipeline-log-header"><span>📝 Log</span><span class="pipeline-log-count" id="pipelineLogCount">0</span></div>
+            <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
+          </div>
+          <div class="pipeline-history" style="margin-top:16px">
+            <div class="section-header"><h3>📜 Histórico</h3></div>
+            <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="page" id="page-blogs">
-      <div class="page-header"><h2>📝 Fabrica de Blogs</h2><p>Gerencie canais e artigos</p></div>
-      <div class="stats-grid" id="blogStats"></div>
       <div class="blog-tabs" id="blogTabs"></div>
       <div id="blogPanels"></div>
     </div>
@@ -405,7 +407,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const pageTitles={dashboard:"Dashboard",blogs:"Blogs",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
 const STAGES=[
   {id:"fundacao",name:"Fundacao",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
@@ -433,8 +435,7 @@ function navigate(p){
   var n=document.querySelector('.nav-item[data-page="'+p+'"]');if(n)n.classList.add("active");
   $("pageTitle").textContent=pageTitles[p]||p;
   if(p==="dashboard")loadDashboard();
-  else if(p==="pipeline"){renderPipeline();loadHistory();}
-  else if(p==="blogs")loadBlogs();
+  else if(p==="blogs"){loadBlogs(); renderPipeline(); loadHistory();}
   else if(p==="books")loadBooks();
   else if(p==="courses")loadCourses();
   else if(p==="images")loadImages();
