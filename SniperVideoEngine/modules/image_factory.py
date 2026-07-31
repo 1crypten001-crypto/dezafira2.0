@@ -123,7 +123,9 @@ class ImageGeneratorAgent:
         height = 675 if is_discover else 630
         
         if is_discover:
-            combined = f"misterioso, chocante, ultra realista, sem texto, foto jornalística: {combined}"
+            combined = f"misterioso, chocante, revelador, foto jornalística realista, ângulo dramático, iluminação de cinema, sem texto: {combined}"
+        else:
+            combined = f"fotografia editorial profissional, altamente detalhado, realista, iluminação suave, composição moderna e limpa: {combined}"
             
         return await self.generate_image_for_post(prompt_idea=combined, width=width, height=height)
 

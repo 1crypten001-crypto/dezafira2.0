@@ -88,6 +88,14 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 - Tabelas, listas, citações bíblicas/financeiras
 - Mínimo de 800 palavras por artigo
 
+### 🎨 Seu Design — Diretor de Arte
+**Arquivo:** `modules/brand_designer.py`  
+**Responsabilidades:** Cria a identidade visual e o branding completo do blog (paleta de cores, tipografia, logos e favicons SVG sob medida) de forma totalmente dinâmica via LLM.  
+**Recursos:**  
+- Geração dinâmica de cores harmoniosas adaptadas ao nicho do blog (Light e Dark mode).  
+- Recomendação de fontes do Google Fonts ideais para leitura e título.  
+- Criação de logotipo e favicon SVG vetoriais exclusivos e dinâmicos para o nome do blog.
+
 ### 🌸 LiLi — Revisora de Qualidade
 **Arquivo:** `modules/lili.py`  
 **Responsabilidades:** Revisa artigos automaticamente após geração  

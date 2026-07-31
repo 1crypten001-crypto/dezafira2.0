@@ -26,6 +26,70 @@ def fmt_date(d):
         return str(d)[:10]
 
 
+def _apply_brand_overrides(blog_info: dict, theme_css: str) -> tuple[str, dict]:
+    """Retorna (theme_css_atualizado, brand_config_dict) após aplicar customizações do Seu Design."""
+    import json
+    brand_config = None
+    if blog_info and blog_info.get("brand_config"):
+        try:
+            brand_config = json.loads(blog_info["brand_config"])
+        except Exception:
+            pass
+            
+    if not brand_config:
+        return theme_css, {}
+        
+    c = brand_config.get("colors", {})
+    cd = brand_config.get("colors_dark", c)
+    f = brand_config.get("fonts", {})
+    
+    font_imports = []
+    for font_key in ["heading", "body"]:
+        font_family = f.get(font_key, "")
+        if font_family and ("'" in font_family or '"' in font_family):
+            font_name = font_family.replace("'", "").replace('"', "").split(",")[0].strip()
+            font_name_api = font_name.replace(" ", "+")
+            font_imports.append(f"family={font_name_api}:wght@300;400;500;600;700;800")
+            
+    font_import_css = ""
+    if font_imports:
+        queries = "&".join(font_imports)
+        font_import_css = f'@import url("https://fonts.googleapis.com/css2?{queries}&display=swap");\n'
+
+    css_overrides = font_import_css + ":root {\n"
+    for k, v in c.items():
+        css_overrides += f"  --{k}: {v} !important;\n"
+    if "heading" in f:
+        css_overrides += f"  --font-heading: {f['heading']} !important;\n"
+    if "body" in f:
+        css_overrides += f"  --font-body: {f['body']} !important;\n"
+    
+    # Extrair RGB
+    prim_hex = c.get("primary", "")
+    if prim_hex.startswith("#") and len(prim_hex) == 7:
+        try:
+            r = int(prim_hex[1:3], 16)
+            g = int(prim_hex[3:5], 16)
+            b = int(prim_hex[5:7], 16)
+            css_overrides += f"  --primary-rgb: {r},{g},{b} !important;\n"
+        except Exception:
+            pass
+            
+    css_overrides += "}\n"
+    
+    css_overrides += "@media (prefers-color-scheme: dark) {\n  :root {\n"
+    for k, v in cd.items():
+        css_overrides += f"    --{k}: {v} !important;\n"
+    css_overrides += "  }\n}\n"
+    
+    css_overrides += "html.dark {\n"
+    for k, v in cd.items():
+        css_overrides += f"  --{k}: {v} !important;\n"
+    css_overrides += "}\n"
+    
+    return theme_css + "\n" + css_overrides, brand_config
+
+
 # ─── COMMON JS SNIPPETS ─────────────────────────────────────────────
 
 _DARK_MODE_JS = """
@@ -265,7 +329,7 @@ def _get_categories(nicho: str) -> list:
 def _page_frame(title: str, body_html: str, theme_css: str = "",
                description: str = "", image_url: str = "",
                canonical_url: str = "", schema_json: str = "",
-               theme: dict = None, slug: str = "") -> str:
+               theme: dict = None, slug: str = "", brand_config: dict = None) -> str:
     """Gera pagina HTML completa com SEO, dark mode, e branding profissional.
     slug: usado para link dinamico no cookie banner.
     """
@@ -280,7 +344,9 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
         google_fonts += "|JetBrains+Mono:wght@400;700"
 
     # Favicon profissional — usa SVG vetorial em vez de emoji
-    if theme:
+    if brand_config and brand_config.get("favicon_svg"):
+        favicon = brand_config["favicon_svg"]
+    elif theme:
         favicon = get_favicon_svg(theme.get("id", ""))
     else:
         favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M16 6v20M6 16h20' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E"
@@ -332,11 +398,11 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 
 # ─── HEADER v2 ───────────────────────────────────────────────────────
 
-def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: str = "") -> str:
+def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: str = "", brand_config: dict = None) -> str:
     """Gera header fixo com logo SVG profissional, dark mode toggle, busca."""
     categories = _get_categories(blog_niche)
     theme = detect_theme(blog_niche)
-    logo_svg = get_logo_svg(blog_niche)
+    logo_svg = brand_config.get("logo_svg") if (brand_config and brand_config.get("logo_svg")) else get_logo_svg(blog_niche)
     nav_items = "".join(
         f'<a href="/blog/{slug}?cat={c.lower()}" class="nav-link{" active" if current_cat.lower() == c.lower() else ""}">{c}</a>'
         for c in categories
@@ -365,12 +431,12 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
 
 # ─── FOOTER v2 ───────────────────────────────────────────────────────
 
-def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str = None) -> str:
+def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str = None, brand_config: dict = None) -> str:
     """Gera footer com logo SVG, links reais e newsletter call-to-action."""
     if not year:
         year = str(datetime.now().year)
     theme = detect_theme(blog_niche)
-    logo_svg = get_logo_svg(blog_niche)
+    logo_svg = brand_config.get("logo_svg") if (brand_config and brand_config.get("logo_svg")) else get_logo_svg(blog_niche)
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])
     niche_desc = blog_niche[:80] if blog_niche else "conhecimento e inspiracao"
@@ -417,6 +483,7 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     pcount = len(posts)
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
+    theme_css, brand_config = _apply_brand_overrides(blog_info, theme_css)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
     subdomain = blog_info.get("subdomain", "")
     subdomain_html = f'<a href="https://{subdomain}.dezafira.com.br" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(var(--primary-rgb),0.08);border:1px solid rgba(var(--primary-rgb),0.15);border-radius:20px;font-size:.8rem;color:var(--primary);text-decoration:none;font-weight:600">&#127760; {subdomain}.dezafira.com.br</a>' if subdomain else ""
@@ -495,18 +562,18 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     desc = f"Blog sobre {blog_niche}. Artigos, estudos e reflexões." if blog_niche else blog_name
     canonical = f"https://dezafira.com.br/blog/{slug}"
 
-    body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+    body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""), brand_config=brand_config)}
 {hero_html}
 <main class="blog-content">
   <h2 style="font-family:var(--font-heading,inherit);font-size:1.5rem;margin-bottom:20px">&#128214; Todos os Artigos</h2>
   <div class="blog-stats" style="margin-bottom:20px">{pcount} artigo{"s" if pcount != 1 else ""}</div>
   {posts_html}
 </main>
-{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""), brand_config=brand_config)}
 {_SCROLL_OBSERVER_JS}"""
 
     title = f"{blog_name} &mdash; Blog sobre {blog_niche}" if blog_niche else blog_name
-    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme, slug=slug)
+    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme, slug=slug, brand_config=brand_config)
 
 
 def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts: list = None) -> str:
@@ -528,6 +595,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
 
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
+    theme_css, brand_config = _apply_brand_overrides(blog_info, theme_css)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
 
     is_affiliate = blog_info.get("is_affiliate", False)
@@ -707,7 +775,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     excerpt_clean = (post.get("excerpt") or "")[:200]
     img_url = img or ""
 
-    body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+    body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""), brand_config=brand_config)}
 <div class="reading-progress"><div class="reading-progress-bar" id="readingProgress"></div></div>
 <main class="blog-content">
   {breadcrumb}
@@ -731,13 +799,13 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     </div>
   </article>
 </main>
-{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""), brand_config=brand_config)}
 {_READING_PROGRESS_JS}
 {_SCROLL_OBSERVER_JS}"""
 
     return _page_frame(f"{title} &mdash; {blog_name}", body, theme_css,
                        description=excerpt_clean, image_url=img_url,
-                       canonical_url=canonical, schema_json=schema, theme=theme, slug=slug)
+                       canonical_url=canonical, schema_json=schema, theme=theme, slug=slug, brand_config=brand_config)
 
 
 # ─── STATIC PAGES ────────────────────────────────────────────────────
@@ -767,7 +835,8 @@ def generate_static_page(slug: str, blog_info: dict, page_title: str, content_ht
     blog_name = blog_info.get("name", "O Reino")
     blog_niche = blog_info.get("nicho", "")
     theme_css = _PAGE_STYLES
-    body = f"""{_get_header_html(slug, blog_name, blog_niche)}
+    theme_css, brand_config = _apply_brand_overrides(blog_info, theme_css)
+    body = f"""{_get_header_html(slug, blog_name, blog_niche, brand_config=brand_config)}
 <main class="blog-content">
   <div class="static-page">
     <a href="/blog/{slug}" class="back-link">&larr; Voltar ao Blog</a>
@@ -776,10 +845,10 @@ def generate_static_page(slug: str, blog_info: dict, page_title: str, content_ht
     {content_html}
   </div>
 </main>
-{_get_footer_html(slug, blog_name, blog_niche)}
+{_get_footer_html(slug, blog_name, blog_niche, brand_config=brand_config)}
 {_SCROLL_OBSERVER_JS}"""
     full_title = f"{page_title} &mdash; {blog_name}"
-    return _page_frame(full_title, body, theme_css, theme=detect_theme(blog_niche), slug=slug)
+    return _page_frame(full_title, body, theme_css, theme=detect_theme(blog_niche), slug=slug, brand_config=brand_config)
 
 
 def generate_privacy_page(slug: str, blog_info: dict) -> str:

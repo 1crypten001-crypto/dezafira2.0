@@ -622,6 +622,22 @@ class BlogMacroPipeline:
             import re
             subdomain = re.sub(r'[^a-z0-9-]', '', blog_name.lower().replace(' ', '-'))[:20]
             
+            # Gerar branding personalizado via Seu Design
+            self._update_macro(sid, "active", 25, "🎨 Agente Seu Design criando branding e identidade visual exclusiva...")
+            brand_config_str = None
+            try:
+                from modules.brand_designer import BrandingDesignerAgent
+                designer = BrandingDesignerAgent()
+                brand_config = await designer.generate_branding(
+                    blog_name=blog_name,
+                    niche=niche,
+                    is_affiliate=getattr(self.state, "is_affiliate", False)
+                )
+                import json
+                brand_config_str = json.dumps(brand_config)
+            except Exception as e_brand:
+                print(f"[Pipeline] Erro ao gerar branding: {e_brand}")
+            
             channel = create_db_blog_channel(
                 name=blog_name,
                 nicho=niche,
@@ -630,6 +646,7 @@ class BlogMacroPipeline:
                 subdomain=subdomain,
                 is_affiliate=getattr(self.state, "is_affiliate", False),
                 is_discover=getattr(self.state, "is_discover", False),
+                brand_config=brand_config_str,
             )
             self.state.channel_id = channel["id"]
 
@@ -1755,11 +1772,17 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
             from modules.image_factory import ImageGeneratorAgent
             img_agent = ImageGeneratorAgent()
             # A cascata já é garantida — nunca retorna None
-            img_res = await img_agent.generate_image_for_post(
-                prompt_idea=title,
-                niche=nicho,
-                post_id=post_id
-            )
+            # Modo Discover: capa panorâmica 16:9 (1200x675) + prompt viral de choque/curiosidade
+            if blog_info and bool(blog_info.get("is_discover", False)):
+                img_res = await img_agent.generate_for_article(
+                    title=title, keywords=kw_string, topic=topic, is_discover=True
+                )
+            else:
+                img_res = await img_agent.generate_image_for_post(
+                    prompt_idea=title,
+                    niche=nicho,
+                    post_id=post_id
+                )
             featured_image_url = img_res["image_url"]
             image_provider = img_res.get("provider", "placeholder")
             provider_label = {
@@ -1778,7 +1801,8 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
             print(f"[Pipeline] Cascata de imagem falhou ({e_img}). Gerando SVG local como backstop.")
             from modules.image_factory import ImageGeneratorAgent
             fallback_agent = ImageGeneratorAgent()
-            svg_url = fallback_agent._generate_svg_placeholder(title, 1200, 630)
+            _is_disc = bool(blog_info and blog_info.get("is_discover", False))
+            svg_url = fallback_agent._generate_svg_placeholder(title, 1200, 675 if _is_disc else 630)
             featured_image_url = svg_url
             image_provider = "placeholder"
             update_db_blog_post(post_id, featured_image_url=svg_url, image_provider="placeholder")

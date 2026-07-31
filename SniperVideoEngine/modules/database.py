@@ -172,6 +172,9 @@ class BlogChannel(Base):
     
     # Estratégia Google Discover
     is_discover = Column(Boolean, default=False)
+    
+    # Configuração de branding customizada (JSON em formato string)
+    brand_config = Column(Text, nullable=True)
 
 
 class BlogPost(Base):
@@ -475,6 +478,7 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_refresh_token VARCHAR(1000);", "blog_channels.mercadolivre_refresh_token")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_token_expires TIMESTAMP;", "blog_channels.mercadolivre_token_expires")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS is_discover BOOLEAN DEFAULT FALSE;", "blog_channels.is_discover")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS brand_config TEXT;", "blog_channels.brand_config")
 
 
 except Exception as table_err:
@@ -850,7 +854,8 @@ def update_db_app_payment(transaction_id: str, status: str):
 
 def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wordpress",
                            site_url: str = "", api_endpoint: str = "", api_token: str = "",
-                           subdomain: str = "", is_affiliate: bool = False, is_discover: bool = False) -> dict:
+                           subdomain: str = "", is_affiliate: bool = False, is_discover: bool = False,
+                           brand_config: str = None) -> dict:
     db = SessionLocal()
     try:
         # Auto-generate subdomain from name if not provided
@@ -876,6 +881,7 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             status="active",
             is_affiliate=is_affiliate,
             is_discover=is_discover,
+            brand_config=brand_config,
         )
         db.add(new_chan)
         db.commit()
@@ -909,6 +915,8 @@ def get_db_blog_channels() -> list:
                 "frequency": c.frequency,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
                 "is_affiliate": c.is_affiliate,
+                "is_discover": getattr(c, "is_discover", False),
+                "brand_config": getattr(c, "brand_config", None),
                 "affiliate_providers": c.affiliate_providers,
                 "amazon_tag": c.amazon_tag,
                 "amazon_key": c.amazon_key,
@@ -1135,6 +1143,9 @@ def get_db_blog_channel(channel_id: str) -> dict:
                 "app_password": c.app_password,
                 "status": c.status,
                 "frequency": c.frequency,
+                "is_affiliate": getattr(c, "is_affiliate", False),
+                "is_discover": getattr(c, "is_discover", False),
+                "brand_config": getattr(c, "brand_config", None),
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
         return None
@@ -1169,6 +1180,8 @@ def get_db_blog_info(slug: str) -> dict:
                     "post_count": post_count,
                     "created_at": c.created_at.isoformat() if c.created_at else None,
                     "is_affiliate": c.is_affiliate,
+                    "is_discover": getattr(c, "is_discover", False),
+                    "brand_config": getattr(c, "brand_config", None),
                     "affiliate_providers": c.affiliate_providers,
                     "amazon_tag": c.amazon_tag,
                     "amazon_key": c.amazon_key,
