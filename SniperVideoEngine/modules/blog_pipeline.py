@@ -608,6 +608,24 @@ class BlogMacroPipeline:
                     self._update_macro(sid, "active", 20, msg)
                     self.state.channel_id = dupe[0]["id"]
                     # Pular criacao, usar existente
+                    # Se o canal existente nao tiver brand_config, gerar e salvar retroativamente
+                    if not dupe[0].get("brand_config"):
+                        self._update_macro(sid, "active", 22, "🎨 Canal existente sem branding. Seu Design gerando identidade visual...")
+                        try:
+                            from modules.brand_designer import BrandingDesignerAgent
+                            designer = BrandingDesignerAgent()
+                            brand_config = await designer.generate_branding(
+                                blog_name=blog_name,
+                                niche=niche,
+                                is_affiliate=getattr(self.state, "is_affiliate", False)
+                            )
+                            import json
+                            brand_config_str = json.dumps(brand_config)
+                            update_db_blog_channel(dupe[0]["id"], brand_config=brand_config_str)
+                            print(f"[Pipeline] Branding gerado com sucesso para blog existente: {blog_name}")
+                        except Exception as e_brand:
+                            print(f"[Pipeline] Erro ao gerar branding para canal existente: {e_brand}")
+
                     self._update_macro(sid, "completed", 100,
                         f"✅ Blog '{blog_name}' ja existia. Usando canal: {dupe[0]['id'][:12]}...")
                     return  # Sai da fase - blog ja existe
