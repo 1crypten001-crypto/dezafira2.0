@@ -353,74 +353,50 @@ class CourseQuiz(Base):
 
 
 # Criar tabelas se não existirem com tratamento de erro
+def _migrate_add_column(conn, sql, label):
+    """Adiciona coluna de forma idempotente (ADD COLUMN IF NOT EXISTS).
+    Em qualquer falha faz rollback para nao abortar a transacao do
+    PostgreSQL (transacao abortada derruba todos os ALTERs seguintes)
+    e tenta fallback sem IF NOT EXISTS para SQLite antigo."""
+    try:
+        conn.execute(text(sql))
+        conn.commit()
+        print(f"[Database] Migration OK: {label}")
+        return True
+    except Exception as e1:
+        conn.rollback()
+        if "IF NOT EXISTS" in sql:
+            try:
+                conn.execute(text(sql.replace("ADD COLUMN IF NOT EXISTS", "ADD COLUMN")))
+                conn.commit()
+                print(f"[Database] Migration OK (fallback): {label}")
+                return True
+            except Exception as e2:
+                conn.rollback()
+                # Ambos os caminhos falharam: registrar para que drift real nunca
+                # fique invisivel (coluna/ tabela inexistente ou nome errado).
+                print(f"[Database] Migration FAILED: {label} (primary={e1} / fallback={e2})")
+        else:
+            print(f"[Database] Migration FAILED: {label}: {e1}")
+        return False
+
+
 try:
     Base.metadata.create_all(bind=engine)
-    
-    # Migrations manuais
+
+    # Migrations manuais — idempotentes e a prova de falhas
     with engine.connect() as conn:
-        # approval_status na tabela predictions
-        try:
-            conn.execute(text("ALTER TABLE predictions ADD COLUMN approval_status VARCHAR(30) DEFAULT 'pending';"))
-            conn.commit()
-            print("[Database] Coluna approval_status adicionada na tabela predictions.")
-        except Exception:
-            pass
-        
-        # channel_knowledge — se a migration falhar, a tabela já existe via create_all
-        try:
-            conn.execute(text("ALTER TABLE automation_tasks ADD COLUMN video_url VARCHAR(500);"))
-            conn.commit()
-        except Exception:
-            pass
-        
-        # banner_url na tabela blog_channels
-        try:
-            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN banner_url VARCHAR(1000);"))
-            conn.commit()
-            print("[Database] Coluna banner_url adicionada na tabela blog_channels.")
-        except Exception:
-            pass
-            
-        # subdomain na tabela blog_channels
-        try:
-            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN subdomain VARCHAR(100);"))
-            conn.commit()
-            print("[Database] Coluna subdomain adicionada na tabela blog_channels.")
-        except Exception:
-            pass
+        _migrate_add_column(conn, "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30) DEFAULT 'pending';", "predictions.approval_status")
+        _migrate_add_column(conn, "ALTER TABLE automation_tasks ADD COLUMN IF NOT EXISTS video_url VARCHAR(500);", "automation_tasks.video_url")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS banner_url VARCHAR(1000);", "blog_channels.banner_url")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS subdomain VARCHAR(100);", "blog_channels.subdomain")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;", "blog_channels.updated_at")
+        # blog_posts — colunas que podem faltar em bancos criados antes do model atual
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS image_provider VARCHAR(100);", "blog_posts.image_provider")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS author VARCHAR(200) DEFAULT 'Equipe Dezafira';", "blog_posts.author")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;", "blog_posts.updated_at")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP;", "blog_posts.published_at")
 
-        # image_provider na tabela blog_posts
-        try:
-            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN image_provider VARCHAR(100);"))
-            conn.commit()
-            print("[Database] Coluna image_provider adicionada na tabela blog_posts.")
-        except Exception:
-            pass
-
-        # author na tabela blog_posts
-        try:
-            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN author VARCHAR(200) DEFAULT 'Equipe Dezafira';"))
-            conn.commit()
-            print("[Database] Coluna author adicionada na tabela blog_posts.")
-        except Exception:
-            pass
-
-        # updated_at na tabela blog_posts
-        try:
-            conn.execute(text("ALTER TABLE blog_posts ADD COLUMN updated_at TIMESTAMP;"))
-            conn.commit()
-            print("[Database] Coluna updated_at adicionada na tabela blog_posts.")
-        except Exception:
-            pass
-
-        # updated_at na tabela blog_channels
-        try:
-            conn.execute(text("ALTER TABLE blog_channels ADD COLUMN updated_at TIMESTAMP;"))
-            conn.commit()
-            print("[Database] Coluna updated_at adicionada na tabela blog_channels.")
-        except Exception:
-            pass
-            
 except Exception as table_err:
     print(f"[Database]  Falha ao criar tabelas no banco original: {str(table_err)}")
     print("[Database] Recaindo para banco em memória (sqlite:///:memory:) para tabelas")

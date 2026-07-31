@@ -725,6 +725,7 @@ async def blog_factory_dashboard():
                     "status": p.status, "word_count": p.word_count or 0,
                     "featured_image_url": p.featured_image_url,
                     "channel_id": p.channel_id,
+                    "image_provider": p.image_provider,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
                 } for p in posts],
             },
@@ -1016,69 +1017,6 @@ async def rag_index():
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD — Fábrica de Blogs (com Books + Courses)
 # ═══════════════════════════════════════════════════════════════════════════════
-
-@app.get("/api/v1/factory/dashboard")
-async def blog_factory_dashboard():
-    """Dashboard consolidado com metricas de todas as fabricas."""
-    from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course
-    from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
-    from sqlalchemy import func
-
-    db = SessionLocal()
-    try:
-        channels = db.query(BlogChannel).order_by(BlogChannel.created_at.desc()).all()
-        posts = db.query(BlogPost).order_by(BlogPost.created_at.desc()).limit(10).all()
-        total_posts = db.query(BlogPost).count()
-        published = db.query(BlogPost).filter(BlogPost.status == "published").count()
-        drafts = db.query(BlogPost).filter(BlogPost.status == "draft").count()
-        total_words = db.query(func.coalesce(func.sum(BlogPost.word_count), 0)).scalar()
-        books_count = db.query(Book).count()
-        courses_count = db.query(Course).count()
-        return {
-            "channels": {
-                "total": len(channels),
-                "active": len([c for c in channels if c.status == "active"]),
-                "list": [{
-                    "id": c.id, "name": c.name, "nicho": c.nicho,
-                    "lang": c.lang, "platform": c.platform,
-                    "site_url": c.site_url, "status": c.status,
-                    "post_count": db.query(BlogPost).filter(BlogPost.channel_id == c.id).count(),
-                    "published_count": db.query(BlogPost).filter(
-                        BlogPost.channel_id == c.id, BlogPost.status == "published"
-                    ).count(),
-                    "posts_with_images": db.query(BlogPost).filter(
-                        BlogPost.channel_id == c.id,
-                        BlogPost.featured_image_url.isnot(None)
-                    ).count(),
-                    "posts_without_images": db.query(BlogPost).filter(
-                        BlogPost.channel_id == c.id,
-                        BlogPost.featured_image_url.is_(None)
-                    ).count(),
-                    "brand_primary": detect_theme(c.nicho)["colors"]["primary"] if c.nicho else "#6366f1",
-                    "brand_secondary": detect_theme(c.nicho)["colors"]["accent"] if c.nicho else "#8b5cf6",
-                    "logo_svg": get_logo_svg(c.nicho) if c.nicho else "",
-                    "favicon_svg": get_favicon_svg(c.nicho) if c.nicho else "",
-                } for c in channels],
-            },
-            "posts": {
-                "total": total_posts,
-                "published": published,
-                "drafts": drafts,
-                "total_words": total_words or 0,
-                "recent": [{
-                    "id": p.id, "title": p.title, "slug": p.slug,
-                    "status": p.status, "word_count": p.word_count or 0,
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                } for p in posts],
-            },
-            "keywords": {"total": 0, "easy": 0, "groups": []},
-            "scheduler": {"running": True, "jobs": [], "job_count": 0},
-            "books_count": books_count,
-            "courses_count": courses_count,
-        }
-    finally:
-        db.close()
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BLOG SEED — Dados de demonstração
