@@ -2407,8 +2407,8 @@ async def get_blog_factory_status(task_id: str):
 @app.post("/api/v1/blog/generate-article-hype")
 async def generate_article_hype_endpoint(payload: dict, background_tasks: BackgroundTasks):
     """
-    Minera tendências no Google para o nicho do blog, define um tema original
-    e dispara a esteira de criação do artigo em segundo plano.
+    Inicia a esteira de criação do artigo em segundo plano, minerando as tendências
+    do Google Hype ativamente no primeiro estágio do pipeline.
     """
     channel_id = payload.get("channel_id", "")
     if not channel_id:
@@ -2428,34 +2428,29 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
     if not nicho:
         return {"error": "Nicho do blog não configurado"}
 
-    from modules.blog_pipeline import mine_google_hype, run_blog_pipeline as _run_pipeline
+    from modules.blog_pipeline import run_blog_pipeline as _run_pipeline
     import uuid
     import asyncio
     
-    # 1. Minera o hype no Google Search/Autocomplete e gera o tema
-    try:
-        pauta = await mine_google_hype(nicho)
-        topic = pauta["topic"]
-        keywords = pauta["keywords"]
-    except Exception as e:
-        print(f"[HypeEndpoint] Erro ao minerar hype: {e}")
-        topic = f"Novidades e Tendências em {nicho}"
-        keywords = nicho
-
     task_id = f"blg_{uuid.uuid4().hex[:8]}"
+    initial_topic = f"Minerando tendências em {nicho}..."
 
-    # 2. Armazena estado inicial para consulta via GET
+    # 1. Armazena estado inicial para consulta via GET
     _macro_results[task_id] = {
-        "status": "starting", "topic": topic, "channel_id": channel_id,
-        "phase": "minerando_hype", "progress": 5, "data": None
+        "status": "starting", "topic": initial_topic, "channel_id": channel_id,
+        "phase": "Pesquisando Hype", "progress": 5, "data": None
     }
 
-    # 3. Função ws que atualiza progresso
-    async def _run_with_ws(tid, top, ch, lang, keywords_str):
+    # 2. Orquestração ws que atualiza progresso dinamicamente com o novo título descoberto
+    async def _run_with_ws(tid, top, ch, lang):
         hub = _ws_hub
+        current_topic = top
         def on_progress(pid, stage_id, progress, message, data):
+            nonlocal current_topic
+            if data and data.get("topic"):
+                current_topic = data["topic"]
             _macro_results[pid] = {
-                "status": "active", "topic": top, "channel_id": ch,
+                "status": "active", "topic": current_topic, "channel_id": ch,
                 "phase": message or stage_id, "progress": progress, "data": data
             }
             if stage_id == "__broadcast__":
@@ -2471,17 +2466,18 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
                     "task_id": pid, "stage_id": stage_id,
                     "progress": progress, "message": message,
                     "status": "completed" if progress >= 100 else "active",
-                    "data": data,
+                    "data": {**(data or {}), "topic": current_topic},
                 }))
             except Exception:
                 pass
         try:
             result = await _run_pipeline(
-                topic=top, channel_id=ch, language=lang, task_id=tid, 
-                on_progress=on_progress, auto_schedule=True
+                topic=current_topic, channel_id=ch, language=lang, task_id=tid, 
+                on_progress=on_progress, auto_schedule=True, mine_hype=True
             )
+            final_topic = result.get("topic", current_topic)
             _macro_results[tid] = {
-                "status": "completed", "topic": top, "channel_id": ch,
+                "status": "completed", "topic": final_topic, "channel_id": ch,
                 "phase": "concluido", "progress": 100, "data": result
             }
             try:
@@ -2491,16 +2487,16 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
                 pass
         except Exception as e:
             _macro_results[tid] = {
-                "status": "failed", "topic": top, "channel_id": ch,
+                "status": "failed", "topic": current_topic, "channel_id": ch,
                 "phase": "erro", "progress": 0, "error": str(e)
             }
 
-    background_tasks.add_task(_run_with_ws, task_id, topic, channel_id, "pt", keywords)
+    background_tasks.add_task(_run_with_ws, task_id, initial_topic, channel_id, "pt")
     return {
         "task_id": task_id, 
-        "topic": topic, 
+        "topic": initial_topic, 
         "status": "starting",
-        "message": f"Tendência detectada: '{topic}'. Esteira de redação iniciada!",
+        "message": "Esteira do Google Hype iniciada no background!",
     }
 
 

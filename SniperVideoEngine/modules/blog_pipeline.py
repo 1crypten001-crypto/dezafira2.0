@@ -1373,16 +1373,17 @@ ACTIVE_PIPELINE_TASKS = {}
 
 async def run_blog_pipeline(topic: str, channel_id: str = "default", language: str = "pt",
                             task_id: str = None, on_progress: callable = None,
-                            auto_schedule: bool = True) -> dict:
+                            auto_schedule: bool = True, mine_hype: bool = False) -> dict:
     """
     Mini pipeline: gera um artigo individual.
-    Usado pelo endpoint POST /api/v1/pipeline/run-blog.
+    Usado pelo endpoint POST /api/v1/pipeline/run-blog e pela esteira do Hype.
     Delega para a macro pipeline com target_articles=1 e executa so a fase 3.
     """
     import uuid
     task_id = task_id or f"blg_{uuid.uuid4().hex[:8]}"
     from modules.blog_writer import write
     from modules.seo_optimizer import build_schema_article, generate_schema_html, build_meta_tags
+    from modules.database import get_db_blog_channel, update_db_blog_post
 
     result = {
         "task_id": task_id,
@@ -1424,53 +1425,100 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
             on_progress(task_id, sid, progress, msg, data or {})
 
     try:
-        # Fase 1: Keywords
-        emit("keyword_miner", "active", 10, "Pesquisando keywords...")
+        nicho = "Finanças"
+        blog_info = get_db_blog_channel(channel_id)
+        if blog_info:
+            nicho = blog_info.get("nicho", "Finanças")
+
+        # Fase 1: Mineração de Hype & Keywords
         kw_string = topic
+        if mine_hype:
+            emit("keyword_miner", "active", 10, "Buscando tendências quentes no Google...")
+            try:
+                from modules.blog_pipeline import mine_google_hype
+                pauta = await mine_google_hype(nicho, language)
+                topic = pauta["topic"]
+                kw_string = pauta["keywords"]
+                result["topic"] = topic
+                emit("keyword_miner", "active", 50, f"Tendência: {topic}", {"topic": topic})
+            except Exception as e_hype:
+                print(f"[Pipeline] Erro ao minerar hype: {e_hype}")
+                emit("keyword_miner", "active", 50, f"Pesquisando termos em alta para {nicho}")
+        else:
+            emit("keyword_miner", "active", 30, "Pesquisando keywords de apoio...")
+
         try:
             from modules.keyword_miner import research_keywords
             kw_res = await research_keywords(topic, lang=language, max_results=15, use_obscura=True)
-            kw_string = kw_res.get("keyword_string", topic)
+            kw_string = kw_res.get("keyword_string", kw_string)
         except Exception as e_kw:
             print(f"[Pipeline] KeywordMiner: erro: {e_kw}")
-        emit("keyword_miner", "completed", 100, "Keywords ok", {"keyword_string": kw_string})
+            
+        emit("keyword_miner", "completed", 100, f"Pauta definida: {topic}", {"keyword_string": kw_string})
 
-        # Fase 2: Escrever artigo
-        emit("blog_writer", "active", 10, "Gerando artigo via LLM...")
+        # Fase 2: Escrever artigo (mínimo 1.200 a 2.000 palavras)
+        emit("blog_writer", "active", 10, "Carlão redigindo o artigo (1.200 a 2.000 palavras)...")
         article = await write(topic=topic, channel_id=channel_id, language=language,
-                              target_words=1200, keywords=kw_string)
+                              target_words=1500, keywords=kw_string)
         post_id = article.get("post_id")
         title = article.get("title", topic)
         article_data = article.get("article", {})
-        emit("blog_writer", "completed", 100, f"Artigo: {title}", article_data)
+        emit("blog_writer", "completed", 100, f"Escrito por Carlão: {title}", article_data)
 
-        # Fase 3: SEO
-        emit("seo_optimizer", "active", 20, "Otimizando SEO...")
+        # Fase 3: SEO & Injeção de Tags
+        emit("seo_optimizer", "active", 20, "Otimizando SEO do post...")
         try:
             schema = build_schema_article(title=title, description=article_data.get("excerpt", ""), keywords=kw_string)
             schema_html = generate_schema_html(schema)
             meta_tags = build_meta_tags(title=title, description=article_data.get("excerpt", ""), keywords=kw_string)
-            emit("seo_optimizer", "completed", 100, "SEO otimizado")
+            emit("seo_optimizer", "completed", 100, "SEO e Tags prontos")
         except Exception:
-            emit("seo_optimizer", "completed", 100, "SEO basico")
+            emit("seo_optimizer", "completed", 100, "SEO básico configurado")
 
-        # Fase 4: Publicar
-        emit("publish", "active", 20, "Publicando...")
+        # Fase 4: Geração Obrigatória de Imagem & Publicação
+        emit("publish", "active", 10, "Tatiana gerando imagem de destaque...")
+        featured_image_url = None
         if post_id:
+            try:
+                from modules.image_factory import ImageGeneratorAgent
+                img_agent = ImageGeneratorAgent()
+                img_res = await img_agent.generate_image_for_post(
+                    prompt_idea=title,
+                    niche=nicho,
+                    post_id=post_id
+                )
+                if img_res and img_res.get("image_url"):
+                    featured_image_url = img_res["image_url"]
+                    update_db_blog_post(post_id, featured_image_url=featured_image_url)
+                    emit("publish", "active", 50, "Imagem gerada com sucesso!")
+                else:
+                    raise Exception("Sem URL de retorno do provedor")
+            except Exception as e_img:
+                print(f"[Pipeline] Falha ao gerar imagem por IA: {e_img}. Tentando fallback...")
+                # Fallback Pexels/SVG
+                try:
+                    from modules.ricardo import gerar_imagens_pendentes
+                    await gerar_imagens_pendentes(channel_id=channel_id)
+                    emit("publish", "active", 70, "Imagem de fallback adicionada!")
+                except Exception as e_fall:
+                    print(f"[Pipeline] Falha no fallback de imagem: {e_fall}")
+            
+            # Garante que o post está publicado no final
             from modules.database import update_db_blog_post_status
             update_db_blog_post_status(post_id, "published")
-        emit("publish", "completed", 100, "Artigo publicado!", {"post_id": post_id})
+            
+        emit("publish", "completed", 100, "Artigo e imagens publicados!", {"post_id": post_id, "featured_image_url": featured_image_url})
 
-        # Fase 5: Agendar
+        # Fase 5: Agendamento & Indexação
         if auto_schedule:
-            emit("schedule", "active", 30, "Configurando agendamento...")
+            emit("schedule", "active", 30, "Configurando agendamento da esteira...")
             try:
                 from modules.scheduler import add_daily_job, start
                 add_daily_job(f"blg_{channel_id}_{datetime.utcnow():%Y%m%d}", seed=topic, channel_id=channel_id or "default", hour=8, minute=0, publish=True, index=True)
                 start()
             except Exception as e_sched:
                 print(f"[Pipeline] Schedule: erro ao agendar: {e_sched}")
-        emit("schedule", "completed", 100, "Concluido!")
+        emit("schedule", "completed", 100, "Esteira concluída com sucesso!")
 
         result["status"] = "completed"
         result["completed_at"] = datetime.utcnow().isoformat()

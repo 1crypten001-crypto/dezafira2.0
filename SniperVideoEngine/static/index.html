@@ -712,7 +712,6 @@ function switchBlogTab(channelId){
 var activeMonitors = {};
 
 async function generateForBlogHype(channelId, niche) {
-async function generateForBlogHype(channelId, niche) {
   showToast("Minerando tendências no Google para " + niche + "...");
   try {
     var res = await api("/api/v1/blog/generate-article-hype", {
@@ -1012,6 +1011,13 @@ function handleWsMessage(msg){
   if(t==="pipeline_progress"){
     var sid=d.stage_id||"",prog=d.progress||0,m=d.message||"",st=d.status||"active";
     if(!sid)return;
+    
+    // Atualiza o título do artigo em andamento na tela se ele for descoberto dinamicamente
+    if (d && d.topic) {
+      ms.topic = d.topic;
+      var titleEl = $("macroCurrentTitle");
+      if (titleEl) titleEl.textContent = d.topic;
+    }
     
     // Mapeia estágios do pipeline de post individual para os agentes da esteira do blog:
     var stageMapping = {
