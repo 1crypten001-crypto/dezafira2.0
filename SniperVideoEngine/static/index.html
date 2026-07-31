@@ -653,6 +653,8 @@ async function loadDashboard(){
   var panelsHtml=chs.map(function(c,i){
     var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
     var blogUrl=c.site_url||blogSlug(c.name);
+    var pri=c.brand_primary||'#6366f1';
+    var init=(c.name||'B')[0];
     var subTxt=c.subdomain?'<span>🌐 <a href="https://'+c.subdomain+'.dezafira.com.br" target="_blank" style="color:#a5b4fc">'+c.subdomain+'.dezafira.com.br</a></span>':'';
     var withImgC=c.posts_with_images||0;
     var withoutImgC=c.posts_without_images||0;
