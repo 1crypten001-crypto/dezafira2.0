@@ -2,7 +2,7 @@
 
 > **Versão:** 4.2
 > **Data:** 2026-07-31
-> **Status:** Fábrica de Blogs em produção com 77 artigos, 2 blogs, 100% imagens, Google Hype Engine e Split Hero UX
+> **Status:** Fábrica de Blogs em produção com 89 artigos, 2 blogs, 100% imagens, Google Hype Engine e Split Hero UX
 > **Produção:** https://dezafira.com.br
 
 ---
@@ -13,11 +13,11 @@ Dezafira é um ecossistema de automação de conteúdo digital com foco atual na
 
 | # | Fábrica | Motor | Status |
 |---|---------|-------|--------|
-| 1 | 📝 **Fábrica de Blogs** | Macro-esteira 5 estágios + LLM cascade | ✅ Produção (77 artigos) |
+| 1 | 📝 **Fábrica de Blogs** | Macro-esteira 5 estágios + LLM cascade | ✅ Produção (89 artigos) |
 | 2 | 📗 **Fábrica de Livros** | BookWriterAgent (LLM) | ⏳ Em espera |
 | 3 | 🎓 **Fábrica de Cursos** | CourseWriterAgent (LLM) | ⏳ Em espera |
 | 4 | 🎨 **Fábrica de Imagens** | Pexels API + SVG fallback | ✅ Produção |
-| — | 👴 **Seu Pereira** | Analista de Monetização AdSense | ✅ Ativo (68.4%) |
+| — | 👴 **Seu Pereira** | Analista de Monetização AdSense | ✅ Ativo (88.7%) |
 
 ### Restrições de Infraestrutura
 - **Plataforma:** Railway (Docker containers) / Local (Windows/Linux)
@@ -33,9 +33,9 @@ Dezafira é um ecossistema de automação de conteúdo digital com foco atual na
 
 | Blog | Nicho | Artigos | C/Imagem | Publicados | Score LiLi | URL |
 |------|-------|---------|----------|------------|------------|-----|
-| ✝️ O Reino | Ensinamentos de Jesus | 37 | 37 (100%) | 37 | 98.9/100 | /blog/o-reino |
-| 💰 Vida Financeira | Finanças, Investimentos | 40 | 40 (100%) | 30 | 99.2/100 | /blog/vida-financeira |
-| **Total** | | **77** | **77 (100%)** | **67** | **99.1/100** | |
+| ✝️ O Reino | Ensinamentos de Jesus | 41 | 41 (100%) | 39 | 98.9/100 | /blog/o-reino |
+| 💰 Vida Financeira | Finanças, Investimentos | 48 | 48 (100%) | 37 | 99.2/100 | /blog/vida-financeira |
+| **Total** | | **89** | **89 (100%)** | **76** | **99.1/100** | |
 
 ### 2.2 Temas Visuais
 
@@ -48,9 +48,9 @@ Cada blog tem identidade visual própria via `brand_themes.py`:
 
 ### 2.3 Seu Pereira — Score Atual
 
-**68.4% (13/19)** — Critérios atendidos: domínio próprio ✅, SSL ✅, 20+ artigos ✅, 800+ palavras ✅, imagens 100% ✅.
+**88.7% (17/18)** — Status: **✅ Pronto para solicitar o AdSense!** (118/133 pontos, avaliado em 31/07/2026).
 
-**Pendentes:** Google Search Console, Indexação Google.
+**Pendente:** apenas 1 critério (Google Search Console / Indexação).
 
 ---
 
@@ -146,12 +146,12 @@ class BlogSubdomain(Base):
 
 **Arquivo:** `modules/seu_pereira.py`
 
-### 4.1 Critérios de Avaliação (19)
+### 4.1 Critérios de Avaliação (19 definidos / 18 avaliados — seo_indexed aguarda GSC)
 
 | ID | Categoria | Critério | Peso | Status Atual |
 |----|-----------|----------|------|-------------|
-| content_articles_count | 📝 Conteúdo | 20+ artigos publicados | 8 | ✅ 77 artigos |
-| content_word_count | 📝 Conteúdo | 800+ palavras por artigo | 8 | ✅ Média 2.400 |
+| content_articles_count | 📝 Conteúdo | 20+ artigos publicados | 8 | ✅ 89 artigos |
+| content_word_count | 📝 Conteúdo | 800+ palavras por artigo | 8 | ✅ Média 2.238 |
 | content_images | 📝 Conteúdo | Imagens em todos os artigos | 5 | ✅ 100% |
 | content_originality | 📝 Conteúdo | Conteúdo 100% original | 10 | ✅ |
 | content_niche_allowed | 📝 Conteúdo | Nicho permitido pelo AdSense | 10 | ✅ |
@@ -163,14 +163,14 @@ class BlogSubdomain(Base):
 | design_speed | 🎨 Design & UX | Velocidade de carregamento | 6 | ✅ |
 | tech_domain | 🔧 Técnico | Domínio próprio | 9 | ✅ dezafira.com.br |
 | tech_ssl | 🔧 Técnico | SSL/HTTPS ativo | 8 | ✅ Railway |
-| tech_search_console | 🔧 Técnico | Google Search Console | 7 | ❌ Pendente |
+| tech_search_console | 🔧 Técnico | Google Search Console | 7 | ❌ Único pendente |
 | tech_robots_txt | 🔧 Técnico | robots.txt | 4 | ✅ |
 | tech_ads_txt | 🔧 Técnico | ads.txt | 5 | ✅ |
-| seo_indexed | 🔍 Indexação | Páginas indexadas | 8 | ❌ Pendente |
+| seo_indexed | 🔍 Indexação | Páginas indexadas | 8 | ⏳ Dependente do GSC |
 | seo_sitemap | 🔍 Indexação | Sitemap XML | 5 | ✅ |
 | authority_eeat | 🏛️ Autoridade | E-E-A-T | 6 | ✅ |
 
-**Score atual:** 68.4% (13/19)
+**Score atual:** 88.7% (17/18) — ✅ Pronto para solicitar o AdSense (118/133)
 
 ---
 
@@ -236,7 +236,7 @@ As instruções de redação são **específicas do nicho** detectado automatica
 
 - Score = 100 - (15 × issues_alta + 5 × issues_media + 2 × issues_baixa)
 - Aprovado se score >= 70 E nenhum issue de severidade 'alta'
-- Score médio real: **99.1/100** (77 artigos revisados)
+- Score médio real: **99.1/100** (89 artigos revisados)
 
 ---
 
@@ -265,7 +265,7 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 | Modelo | Tabela | Descrição | Registros |
 |--------|--------|-----------|-----------|
 | `BlogChannel` | `blog_channels` | Canais de blog | 2 |
-| `BlogPost` | `blog_posts` | Artigos do blog | 77 |
+| `BlogPost` | `blog_posts` | Artigos do blog | 89 |
 | `BlogSection` | `blog_sections` | Seções/micro-nichos | ~12 |
 | `BlogPipelineRun` | `blog_pipeline_runs` | Execuções da esteira | ~20 |
 | `BlogSubdomain` | `blog_subdomains` | Subdomínios dos blogs | 2 |
@@ -278,6 +278,11 @@ Todas servidas como endpoints FastAPI para qualquer blog:
 ## 9. Commits em Produção
 
 ```
+c66620b  fix: dashboard 500 quebrava abas dos blogs na UI admin (migração + image_provider)
+a27aff6  fix: corrige emojis corrompidos (mojibake cp850) na UI admin da esteira
+57dd77d  fix: normaliza codificacao UTF-8, emojis e acentos de esteira
+ec73d25  fix: implementa get_db_blog_pipeline_runs no database.py para resolver erro 500 do historico
+115e6de  fix: corrige SyntaxError JS no postsList
 0a6508f  feat: Google Hype Engine, esteira assíncrona com monitor de progresso na ADM
 2b878b0  feat: Split Hero UX, imagens conceituais de branding geradas por IA por nicho
 f8432b0  feat: Light Mode por padrão, Sumário (TOC) dinâmico e Caixa de Autor (E-E-A-T)
@@ -309,16 +314,16 @@ bab06f4  fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] Instruções de redação específicas por nicho (5 nichos)
 - [x] Tópicos dinâmicos gerados por LLM por nicho
 - [x] Temas visuais por nicho (brand_themes.py)
-- [x] Seu Pereira — 19 critérios de monetização (73.6% - meta de 1.200 a 2.000 palavras por artigo)
+- [x] Seu Pereira — 19 critérios de monetização (88.7% — ✅ Pronto para solicitar o AdSense)
 - [x] LLM Cascade com 5 provedores
 - [x] Blog viewer público com páginas de sistema
 - [x] Dashboard SPA com métricas em tempo real
 - [x] Deploy Railway com PostgreSQL e domínio próprio
-- [x] 77 artigos publicados, 100% com imagem
+- [x] 89 artigos publicados, 100% com imagem
 
 ### 🔜 Próximo (prioridade)
 - [ ] Google Search Console — Verificação de domínio
-- [ ] Indexação Google — Solicitar indexação dos 77 artigos
+- [ ] Indexação Google — Solicitar indexação dos 89 artigos
 - [ ] Google AdSense — Solicitar aprovação
 - [ ] Fábrica de Livros e Cursos — Ativar produção
 - [ ] Página de Vendas 1Convite — Mini App com checkout

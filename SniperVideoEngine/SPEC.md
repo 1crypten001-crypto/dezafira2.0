@@ -4,7 +4,7 @@
 > **Produção:** https://dezafira.com.br  
 > **API:** https://backend-production-f90d.up.railway.app  
 > **Database:** PostgreSQL (Railway)  
-> **Última atualização:** 30/07/2026
+> **Última atualização:** 31/07/2026
 
 ---
 
@@ -18,18 +18,18 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 | Métrica | Valor |
 |---|---|
 | **Canais de Blog** | 2 (O Reino + Vida Financeira) |
-| **Total de Artigos** | ~78+ |
-| **Palavras Geradas** | ~186.000+ |
+| **Total de Artigos** | 89 |
+| **Palavras Geradas** | ~199.000+ |
 | **Artigos com Imagem** | 100% |
 | **Artigos Publicados** | Em andamento |
-| **Score Monetização (O Reino)** | ~68% |
+| **Score Monetização** | 88.7% (17/18) — ✅ Pronto AdSense |
 
 ### Blogs Ativos
 
 | Blog | Nicho | Artigos | Imagens | Subdomínio |
 |---|---|---|---|---|
-| ✝ **O Reino** | Ensinamentos de Jesus | 38 | 100% | oreino |
-| 💰 **Vida Financeira** | Finanças pessoais | 40 | 100% | vida-financeira |
+| ✝ **O Reino** | Ensinamentos de Jesus | 41 | 100% | oreino |
+| 💰 **Vida Financeira** | Finanças pessoais | 48 | 100% | vida-financeira |
 
 ---
 
@@ -379,13 +379,13 @@ Cada blog recebe identidade visual personalizada por nicho:
 
 ## 📋 SEU PEREIRA — CHECKLIST DE MONETIZAÇÃO
 
-### Score Atual: ~68% 🟠
+### Score Atual: 88.7% 🟢 (17/18) — ✅ Pronto para solicitar o AdSense
 
 ### 📝 Conteúdo (5/5 ✅)
 | Item | Peso | Status |
 |------|------|--------|
-| 20+ artigos publicados | 8 | ✅ 38 artigos |
-| 800+ palavras por artigo | 8 | ✅ Média ~1.800 |
+| 20+ artigos publicados | 8 | ✅ 89 artigos |
+| 800+ palavras por artigo | 8 | ✅ Média ~2.238 |
 | Imagens em todos os artigos | 5 | ✅ 100% |
 | Conteúdo 100% original | 10 | ✅ Gerado por IA |
 | Nicho permitido pelo AdSense | 10 | ✅ Religioso/FE |
@@ -404,19 +404,19 @@ Cada blog recebe identidade visual personalizada por nicho:
 | Navegação limpa | 5 | ✅ Com categorias |
 | Velocidade adequada | 6 | ✅ FastAPI + SSR |
 
-### 🔧 Técnico (3/5 ⚠️)
+### 🔧 Técnico (4/5 ✅)
 | Item | Peso | Status |
 |------|------|--------|
 | Domínio próprio | 9 | ✅ dezafira.com.br |
 | SSL/HTTPS | 8 | ✅ Railway auto |
-| Google Search Console | 7 | ❌ Pendente |
+| Google Search Console | 7 | ❌ Único pendente |
 | robots.txt | 4 | ✅ Servido |
 | ads.txt | 5 | ✅ Servido |
 
-### 🔍 Indexação & SEO (0/2 ❌)
+### 🔍 Indexação & SEO (1/2 ⚠️)
 | Item | Peso | Status |
 |------|------|--------|
-| Google indexado | 8 | ❌ Pendente |
+| Google indexado | 8 | ⏳ Dependente do GSC |
 | Sitemap XML | 5 | ✅ Gerado |
 
 ### 🏛️ Autoridade E-E-A-T (1/1 ✅)
@@ -463,8 +463,8 @@ Cada blog recebe identidade visual personalizada por nicho:
 | Métrica | Atual | Meta 30 dias | Meta 90 dias |
 |---------|-------|-------------|--------------|
 | Blogs ativos | 2 | 5 | 15 |
-| Artigos totais | 78 | 300 | 1.500 |
-| Score AdSense | 68% | 85% | 95% |
+| Artigos totais | 89 | 300 | 1.500 |
+| Score AdSense | 88.7% | 95% | 98% |
 | Visitantes/mês | 0 | 1.000 | 50.000 |
 | Receita/mês | R$ 0 | R$ 200 | R$ 5.000 |
 
@@ -522,4 +522,4 @@ TELEGRAM_BOT_TOKEN=...
 
 ---
 
-*Documentação gerada em 30/07/2026 — Dezafira Fábrica de Blogs™*
+*Documentação gerada em 31/07/2026 — Dezafira Fábrica de Blogs™*
