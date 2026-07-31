@@ -169,6 +169,9 @@ class BlogChannel(Base):
     mercadolivre_access_token = Column(String(1000), nullable=True)
     mercadolivre_refresh_token = Column(String(1000), nullable=True)
     mercadolivre_token_expires = Column(DateTime, nullable=True)
+    
+    # Estratégia Google Discover
+    is_discover = Column(Boolean, default=False)
 
 
 class BlogPost(Base):
@@ -471,6 +474,7 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_access_token VARCHAR(1000);", "blog_channels.mercadolivre_access_token")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_refresh_token VARCHAR(1000);", "blog_channels.mercadolivre_refresh_token")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_token_expires TIMESTAMP;", "blog_channels.mercadolivre_token_expires")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS is_discover BOOLEAN DEFAULT FALSE;", "blog_channels.is_discover")
 
 
 except Exception as table_err:
@@ -846,7 +850,7 @@ def update_db_app_payment(transaction_id: str, status: str):
 
 def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wordpress",
                            site_url: str = "", api_endpoint: str = "", api_token: str = "",
-                           subdomain: str = "", is_affiliate: bool = False) -> dict:
+                           subdomain: str = "", is_affiliate: bool = False, is_discover: bool = False) -> dict:
     db = SessionLocal()
     try:
         # Auto-generate subdomain from name if not provided
@@ -871,6 +875,7 @@ def create_db_blog_channel(name: str, nicho: str, lang: str, platform: str = "wo
             api_token=api_token,
             status="active",
             is_affiliate=is_affiliate,
+            is_discover=is_discover,
         )
         db.add(new_chan)
         db.commit()

@@ -173,18 +173,34 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
         ]
     return questions
 
-async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False) -> list:
+async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False, is_discover: bool = False) -> list:
     """
     Gera topicos de artigos variados usando LLM, especificos para o nicho.
     Usa cache para nao regenerar os mesmos topicos.
     """
-    cache_key = f"{niche.lower().strip()}:{language}:aff={is_affiliate}"
+    cache_key = f"{niche.lower().strip()}:{language}:aff={is_affiliate}:disc={is_discover}"
     if cache_key in _TOPICS_CACHE and len(_TOPICS_CACHE[cache_key]) >= count:
         return _TOPICS_CACHE[cache_key][:count]
     
     try:
         from modules.blog_writer import _call_llm
-        if is_affiliate:
+        if is_affiliate and is_discover:
+            prompt = (
+                f"Crie uma lista de {count} pautas virais para um formato de ADVERTORIAL (Notícia Curiosa que vende produto) "
+                f"sobre o nicho: '{niche}'.\n"
+                f"O objetivo é atrair tráfego massivo do Google Discover (Curiosidade, Polêmica, Click-Gap) e vender um produto de afiliado.\n"
+                f"As pautas devem ser manchetes magnéticas e chocantes, mas focadas na resolução de uma dor com um produto.\n"
+                f"Exemplos:\n"
+                f"- 'O segredo bizarro que os mecânicos escondem para arrumar o motor em casa (Custa 20 reais)'\n"
+                f"- 'Por que todo mundo está jogando fora suas panelas velhas e usando isso?'\n"
+                f"Regras:\n"
+                f"- Curiosidade extrema e conexão com e-commerce (Amazon, Shopee).\n"
+                f"- Idioma: {language}\n"
+                f"\n"
+                f"Retorne APENAS a lista numerada, um tópico por linha, sem marcadores extras."
+            )
+            system = f"Você é o Joaquim, um copywriter genial de advertoriais focado no nicho {niche}."
+        elif is_affiliate:
             prompt = (
                 f"Crie uma lista de {count} pautas e tópicos para artigos de blog altamente focados em conversão de AFILIADOS (vendas de produtos físicos ou digitais) "
                 f"sobre o nicho: '{niche}'.\n"
@@ -199,7 +215,24 @@ async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = 
                 f"\n"
                 f"Retorne APENAS a lista numerada, um tópico por linha, sem marcadores extras."
             )
-            system = f"Você é um copywriter de vendas especialista em blogs de afiliados sobre o nicho {niche}."
+            system = f"Você é o Joaquim, um copywriter de vendas especialista em blogs de afiliados sobre o nicho {niche}."
+        elif is_discover:
+            prompt = (
+                f"Crie uma lista de {count} títulos VIRAIS e MAGNÉTICOS para o Google Discover "
+                f"sobre o nicho: '{niche}'.\n"
+                f"A monetização é AdSense, então o foco é no CLIQUE POR CURIOSIDADE.\n"
+                f"As manchetes precisam de 'Click-Gap' forte (provocar curiosidade revelando que falta uma informação).\n"
+                f"Exemplos:\n"
+                f"- 'Cientistas encontram detalhe assustador oculto nessa pintura e tentaram esconder'\n"
+                f"- 'Se você faz isso de manhã, pare agora mesmo (Os médicos alertam)'\n"
+                f"Regras:\n"
+                f"- Foco total em curiosidade absurda, bizarra ou chocante.\n"
+                f"- Nada de 'Guia Prático' ou títulos de SEO normais.\n"
+                f"- Idioma: {language}\n"
+                f"\n"
+                f"Retorne APENAS a lista numerada, um tópico por linha, sem marcadores extras."
+            )
+            system = f"Você é o Joaquim, um redator-chefe de portal de fofocas e curiosidades sobre o nicho {niche}."
         else:
             prompt = (
                 f"Crie uma lista de {count} topicos variados e especificos para artigos de blog "
@@ -853,6 +886,7 @@ class BlogMacroPipeline:
             count=max(target * 2, 30),
             language=self.state.language,
             is_affiliate=is_affiliate,
+            is_discover=getattr(self.state, "is_discover", False),
         )
         self._update_macro(sid, "active", 10,
             f"📋 {len(dynamic_topics)} tópicos gerados para o nicho '{self.state.niche[:30]}...'")
@@ -947,6 +981,7 @@ class BlogMacroPipeline:
                                 title=article_result.get("title", ""),
                                 keywords=article_result.get("keywords", ""),
                                 topic=article_result.get("topic", ""),
+                                is_discover=getattr(self.state, "is_discover", False),
                             )
                             if img.get("image_url"):
                                 update_db_blog_post(post_id, featured_image_url=img["image_url"])

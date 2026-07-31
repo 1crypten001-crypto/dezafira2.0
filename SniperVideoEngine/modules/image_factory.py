@@ -114,11 +114,18 @@ class ImageGeneratorAgent:
     async def generate(self, prompt: str, style: str = "blog", width: int = 1200, height: int = 630) -> dict:
         return await self.generate_image_for_post(prompt_idea=prompt, width=width, height=height)
 
-    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "") -> dict:
+    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "", is_discover: bool = False) -> dict:
         combined = title
         if keywords:
             combined += " " + " ".join(keywords.split(",")[:3])
-        return await self.generate_image_for_post(prompt_idea=combined)
+            
+        width = 1200
+        height = 675 if is_discover else 630
+        
+        if is_discover:
+            combined = f"misterioso, chocante, ultra realista, sem texto, foto jornalística: {combined}"
+            
+        return await self.generate_image_for_post(prompt_idea=combined, width=width, height=height)
 
     # ── PROVEDOR 1: FLUX via Pollinations.ai ────────────────────────────────
 

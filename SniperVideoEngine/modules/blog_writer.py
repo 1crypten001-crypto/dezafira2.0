@@ -486,18 +486,47 @@ async def generate_multipart_article(
     print("[BlogWriter] Etapa 1/5: Planejando estrutura do artigo...")
     
     is_affiliate = False
+    is_discover = False
     from .database import SessionLocal, BlogChannel
     db = SessionLocal()
     try:
         channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
-        if channel and channel.is_affiliate:
-            is_affiliate = True
+        if channel:
+            is_affiliate = getattr(channel, "is_affiliate", False)
+            is_discover = getattr(channel, "is_discover", False)
     except Exception as e_db:
-        print(f"[BlogWriter] Erro ao carregar is_affiliate do banco: {e_db}")
+        print(f"[BlogWriter] Erro ao carregar canal do banco: {e_db}")
     finally:
         db.close()
 
-    if is_affiliate:
+    if is_affiliate and is_discover:
+        outline_system = f"""Você é o Carlão, um redator genial de ADVERTORIAIS disfarçados de notícias.
+
+Crie um PLANO DETALHADO para um advertorial sobre "{topic}". O objetivo é viralizar no Google Discover pela curiosidade bizarra e, em seguida, vender um produto afiliado na conclusão.
+
+Diretrizes:
+- Idioma: {language}
+- Keywords: {keywords if keywords else topic}
+- O artigo terá ~{min(target_words, 1300)} palavras no total.
+- O plano deve começar com um "Gancho Chocante" (Introdução), seguido de "A Verdade Revelada", "A Solução/O Produto" e o "Veredito/Onde Comprar".
+
+Retorne APENAS JSON:
+{{
+  "title": "Título incrivelmente curioso e magnético (Click-Gap) (max 65 chars)",
+  "slug": "url-friendly-slug",
+  "meta_description": "Meta descrição chocante para fisgar o leitor (max 160 chars)",
+  "keywords": "keyword1, keyword2",
+  "excerpt": "Resumo chamativo (max 200 chars)",
+  "sections": [
+    {{
+      "h2": "Título da Seção 1 (Gancho)",
+      "description": "O que esta seção vai cobrir",
+      "target_words": {max(200, target_words // 4)}
+    }}
+  ]
+}}
+Gera de 3 a 4 seções dependendo da pauta."""
+    elif is_affiliate:
         outline_system = f"""Você é um copywriter de vendas especialista em blogs de afiliados, avaliações de produtos e comparativos.
 
 Crie um PLANO DETALHADO para um artigo comercial (Review de produto, Comparativo de produtos ou Guia de compra/Lista) sobre "{topic}".
@@ -530,6 +559,33 @@ Retorne APENAS JSON:
   ]
 }}
 Gera de 3 a 5 seções comerciais dependendo da pauta."""
+    elif is_discover:
+        outline_system = f"""Você é o Carlão, um redator-chefe de portal de curiosidades especialista em Google Discover.
+
+Crie um PLANO DETALHADO para um artigo super viral sobre "{topic}".
+
+Diretrizes:
+- Idioma: {language}
+- O artigo terá ~{min(target_words, 1300)} palavras no total.
+- O plano deve focar no absurdo, no chocante e no desconhecido. Mantenha o leitor preso lendo até o final.
+- Use tom dinâmico e intrigante.
+
+Retorne APENAS JSON:
+{{
+  "title": "Título com extremo Click-Gap (curiosidade implacável) (max 65 chars)",
+  "slug": "url-friendly-slug",
+  "meta_description": "Meta descrição que promete revelar algo oculto (max 160 chars)",
+  "keywords": "keyword1, keyword2",
+  "excerpt": "Resumo magnético (max 200 chars)",
+  "sections": [
+    {{
+      "h2": "O Mistério Inicia",
+      "description": "O que esta seção vai cobrir",
+      "target_words": {max(200, target_words // 4)}
+    }}
+  ]
+}}
+Gera de 3 a 5 seções intrigantes."""
     else:
         outline_system = f"""Você é um editor-chefe e estrategista de conteúdo.
 
