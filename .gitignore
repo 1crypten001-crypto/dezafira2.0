@@ -87,3 +87,6 @@ SniperVideoEngine/credentials/
 *.db
 *.db-shm
 *.db-wal
+
+# logs
+SniperVideoEngine/server_log.txt
