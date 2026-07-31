@@ -97,35 +97,52 @@ TOTAL_TARGET = DEFAULT_TOTAL
 # Cache de topicos por nicho (evita gerar repetidamente)
 _TOPICS_CACHE = {}
 
-async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt") -> list:
+async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False) -> list:
     """
     Gera topicos de artigos variados usando LLM, especificos para o nicho.
     Usa cache para nao regenerar os mesmos topicos.
     """
-    cache_key = f"{niche.lower().strip()}:{language}"
+    cache_key = f"{niche.lower().strip()}:{language}:aff={is_affiliate}"
     if cache_key in _TOPICS_CACHE and len(_TOPICS_CACHE[cache_key]) >= count:
         return _TOPICS_CACHE[cache_key][:count]
     
     try:
         from modules.blog_writer import _call_llm
-        prompt = (
-            f"Crie uma lista de {count} topicos variados e especificos para artigos de blog "
-            f"sobre o nicho: '{niche}'.\n"
-            f"Cada topico deve ser um micro-tema UNICO, especifico e bem segmentado.\n"
-            f"Regras:\n"
-            f"- VARIEDADE absoluta: nenhum topico pode tratar do mesmo assunto\n"
-            f"- Seja ESPECIFICO: ao inves de 'dicas de financas', use 'como negociar descontos em boletos'\n"
-            f"- Misture tipos: guias praticos, explicacoes, listas, comparacoes, estudos de caso\n"
-            f"- Cada topico deve render um artigo de ~1200 palavras\n"
-            f"- Idioma: {language}\n"
-            f"\n"
-            f"Retorne APENAS uma lista numerada, um topico por linha, sem marcadores extras.\n"
-            f"Exemplo:\n"
-            f"1. Como criar um orcamento mensal infalivel\n"
-            f"2. Os 5 maiores erros financeiros dos brasileiros\n"
-            f"3. Investimento em CDB vs Tesouro Direto: qual escolher\n"
-        )
-        system = f"Você é um editor-chefe especialista em criar pautas para blogs sobre {niche}."
+        if is_affiliate:
+            prompt = (
+                f"Crie uma lista de {count} pautas e tópicos para artigos de blog altamente focados em conversão de AFILIADOS (vendas de produtos físicos ou digitais) "
+                f"sobre o nicho: '{niche}'.\n"
+                f"As pautas devem ser de 3 tipos principais:\n"
+                f"1. REVIEWS INDIVIDUAIS de produtos populares ou lançamentos (ex: 'Review completo: vale a pena comprar o produto X?').\n"
+                f"2. LISTAS/RANKINGS (ex: 'Os 5 melhores produtos X para comprar em 2026').\n"
+                f"3. COMPARATIVOS (ex: 'Produto X vs Produto Y: qual o melhor custo-benefício?').\n"
+                f"Regras:\n"
+                f"- Escolha produtos reais e populares desse nicho que possam ser vendidos na Amazon, Shopee ou Mercado Livre.\n"
+                f"- Foco total em intenção de compra comercial (comprar, vale a pena, melhor, comparativo).\n"
+                f"- Idioma: {language}\n"
+                f"\n"
+                f"Retorne APENAS a lista numerada, um tópico por linha, sem marcadores extras."
+            )
+            system = f"Você é um copywriter de vendas especialista em blogs de afiliados sobre o nicho {niche}."
+        else:
+            prompt = (
+                f"Crie uma lista de {count} topicos variados e especificos para artigos de blog "
+                f"sobre o nicho: '{niche}'.\n"
+                f"Cada topico deve ser um micro-tema UNICO, especifico e bem segmentado.\n"
+                f"Regras:\n"
+                f"- VARIEDADE absoluta: nenhum topico pode tratar do mesmo assunto\n"
+                f"- Seja ESPECIFICO: ao inves de 'dicas de financas', use 'como negociar descontos em boletos'\n"
+                f"- Misture tipos: guias praticos, explicacoes, listas, comparacoes, estudos de caso\n"
+                f"- Cada topico deve render um artigo de ~1200 palavras\n"
+                f"- Idioma: {language}\n"
+                f"\n"
+                f"Retorne APENAS uma lista numerada, um topico por linha, sem marcadores extras.\n"
+                f"Exemplo:\n"
+                f"1. Como criar um orcamento mensal infalivel\n"
+                f"2. Os 5 maiores erros financeiros dos brasileiros\n"
+                f"3. Investimento em CDB vs Tesouro Direto: qual escolher\n"
+            )
+            system = f"Você é um editor-chefe especialista em criar pautas para blogs sobre {niche}."
         raw = await _call_llm(system, prompt, temperature=0.8, max_tokens=4096)
         
         # Parse: extrair linhas numeradas
@@ -722,10 +739,24 @@ class BlogMacroPipeline:
         # ─── GERAR TÓPICOS DINÂMICOS POR NICHOS ─────────────────────
         self._update_macro(sid, "active", 7,
             "🧠 Gerando tópicos variados específicos para o nicho...")
+        # Verificar se é blog de afiliado para ajustar geração de tópicos
+        is_affiliate = False
+        from modules.database import SessionLocal, BlogChannel
+        db = SessionLocal()
+        try:
+            channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+            if channel and channel.is_affiliate:
+                is_affiliate = True
+        except Exception as e_db:
+            print(f"[Pipeline] Erro ao buscar is_affiliate: {e_db}")
+        finally:
+            db.close()
+
         dynamic_topics = await _generate_dynamic_topics(
             niche=self.state.niche,
             count=max(target * 2, 30),
             language=self.state.language,
+            is_affiliate=is_affiliate,
         )
         self._update_macro(sid, "active", 10,
             f"📋 {len(dynamic_topics)} tópicos gerados para o nicho '{self.state.niche[:30]}...'")
@@ -994,6 +1025,51 @@ class BlogMacroPipeline:
 
         return result
 
+def render_affiliate_ctas(content: str, post_slug: str) -> str:
+    import re
+    import urllib.parse
+    
+    pattern = r'\[CTA:\s*(amazon|shopee|mercadolivre)\s*\|\s*([^\]]+)\]'
+    
+    def replace_cta(match):
+        provider = match.group(1).lower().strip()
+        product_name = match.group(2).strip()
+        encoded_prod = urllib.parse.quote_plus(product_name)
+        
+        # Estilos baseados no provedor
+        if provider == "amazon":
+            label = "Amazon"
+            bg = "#FF9900"
+            grad_start = "#FF9900"
+            grad_end = "#FFB84D"
+            text_color = "#ffffff"
+        elif provider == "shopee":
+            label = "Shopee"
+            bg = "#EE4D2D"
+            grad_start = "#EE4D2D"
+            grad_end = "#F1755B"
+            text_color = "#ffffff"
+        else: # mercadolivre
+            label = "Mercado Livre"
+            bg = "#FFE600"
+            grad_start = "#FFE600"
+            grad_end = "#FFEB33"
+            text_color = "#2D3277"
+            
+        btn_text_color = text_color
+            
+        card_html = f'''<div class="affiliate-card" style="border: 1px solid rgba(255,255,255,0.08); background: rgba(15,17,26,0.65); padding: 20px; border-radius: 12px; margin: 24px 0; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <span style="font-weight: 700; font-size: 16px; color: #fff;">{product_name}</span>
+        <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: {bg}; color: {btn_text_color}; padding: 3px 8px; border-radius: 6px;">{label}</span>
+    </div>
+    <p style="font-size: 13px; color: #8a91a5; margin: 0; line-height: 1.5;">Confira o preço atualizado, avaliações reais de outros compradores e garanta a melhor oferta no link abaixo:</p>
+    <a href="/go/{post_slug}/{provider}?prod={encoded_prod}" target="_blank" style="display: inline-block; text-align: center; text-decoration: none; padding: 10px 18px; background: linear-gradient(135deg, {grad_start}, {grad_end}); color: {btn_text_color}; border-radius: 8px; font-weight: 700; font-size: 13px; transition: all 0.2s ease;">Ver Preço na {label}</a>
+</div>'''
+        return card_html
+
+    return re.sub(pattern, replace_cta, content, flags=re.IGNORECASE)
+
     # ═══════════════════════════════════════════════════════════════════════════
     # FASE 4: REFINO
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1006,7 +1082,34 @@ class BlogMacroPipeline:
         self._update_macro(sid, "active", 5,
             f"🎨 Refinando {len(articles)} artigos...")
 
-        # 1. Links internos
+        # 1. Processar CTAs de afiliado se for blog de afiliado
+        self._update_macro(sid, "active", 30,
+            "🛒 Convertendo marcações de CTA para links de afiliados...")
+        from modules.database import SessionLocal, BlogPost, BlogChannel
+        db = SessionLocal()
+        try:
+            channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+            is_affiliate = channel.is_affiliate if channel else False
+            
+            if is_affiliate:
+                processed_ctas = 0
+                for article in articles:
+                    if not article.get("success") or not article.get("post_id"):
+                        continue
+                    post_id = article["post_id"]
+                    post = db.query(BlogPost).filter(BlogPost.id == post_id).first()
+                    if post and post.content:
+                        new_content = render_affiliate_ctas(post.content, post.slug or post.id)
+                        post.content = new_content
+                        processed_ctas += 1
+                db.commit()
+                print(f"[Pipeline] Refino: processados CTAs para {processed_ctas} artigos.")
+        except Exception as e_ctas:
+            print(f"[Pipeline] Refino: erro ao processar CTAs de afiliado: {e_ctas}")
+        finally:
+            db.close()
+
+        # 2. Links internos
         self._update_macro(sid, "active", 70,
             "🔗 Gerando links internos entre artigos...")
 

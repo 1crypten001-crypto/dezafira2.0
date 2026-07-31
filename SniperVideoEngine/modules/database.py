@@ -156,6 +156,20 @@ class BlogChannel(Base):
     banner_url = Column(String(1000), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Colunas do Modo Afiliado
+    is_affiliate = Column(Boolean, default=False)
+    affiliate_providers = Column(String(500), nullable=True)
+    amazon_tag = Column(String(100), nullable=True)
+    amazon_key = Column(String(200), nullable=True)
+    amazon_secret = Column(String(200), nullable=True)
+    shopee_app_id = Column(String(100), nullable=True)
+    shopee_app_secret = Column(String(200), nullable=True)
+    mercadolivre_client_id = Column(String(100), nullable=True)
+    mercadolivre_client_secret = Column(String(200), nullable=True)
+    mercadolivre_access_token = Column(String(1000), nullable=True)
+    mercadolivre_refresh_token = Column(String(1000), nullable=True)
+    mercadolivre_token_expires = Column(DateTime, nullable=True)
+
 
 class BlogPost(Base):
     __tablename__ = "blog_posts"
@@ -181,6 +195,18 @@ class BlogPost(Base):
     lili_score = Column(Integer, nullable=True)
     lili_approved = Column(Boolean, nullable=True)
     lili_reviewed_at = Column(DateTime, nullable=True)
+
+
+class AffiliateClick(Base):
+    __tablename__ = "affiliate_clicks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    post_id = Column(String(50), ForeignKey("blog_posts.id"), nullable=True, index=True)
+    provider = Column(String(50), nullable=False) # amazon, shopee, mercadolivre
+    product_name = Column(String(255), nullable=True)
+    clicked_at = Column(DateTime, default=datetime.utcnow)
+    user_ip = Column(String(100), nullable=True)
+
 
 
 class BlogSubdomain(Base):
@@ -431,6 +457,21 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_score INTEGER;", "blog_posts.lili_score")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_approved BOOLEAN;", "blog_posts.lili_approved")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_reviewed_at TIMESTAMP;", "blog_posts.lili_reviewed_at")
+
+        # Migrações do Modo Afiliado no blog_channels
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS is_affiliate BOOLEAN DEFAULT FALSE;", "blog_channels.is_affiliate")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS affiliate_providers VARCHAR(500);", "blog_channels.affiliate_providers")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS amazon_tag VARCHAR(100);", "blog_channels.amazon_tag")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS amazon_key VARCHAR(200);", "blog_channels.amazon_key")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS amazon_secret VARCHAR(200);", "blog_channels.amazon_secret")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS shopee_app_id VARCHAR(100);", "blog_channels.shopee_app_id")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS shopee_app_secret VARCHAR(200);", "blog_channels.shopee_app_secret")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_client_id VARCHAR(100);", "blog_channels.mercadolivre_client_id")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_client_secret VARCHAR(200);", "blog_channels.mercadolivre_client_secret")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_access_token VARCHAR(1000);", "blog_channels.mercadolivre_access_token")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_refresh_token VARCHAR(1000);", "blog_channels.mercadolivre_refresh_token")
+        _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_token_expires TIMESTAMP;", "blog_channels.mercadolivre_token_expires")
+
 
 except Exception as table_err:
     print(f"[Database]  Falha ao criar tabelas no banco original: {str(table_err)}")
@@ -861,8 +902,21 @@ def get_db_blog_channels() -> list:
                 "status": c.status,
                 "frequency": c.frequency,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
+                "is_affiliate": c.is_affiliate,
+                "affiliate_providers": c.affiliate_providers,
+                "amazon_tag": c.amazon_tag,
+                "amazon_key": c.amazon_key,
+                "amazon_secret": c.amazon_secret,
+                "shopee_app_id": c.shopee_app_id,
+                "shopee_app_secret": c.shopee_app_secret,
+                "mercadolivre_client_id": c.mercadolivre_client_id,
+                "mercadolivre_client_secret": c.mercadolivre_client_secret,
+                "mercadolivre_access_token": c.mercadolivre_access_token,
+                "mercadolivre_refresh_token": c.mercadolivre_refresh_token,
+                "mercadolivre_token_expires": c.mercadolivre_token_expires.isoformat() if c.mercadolivre_token_expires else None,
             } for c in channels
         ]
+
     finally:
         db.close()
 
@@ -1108,6 +1162,18 @@ def get_db_blog_info(slug: str) -> dict:
                     "banner_url": c.banner_url,
                     "post_count": post_count,
                     "created_at": c.created_at.isoformat() if c.created_at else None,
+                    "is_affiliate": c.is_affiliate,
+                    "affiliate_providers": c.affiliate_providers,
+                    "amazon_tag": c.amazon_tag,
+                    "amazon_key": c.amazon_key,
+                    "amazon_secret": c.amazon_secret,
+                    "shopee_app_id": c.shopee_app_id,
+                    "shopee_app_secret": c.shopee_app_secret,
+                    "mercadolivre_client_id": c.mercadolivre_client_id,
+                    "mercadolivre_client_secret": c.mercadolivre_client_secret,
+                    "mercadolivre_access_token": c.mercadolivre_access_token,
+                    "mercadolivre_refresh_token": c.mercadolivre_refresh_token,
+                    "mercadolivre_token_expires": c.mercadolivre_token_expires.isoformat() if c.mercadolivre_token_expires else None,
                 }
         return None
     finally:

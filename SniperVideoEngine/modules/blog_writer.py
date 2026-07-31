@@ -484,7 +484,54 @@ async def generate_multipart_article(
 
     # ─── ETAPA 1: PLANEJAMENTO ──────────────────────────────────────
     print("[BlogWriter] Etapa 1/5: Planejando estrutura do artigo...")
-    outline_system = f"""Você é um editor-chefe e estrategista de conteúdo.
+    
+    is_affiliate = False
+    from .database import SessionLocal, BlogChannel
+    db = SessionLocal()
+    try:
+        channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+        if channel and channel.is_affiliate:
+            is_affiliate = True
+    except Exception as e_db:
+        print(f"[BlogWriter] Erro ao carregar is_affiliate do banco: {e_db}")
+    finally:
+        db.close()
+
+    if is_affiliate:
+        outline_system = f"""Você é um copywriter de vendas especialista em blogs de afiliados, avaliações de produtos e comparativos.
+
+Crie um PLANO DETALHADO para um artigo comercial (Review de produto, Comparativo de produtos ou Guia de compra/Lista) sobre "{topic}".
+
+Diretrizes de Conversão de Afiliados:
+- Idioma: {language}
+- Keywords: {keywords if keywords else topic}
+- O artigo terá ~{min(target_words, 1300)} palavras no total.
+- Planeje títulos de seções comerciais claros (ex: Ficha Técnica, Prós e Contras, Desempenho no Dia a Dia, Onde Comprar/Veredito).
+- O plano deve orientar a colocação de chamadas para ação (CTA).
+
+Retorne APENAS JSON:
+{{
+  "title": "Título de Review/Comparativo irresistível e clicável (max 65 chars)",
+  "slug": "url-friendly-slug",
+  "meta_description": "Meta descrição persuasiva e com forte incentivo de clique (max 160 chars)",
+  "keywords": "keyword1, keyword2, keyword3",
+  "excerpt": "Resumo chamativo do review para a página inicial (max 200 chars)",
+  "sections": [
+    {{
+      "h2": "Título da Seção 1 (ex: Ficha Técnica e Design)",
+      "description": "O que esta seção vai cobrir",
+      "target_words": {max(200, target_words // 4)}
+    }},
+    {{
+      "h2": "Título da Seção 2 (ex: Prós e Contras)",
+      "description": "O que esta seção vai cobrir",
+      "target_words": {max(200, target_words // 4)}
+    }}
+  ]
+}}
+Gera de 3 a 5 seções comerciais dependendo da pauta."""
+    else:
+        outline_system = f"""Você é um editor-chefe e estrategista de conteúdo.
 
 Crie um PLANO DETALHADO para um artigo sobre "{topic}".
 
@@ -550,7 +597,24 @@ Gera de 3 a 5 seções dependendo da profundidade necessária."""
     # ─── ETAPA 2: INTRODUÇÃO ────────────────────────────────────────
     print("[BlogWriter] Etapa 2/5: Escrevendo introdução...")
     niche_instructions = _get_niche_instructions(topic, keywords)
-    intro_system = f"""Você é um redator SEO especialista.
+    
+    if is_affiliate:
+        intro_system = f"""Você é um redator especialista em conversão e SEO para afiliados.
+
+Escreva uma INTRODUÇÃO IMPACTANTE e persuasiva para um review/comparativo sobre:
+"{topic}"
+
+Diretrizes:
+- Idioma: {language}
+- Comece destacando a dor, problema ou dúvida comum do comprador (ex: "Vale a pena comprar?", "É bom mesmo?").
+- Apresente brevemente o produto e mostre que este guia vai ajudá-lo a fazer a melhor escolha de compra.
+- ~200-300 palavras.
+- Use <h2>Introdução</h2> seguido de parágrafos <p>.
+- Retorne APENAS o HTML da introdução.
+- Instrucoes especificas do nicho:
+{niche_instructions}"""
+    else:
+        intro_system = f"""Você é um redator SEO especialista.
 
 Escreva uma INTRODUÇÃO IMPACTANTE sobre:
 "{topic}"
@@ -587,7 +651,22 @@ Diretrizes:
 
         print(f"[BlogWriter] Etapa 3/5: Seção {i+1}/{len(sections)}: '{sec_title}'...")
 
-        sec_system = f"""Você é um redator SEO especialista.
+        if is_affiliate:
+            sec_system = f"""Você é um redator especialista em conversão e SEO para blogs de afiliados.
+
+Escreva a seção comercial "{sec_title}" para o review/comparativo sobre "{topic}".
+
+Diretrizes Comerciais:
+- Idioma: {language}
+- Contexto da seção: {sec_desc}
+- ~{min(sec_target, 350)} palavras (seja conciso, máximo 350).
+- Escreva de forma honesta, focando no que o comprador quer saber (design, ficha técnica, prós/contras, custos-benefícios).
+- Se a seção falar sobre preços, NUNCA cite um valor monetário fixo (ex: R$ 199,00). Em vez disso, oriente o usuário a verificar a oferta atual e use expressões como "ótimo custo-benefício", "faixa de preço intermediária", etc.
+- Opcionalmente, se fizer muito sentido ao fim desta seção específica, adicione a marcação de CTA no formato exato: `[CTA: amazon | Nome do Produto]` ou `[CTA: shopee | Nome do Produto]` ou `[CTA: mercadolivre | Nome do Produto]`.
+- Use <h2>{sec_title}</h2> no início.
+- Retorne APENAS o HTML da seção."""
+        else:
+            sec_system = f"""Você é um redator SEO especialista.
 
 Escreva a seção "{sec_title}" para um artigo sobre "{topic}".
 
@@ -621,7 +700,21 @@ Diretrizes:
 
     # ─── ETAPA 4: CONCLUSÃO ─────────────────────────────────────────
     print("[BlogWriter] Etapa 4/5: Escrevendo conclusão...")
-    conc_system = f"""Você é um redator SEO especialista.
+    if is_affiliate:
+        conc_system = f"""Você é um redator especialista em conversão e SEO para afiliados.
+
+Escreva uma CONCLUSÃO COM VEREDITO E RECOMENDAÇÃO DE COMPRA para o review sobre "{topic}".
+
+Diretrizes:
+- Idioma: {language}
+- Diga claramente para quem o produto é ideal (ex: "indicado para quem busca economia", "ideal para uso intenso").
+- Adicione a recomendação final de compra.
+- Insira uma chamada final para conferir as ofertas nos links parceiros.
+- ~150-250 palavras.
+- Use <h2>Conclusão</h2> no início.
+- Retorne APENAS o HTML."""
+    else:
+        conc_system = f"""Você é um redator SEO especialista.
 
 Escreva uma CONCLUSÃO PODEROSA para um artigo sobre "{topic}".
 
@@ -651,8 +744,19 @@ Diretrizes:
     # ─── ETAPA 5: COMPILAÇÃO ───────────────────────────────────────
     print("[BlogWriter] Etapa 5/5: Compilando artigo final...")
 
+    # Montar disclaimer se for de afiliado
+    disclaimer = ""
+    if is_affiliate:
+        disclaimer = """<p style="font-size: 11px; color: #8a91a5; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 20px; line-height: 1.5;">
+    <strong>Aviso de transparência:</strong> Ao clicar nos links de produtos parceiros exibidos nesta página, nós podemos receber uma pequena comissão de vendas das plataformas de afiliados (como Amazon, Shopee ou Mercado Livre). Isso não altera o preço final que você paga e nos ajuda a manter o canal ativo produzindo avaliações independentes.
+</p>"""
+
     # Montar content_html completo
-    all_parts = [intro_html] + sections_html + [conc_html]
+    all_parts = [intro_html]
+    if disclaimer:
+        all_parts.append(disclaimer)
+    all_parts += sections_html + [conc_html]
+    
     full_content_html = "\n\n".join(all_parts)
 
     # Estimar word count (stripping HTML tags first)
@@ -697,6 +801,7 @@ Diretrizes:
     }
 
     return result
+
 
 
 async def write(topic: str, channel_id: str = "default", language: str = "pt",

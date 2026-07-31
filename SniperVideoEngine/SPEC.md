@@ -153,6 +153,18 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 **Arquivo:** `modules/blog_revisor.py`  
 **Responsabilidades:** Revisão gramatical e estrutural de artigos
 
+### 🏷️ Seu Silva — Agente de Afiliação Amazon
+**Arquivo:** `modules/affiliate_agents.py`  
+**Responsabilidades:** Gerencia tags de associado da Amazon e formata links de afiliados dinamicamente para produtos físicos do nicho.
+
+### 🦐 Dona Benta — Agente de Afiliação Shopee
+**Arquivo:** `modules/affiliate_agents.py`  
+**Responsabilidades:** Cria links com assinaturas criptografadas (HMAC-SHA256) compatíveis com a API de afiliados da Shopee.
+
+### 🤝 Seu Nogueira — Agente de Afiliação Mercado Livre
+**Arquivo:** `modules/affiliate_agents.py`  
+**Responsabilidades:** Orquestra a autenticação OAuth2 do Mercado Livre, realizando o refresh automático do access token no banco de dados.
+
 ---
 
 ## 📡 ENDPOINTS DA API
@@ -208,6 +220,9 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/api/v1/monetization/status` | Status do Seu Pereira (AdSense) |
+| POST | `/api/v1/blog/{slug}/update-affiliate` | Atualiza configurações do Modo Afiliado |
+| GET | `/api/v1/affiliate/clicks` | Métricas consolidadas de cliques de afiliados |
+| GET | `/go/{post_slug}/{provider}` | Cloaking de links e redirecionamento de afiliados |
 
 ### 🎨 Imagens
 | Método | Rota | Descrição |
@@ -300,6 +315,20 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 | status | VARCHAR(20) | active/inactive |
 | frequency | VARCHAR(20) | Frequência (daily) |
 | created_at | DateTime | Data de criação |
+| is_affiliate | BOOLEAN | Ativação do Modo Afiliado |
+| affiliate_providers | VARCHAR(500) | Provedores separados por vírgula |
+| amazon_tag | VARCHAR(100) | Tag de associado da Amazon |
+| amazon_key | VARCHAR(200) | Key API Amazon |
+| amazon_secret | VARCHAR(200) | Secret API Amazon |
+| shopee_app_id | VARCHAR(100) | App ID Shopee |
+| shopee_app_secret | VARCHAR(200) | Secret Shopee |
+| mercadolivre_client_id | VARCHAR(100) | Client ID ML |
+| mercadolivre_client_secret | VARCHAR(200) | Client Secret ML |
+| mercadolivre_access_token | VARCHAR(1000) | Access Token ML |
+| mercadolivre_refresh_token | VARCHAR(1000) | Refresh Token ML |
+| mercadolivre_token_expires | TIMESTAMP | Expiração Token ML |
+
+
 
 ### Blog Posts (`blog_posts`)
 | Campo | Tipo | Descrição |
@@ -324,6 +353,16 @@ Micro-nichos/seções dentro de um blog para organização temática.
 
 ### Blog Pipeline Runs (`blog_pipeline_runs`)
 Registro de estado das execuções do pipeline (checkpoint para retomada).
+
+### Affiliate Clicks (`affiliate_clicks`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | INTEGER PK | ID autoincremento |
+| post_id | VARCHAR(50) FK | Post associado ao clique |
+| provider | VARCHAR(50) | Provedor (amazon, shopee, mercadolivre) |
+| product_name | VARCHAR(200) | Nome do produto |
+| clicked_at | DateTime | Data/Hora do clique |
+
 
 ### Books & Courses
 Modelos completos para Livros e Cursos com:

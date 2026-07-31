@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -726,9 +726,30 @@ async function loadDashboard(){
           '</div>'+
           '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">🔥 Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
+          '<button class="btn btn-sm" onclick="toggleAffiliateSettings(\''+c.id+'\')">⚙️ Afiliação</button>'+
         '</div>'+
       '</div>'+
       '<div id="pipeline_container_'+c.id+'" class="pipeline-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px"></div>'+
+      '<div id="affiliate_container_'+c.id+'" class="affiliate-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px">'+
+        '<h4>🤝 Configurações do Modo Afiliado</h4>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">'+
+          '<div>'+
+            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-bottom:8px">'+
+              '<input type="checkbox" id="aff_active_'+c.id+'" '+(c.is_affiliate?'checked':'')+' onchange="toggleAffDetails(\''+c.id+'\')" /> Ativar Modo Afiliado'+
+            '</label>'+
+          '</div>'+
+        '</div>'+
+        '<div id="aff_details_'+c.id+'" style="display:'+(c.is_affiliate?'block':'none')+';margin-top:10px;border-top:1px solid rgba(255,255,255,0.05);padding-top:12px">'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">'+
+            '<div><label style="font-size:11px;color:#8a91a5">Tag Amazon (ex: associado-20)</label><input type="text" id="aff_amazon_tag_'+c.id+'" value="'+escapeHtml(c.amazon_tag||'')+'" style="width:100%;padding:6px 10px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#fff;margin-top:4px" /></div>'+
+            '<div><label style="font-size:11px;color:#8a91a5">Shopee App ID (opcional)</label><input type="text" id="aff_shopee_id_'+c.id+'" value="'+escapeHtml(c.shopee_app_id||'')+'" style="width:100%;padding:6px 10px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#fff;margin-top:4px" /></div>'+
+            '<div><label style="font-size:11px;color:#8a91a5">Mercado Livre Client ID (opcional)</label><input type="text" id="aff_ml_id_'+c.id+'" value="'+escapeHtml(c.mercadolivre_client_id||'')+'" style="width:100%;padding:6px 10px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#fff;margin-top:4px" /></div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="margin-top:12px;text-align:right">'+
+          '<button class="btn btn-sm btn-primary" onclick="saveAffiliateSettings(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Salvar Configurações</button>'+
+        '</div>'+
+      '</div>'+
       '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
     '</div>';
   }).join('');
@@ -813,6 +834,51 @@ async function liliReviewAllForBlog(channelId){
     showToast("Revisao concluida! "+res.approved+"/"+res.total+" aprovados. Media: "+res.avg_score+"/100");
     loadBlogs();
   }catch(e){showToast("Erro: "+e.message);}
+}
+
+function toggleAffiliateSettings(channelId) {
+  var div = document.getElementById("affiliate_container_" + channelId);
+  if (div) {
+    div.style.display = div.style.display === "none" ? "block" : "none";
+  }
+}
+
+function toggleAffDetails(channelId) {
+  var active = document.getElementById("aff_active_" + channelId).checked;
+  var details = document.getElementById("aff_details_" + channelId);
+  if (details) {
+    details.style.display = active ? "block" : "none";
+  }
+}
+
+async function saveAffiliateSettings(channelId, slug) {
+  var active = document.getElementById("aff_active_" + channelId).checked;
+  var amazonTag = document.getElementById("aff_amazon_tag_" + channelId).value;
+  var shopeeId = document.getElementById("aff_shopee_id_" + channelId).value;
+  var mlId = document.getElementById("aff_ml_id_" + channelId).value;
+
+  var payload = {
+    is_affiliate: active,
+    amazon_tag: amazonTag,
+    shopee_app_id: shopeeId,
+    mercadolivre_client_id: mlId
+  };
+
+  showToast("Salvando configurações...");
+  try {
+    var res = await api("/api/v1/blog/" + encodeURIComponent(slug) + "/update-affiliate", {
+      method: "POST",
+      body: payload
+    });
+    if (res.error) {
+      showToast("Erro: " + res.error);
+    } else {
+      showToast("✅ Configurações de afiliado salvas!");
+      loadBlogs();
+    }
+  } catch (e) {
+    showToast("Erro ao conectar ao servidor: " + e.message);
+  }
 }
 
 async function deleteBlogPost(postId,title){

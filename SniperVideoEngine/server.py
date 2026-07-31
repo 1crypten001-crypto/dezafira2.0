@@ -772,6 +772,15 @@ async def blog_factory_dashboard():
                     "brand_secondary": detect_theme(c.nicho)["colors"]["accent"] if c.nicho else "#8b5cf6",
                     "logo_svg": get_logo_svg(c.nicho) if c.nicho else "",
                     "favicon_svg": get_favicon_svg(c.nicho) if c.nicho else "",
+                    "is_affiliate": c.is_affiliate,
+                    "affiliate_providers": c.affiliate_providers,
+                    "amazon_tag": c.amazon_tag,
+                    "amazon_key": c.amazon_key,
+                    "amazon_secret": c.amazon_secret,
+                    "shopee_app_id": c.shopee_app_id,
+                    "shopee_app_secret": c.shopee_app_secret,
+                    "mercadolivre_client_id": c.mercadolivre_client_id,
+                    "mercadolivre_client_secret": c.mercadolivre_client_secret,
                 } for c in channels],
             },
             "posts": {
@@ -2216,6 +2225,143 @@ async def update_blog_post(slug: str, post_id: str, payload: dict):
     if success:
         return {"success": True, "message": "Post atualizado"}
     return {"success": False, "error": "Post nao encontrado"}
+
+
+@app.get("/go/{post_slug}/{provider}")
+async def redirect_to_affiliate(post_slug: str, provider: str, prod: str = ""):
+    """End-point de cloaking e rastreamento de cliques de afiliados."""
+    from modules.database import SessionLocal, BlogPost, BlogChannel, AffiliateClick
+    from modules.affiliate_agents import SeuSilvaAgent, DonaBentaAgent, SeuNogueiraAgent
+    from datetime import datetime
+
+    db = SessionLocal()
+    try:
+        # 1. Encontrar o post
+        post = db.query(BlogPost).filter(BlogPost.slug == post_slug).first()
+        if not post:
+            post = db.query(BlogPost).filter(BlogPost.id == post_slug).first()
+            
+        if not post:
+            raise HTTPException(status_code=404, detail="Artigo nao encontrado")
+            
+        # 2. Registrar o clique no banco
+        click = AffiliateClick(
+            post_id=post.id,
+            provider=provider.lower().strip(),
+            product_name=prod,
+            clicked_at=datetime.utcnow()
+        )
+        db.add(click)
+        db.commit()
+        
+        # 3. Buscar canal/blog para pegar credenciais
+        channel = db.query(BlogChannel).filter(BlogChannel.id == post.channel_id).first()
+        if not channel:
+            raise HTTPException(status_code=404, detail="Blog nao encontrado")
+            
+        # 4. Formatar o link final com o ID/Tag correspondente
+        provider = provider.lower().strip()
+        final_url = "https://www.google.com" # Fallback geral
+        
+        if provider == "amazon":
+            tag = channel.amazon_tag or "default-amazon-20"
+            if prod.startswith("http"):
+                final_url = SeuSilvaAgent.generate_link(prod, tag)
+            else:
+                final_url = f"https://www.amazon.com.br/s?k={__import__('urllib').parse.quote(prod)}&tag={tag}"
+                
+        elif provider == "shopee":
+            if prod.startswith("http"):
+                final_url = prod
+            else:
+                final_url = f"https://shopee.com.br/search?keyword={__import__('urllib').parse.quote(prod)}"
+                
+        elif provider == "mercadolivre":
+            if prod.startswith("http"):
+                final_url = prod
+            else:
+                final_url = f"https://lista.mercadolivre.com.br/{__import__('urllib').parse.quote(prod)}"
+                
+        return RedirectResponse(url=final_url)
+    except Exception as e:
+        print(f"[Redirect] Erro no redirecionamento: {e}")
+        return RedirectResponse(url="https://www.google.com")
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/blog/{slug}/update-affiliate")
+async def update_blog_affiliate_settings(slug: str, payload: dict):
+    """Atualiza as configuracoes de afiliado de um canal de blog."""
+    from modules.database import SessionLocal, BlogChannel
+    db = SessionLocal()
+    try:
+        # Buscar canal pelo slug do nome
+        channels = db.query(BlogChannel).all()
+        chan = None
+        for c in channels:
+            if c.name.lower().replace(" ", "-")[:50] == slug:
+                chan = c
+                break
+                
+        if not chan:
+            raise HTTPException(status_code=404, detail="Blog nao encontrado")
+            
+        # Atualizar
+        for k, v in payload.items():
+            if hasattr(chan, k):
+                # Conversão explícita de tipos se necessário
+                if k == "is_affiliate":
+                    setattr(chan, k, bool(v))
+                else:
+                    setattr(chan, k, v)
+        db.commit()
+        return {"success": True, "message": "Configuracoes de afiliado salvas com sucesso!"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/affiliate/clicks")
+async def get_affiliate_clicks_stats(channel_id: str = ""):
+    """Retorna dados de estatisticas de cliques em links de afiliados."""
+    from modules.database import SessionLocal, AffiliateClick, BlogPost
+    from sqlalchemy import func
+    db = SessionLocal()
+    try:
+        query = db.query(
+            AffiliateClick.provider,
+            func.count(AffiliateClick.id).label("total_clicks")
+        )
+        if channel_id:
+            query = query.join(BlogPost, BlogPost.id == AffiliateClick.post_id)\
+                         .filter(BlogPost.channel_id == channel_id)
+                         
+        stats = query.group_by(AffiliateClick.provider).all()
+        
+        # Historico por dia (ultimos 7 dias)
+        from datetime import datetime, timedelta
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        
+        hist_query = db.query(
+            func.date(AffiliateClick.clicked_at).label("click_date"),
+            func.count(AffiliateClick.id).label("clicks")
+        ).filter(AffiliateClick.clicked_at >= seven_days_ago)
+        
+        if channel_id:
+            hist_query = hist_query.join(BlogPost, BlogPost.id == AffiliateClick.post_id)\
+                                   .filter(BlogPost.channel_id == channel_id)
+                                   
+        history = hist_query.group_by(func.date(AffiliateClick.clicked_at)).all()
+        
+        return {
+            "summary": {row[0]: row[1] for row in stats},
+            "history": [{"date": str(row[0]), "clicks": row[1]} for row in history]
+        }
+    finally:
+        db.close()
 
 
     # Fallback: generic blog template
