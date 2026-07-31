@@ -823,6 +823,9 @@ async function loadDashboard(){
           '</div>'+
           '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">🔥 Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
+          '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);padding:4px 10px;border-radius:8px" title="Ativar/desativar Modo Viral (Google Discover)">'+
+            '<input type="checkbox" id="disc_active_'+c.id+'" '+(c.is_discover?'checked':'')+' onchange="saveDiscoverQuick(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')" style="accent-color:#8b5cf6;width:14px;height:14px" /> 🚀 Discover'+
+          '</label>'+
           '<button class="btn btn-sm" onclick="toggleAffiliateSettings(\''+c.id+'\')">⚙️ Afiliação</button>'+
         '</div>'+
       '</div>'+
@@ -833,11 +836,6 @@ async function loadDashboard(){
           '<div>'+
             '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-bottom:8px">'+
               '<input type="checkbox" id="aff_active_'+c.id+'" '+(c.is_affiliate?'checked':'')+' onchange="toggleAffDetails(\''+c.id+'\')" /> 🛒 Modo Afiliado'+
-            '</label>'+
-          '</div>'+
-          '<div>'+
-            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-bottom:8px">'+
-              '<input type="checkbox" id="disc_active_'+c.id+'" '+(c.is_discover?'checked':'')+' /> 🚀 Foco Viral (Google Discover)'+
             '</label>'+
           '</div>'+
         '</div>'+
@@ -950,6 +948,26 @@ function toggleAffDetails(channelId) {
   var details = document.getElementById("aff_details_" + channelId);
   if (details) {
     details.style.display = active ? "block" : "none";
+  }
+}
+
+async function saveDiscoverQuick(channelId, slug) {
+  var el = document.getElementById("disc_active_" + channelId);
+  var checked = el ? el.checked : false;
+  showToast(checked ? "Ativando Modo Viral (Google Discover)..." : "Desativando Modo Viral...");
+  try {
+    var res = await api("/api/v1/blog/" + encodeURIComponent(slug) + "/update-modes", {
+      method: "POST",
+      body: { is_discover: checked }
+    });
+    if (res.error) {
+      showToast("Erro: " + res.error);
+    } else {
+      showToast(checked ? "✅ Modo Discover ativado!" : "Modo Discover desativado.");
+      loadBlogs();
+    }
+  } catch (e) {
+    showToast("Erro ao conectar ao servidor: " + e.message);
   }
 }
 

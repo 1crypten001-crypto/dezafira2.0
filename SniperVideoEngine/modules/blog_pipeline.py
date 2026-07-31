@@ -339,13 +339,14 @@ class MacroState:
     """Estado completo da macro-esteira de blog."""
 
     def __init__(self, task_id: str, blog_name: str, niche: str, language: str = "pt",
-                 target_articles: int = 1, is_affiliate: bool = False):
+                 target_articles: int = 1, is_affiliate: bool = False, is_discover: bool = False):
         self.task_id = task_id
         self.blog_name = blog_name
         self.niche = niche
         self.language = language
         self.target_articles = target_articles
         self.is_affiliate = is_affiliate
+        self.is_discover = is_discover
         self.reddit_questions = []
         self.channel_id = None       # Set after Phase 1
         self.pipeline_run_id = None  # Set after Phase 1
@@ -485,12 +486,12 @@ class BlogMacroPipeline:
     async def execute(self, blog_name: str, niche: str, language: str = "pt",
                       task_id: Optional[str] = None,
                       target_articles: Optional[int] = None,
-                      is_affiliate: bool = False) -> MacroState:
+                      is_affiliate: bool = False, is_discover: bool = False) -> MacroState:
         task_id = task_id or f"mblog_{uuid.uuid4().hex[:8]}"
 
         self.state = MacroState(task_id, blog_name, niche, language,
                                 target_articles=target_articles or DEFAULT_TOTAL,
-                                is_affiliate=is_affiliate)
+                                is_affiliate=is_affiliate, is_discover=is_discover)
         self.state.status = "running"
         self.state.started_at = datetime.utcnow()
 
@@ -628,6 +629,7 @@ class BlogMacroPipeline:
                 platform="dezafira",
                 subdomain=subdomain,
                 is_affiliate=getattr(self.state, "is_affiliate", False),
+                is_discover=getattr(self.state, "is_discover", False),
             )
             self.state.channel_id = channel["id"]
 
@@ -1131,9 +1133,7 @@ class BlogMacroPipeline:
 </html>"""
 
                 # Atualizar no banco
-                update_db_blog_post(post_id, {
-                    "content": full_html,
-                })
+                update_db_blog_post(post_id, content=full_html)
             except Exception as e_html:
                 print(f"[Pipeline] Producao: erro ao salvar HTML: {e_html}")
 
@@ -1428,7 +1428,20 @@ async def resume_blog_pipeline(
 
         # Criar pipeline manualmente (evita executar fases concluidas)
         macro = BlogMacroPipeline(on_progress=on_progress)
-        macro.state = MacroState(run_id, blog_name, niche, language, target_articles=target)
+        _aff, _disc = False, False
+        try:
+            from modules.database import SessionLocal, BlogChannel
+            _db = SessionLocal()
+            try:
+                _ch = _db.query(BlogChannel).filter(BlogChannel.id == channel_id).first() if channel_id else None
+                _aff = bool(getattr(_ch, "is_affiliate", False)) if _ch else False
+                _disc = bool(getattr(_ch, "is_discover", False)) if _ch else False
+            finally:
+                _db.close()
+        except Exception:
+            _aff, _disc = False, False
+        macro.state = MacroState(run_id, blog_name, niche, language, target_articles=target,
+                                 is_affiliate=_aff, is_discover=_disc)
         macro.state.status = "running"
         macro.state.channel_id = channel_id
         macro.state.pipeline_run_id = run_id
@@ -1530,6 +1543,7 @@ async def run_blog_macro_pipeline(
     target_articles: Optional[int] = None,
     on_progress: Optional[ProgressCallback] = None,
     is_affiliate: bool = False,
+    is_discover: bool = False,
 ) -> dict:
     """
     Executa a macro-esteira completa da Fábrica de Blogs.
@@ -1542,6 +1556,7 @@ async def run_blog_macro_pipeline(
         task_id=task_id,
         target_articles=target_articles,
         is_affiliate=is_affiliate,
+        is_discover=is_discover,
     )
     return state.to_dict()
 
