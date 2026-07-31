@@ -1,13 +1,14 @@
 """
-Server-rendered blog viewer HTML generator.
+Server-rendered blog viewer HTML generator v2.
 Gera HTML completo com artigos (SEO-friendly, sem depender de JavaScript).
 Usa sistema de temas visuais por nicho (brand_themes.py).
+v2: dark mode, scroll animations, reading progress, newsletter, cookie banner, hero, SVG logos.
 """
 
 import json
 from datetime import datetime
 import html as html_mod
-from modules.brand_themes import detect_theme, generate_theme_css
+from modules.brand_themes import detect_theme, generate_theme_css, get_favicon_svg, get_logo_svg
 from urllib.parse import quote
 
 
@@ -25,37 +26,101 @@ def fmt_date(d):
         return str(d)[:10]
 
 
-# ─── BASE CSS ────────────────────────────────────────────────────────────
-# Estilos compartilhados entre todos os blogs (header, nav, footer, etc.)
+# ─── COMMON JS SNIPPETS ─────────────────────────────────────────────
+
+_DARK_MODE_JS = """
+<script>
+(function(){
+  var d=document.documentElement,s=null;
+  try{s=localStorage.getItem('theme');}catch(e){}
+  if(s){d.setAttribute('data-theme',s);}
+  else if(window.matchMedia('(prefers-color-scheme:dark)').matches){d.setAttribute('data-theme','dark');}
+})();
+function toggleDark(){
+  var d=document.documentElement;
+  var t=d.getAttribute('data-theme');
+  var n=t==='dark'?'light':'dark';
+  d.setAttribute('data-theme',n);
+  try{localStorage.setItem('theme',n);}catch(e){}
+}
+</script>"""
+
+def _cookie_banner_html(slug: str = "") -> str:
+    """Gera HTML do banner de cookies com link dinamico para a pagina de privacidade."""
+    privacy_url = f"/blog/{slug}/privacidade" if slug else "/privacidade"
+    return f"""
+<div class="cookie-banner" id="cookieBanner">
+  <p>Usamos cookies para melhorar sua experiencia. Ao continuar, voce concorda com nossa <a href="{privacy_url}">Politica de Privacidade</a>.</p>
+  <div class="cookie-actions">
+    <button class="cookie-reject" onclick="document.getElementById('cookieBanner').classList.remove('show');document.cookie='cookieConsent=rejected;max-age=31536000;path=/'">Rejeitar</button>
+    <button class="cookie-accept" onclick="document.getElementById('cookieBanner').classList.remove('show');document.cookie='cookieConsent=accepted;max-age=31536000;path=/'">Aceitar</button>
+  </div>
+</div>
+<script>
+(function(){{
+  if(document.cookie.indexOf('cookieConsent')===-1){{document.getElementById('cookieBanner').classList.add('show');}}
+}})();
+</script>"""
+
+_SCROLL_OBSERVER_JS = """
+<script>
+(function(){
+  if('IntersectionObserver' in window){
+    var observer=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add('is-visible');observer.unobserve(e.target);}
+      });
+    },{threshold:0.1});
+    document.querySelectorAll('.scroll-fade').forEach(function(el){observer.observe(el);});
+  }else{
+    document.querySelectorAll('.scroll-fade').forEach(function(el){el.classList.add('is-visible');});
+  }
+})();
+</script>"""
+
+_READING_PROGRESS_JS = """
+<script>
+(function(){
+  var bar=document.getElementById('readingProgress');
+  if(!bar)return;
+  function update(){var s=document.documentElement.scrollTop||document.body.scrollTop;var h=document.documentElement.scrollHeight-document.documentElement.clientHeight;bar.style.transform='scaleX('+(h>0?s/h:0)+')';}
+  window.addEventListener('scroll',update);update();
+})();
+</script>"""
+
+
+# ─── BASE CSS ────────────────────────────────────────────────────────
 _BASE_CSS = """
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg,#f8fafc);color:var(--text,#1e293b);min-height:100vh;padding-top:64px}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg,#f8fafc);color:var(--text,#1e293b);min-height:100vh;padding-top:64px;transition:background .3s,color .3s}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;height:auto}
 
 /* ─── HEADER ─── */
-.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--dark,#0f172a);border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+.site-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--dark,#0f172a);border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px);transition:transform .3s ease,background .3s}
 .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:24px;padding:0 20px;height:64px}
 .header-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--gold,#d4a853);border-radius:8px;font-size:18px;color:var(--dark,#0f172a);font-weight:700}
+.logo-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--gold,#d4a853);border-radius:8px;font-size:18px;color:var(--dark,#0f172a);font-weight:800;overflow:hidden}
+.logo-icon svg{width:22px;height:22px}
 .logo-text{font-size:18px;font-weight:700;color:#fff}
 .header-nav{display:flex;align-items:center;gap:4px;flex:1;overflow-x:auto}
 .nav-link{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;color:rgba(255,255,255,.7);white-space:nowrap;transition:all .15s ease}
 .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
-.nav-link.active{background:rgba(212,168,83,.15);color:var(--gold,#d4a853)}
+.nav-link.active{background:rgba(var(--primary-rgb,212,168,83),.15);color:var(--gold,#d4a853)}
 .header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.search-toggle,.menu-toggle{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s ease}
-.search-toggle:hover,.menu-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
+.search-toggle,.menu-toggle,.dark-toggle{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s ease}
+.search-toggle:hover,.menu-toggle:hover,.dark-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
 .menu-toggle{display:none}
-.search-bar{max-width:1200px;margin:0 auto;padding:12px 20px;display:flex;gap:8px}
+.dark-toggle{font-size:15px}
+.search-bar{max-width:1200px;margin:0 auto;padding:12px 20px;display:flex;gap:8px;transition:all .3s ease}
 .search-bar input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;font-family:inherit;outline:none}
 .search-bar input:focus{border-color:var(--gold,#d4a853)}
 .search-bar button{padding:10px 20px;border-radius:8px;border:none;background:var(--gold,#d4a853);color:var(--dark,#0f172a);font-weight:600;font-size:13px;cursor:pointer}
 .search-bar button:hover{opacity:.9}
 
 /* ─── FOOTER ─── */
-.site-footer{background:var(--dark,#0f172a);border-top:1px solid rgba(255,255,255,.06);padding:48px 20px 24px;margin-top:48px;color:rgba(255,255,255,.7)}
+.site-footer{background:var(--dark,#0f172a);border-top:1px solid rgba(255,255,255,.06);padding:48px 20px 24px;margin-top:48px;color:rgba(255,255,255,.7);transition:background .3s}
 .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
 .footer-brand .logo-icon{margin-bottom:8px}
 .footer-brand strong{display:block;font-size:16px;color:#fff;margin-bottom:6px}
@@ -65,7 +130,7 @@ img{max-width:100%;height:auto}
 .footer-links a:hover{color:#fff}
 .social-links{display:flex;gap:8px}
 .social-links a{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:8px;font-size:16px;color:rgba(255,255,255,.6);transition:all .15s ease}
-.social-links a:hover{background:rgba(212,168,83,.15);color:var(--gold,#d4a853)}
+.social-links a:hover{background:rgba(var(--primary-rgb,212,168,83),.15);color:var(--gold,#d4a853)}
 .footer-bottom{max-width:1200px;margin:32px auto 0;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);text-align:center;font-size:12px;color:rgba(255,255,255,.35)}
 
 /* ─── BLOG CONTENT ─── */
@@ -107,7 +172,7 @@ img{max-width:100%;height:auto}
 .breadcrumb .sep{color:var(--text-light,#cbd5e1);font-size:10px}
 .breadcrumb .current{color:var(--text,#1e293b);font-weight:500}
 
-/* ─── RELATED ARTICLES ─── */
+/* ─── RELATED ─── */
 .related-section{margin-top:48px;padding-top:32px;border-top:2px solid var(--border,#e2e8f0)}
 .related-section h3{font-size:20px;font-weight:700;margin-bottom:20px;color:var(--text,#1e293b)}
 .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
@@ -146,7 +211,7 @@ img{max-width:100%;height:auto}
 """
 
 
-# ─── CATEGORIES ──────────────────────────────────────────────────────────
+# ─── CATEGORIES ──────────────────────────────────────────────────────
 
 _CATEGORY_MAP = {
     "ensinamentos de jesus": ["Evangelhos", "Parabolas", "Milagres", "Ensinamentos", "Oracao"],
@@ -167,7 +232,6 @@ _CATEGORY_MAP = {
 
 
 def _get_categories(nicho: str) -> list:
-    """Retorna categorias baseadas no nicho do blog."""
     n = nicho.lower().strip()
     for key, cats in _CATEGORY_MAP.items():
         if key in n or n in key:
@@ -175,37 +239,34 @@ def _get_categories(nicho: str) -> list:
     return ["Artigos", "Estudos", "Guias", "Noticias", "Dicas"]
 
 
-# ─── PAGE FRAME ──────────────────────────────────────────────────────────
+# ─── PAGE FRAME v2 ───────────────────────────────────────────────────
 
 def _page_frame(title: str, body_html: str, theme_css: str = "",
                description: str = "", image_url: str = "",
                canonical_url: str = "", schema_json: str = "",
-               theme: dict = None) -> str:
-    """Gera pagina HTML completa com SEO: Open Graph, Twitter Cards, Schema.org e canonical."""
-    google_fonts = "Inter:wght@300;400;500;600;700"
+               theme: dict = None, slug: str = "") -> str:
+    """Gera pagina HTML completa com SEO, dark mode, e branding profissional.
+    slug: usado para link dinamico no cookie banner.
+    """
+    google_fonts = "Inter:wght@300;400;500;600;700;800"
     if "Playfair" in theme_css:
         google_fonts += "|Playfair+Display:wght@400;700"
     if "Merriweather" in theme_css:
         google_fonts += "|Merriweather:wght@300;400;700"
     if "Lora" in theme_css:
         google_fonts += "|Lora:wght@400;600;700"
+    if "JetBrains" in theme_css:
+        google_fonts += "|JetBrains+Mono:wght@400;700"
 
-    # Favicon dinamico por tema
+    # Favicon profissional — usa SVG vetorial em vez de emoji
     if theme:
-        pri = theme.get("colors", {}).get("primary", "#d4a853").lstrip("#")
-        ico_char = theme.get("header_icon", "✝")
-        ico_urlencoded = quote(ico_char, safe='')
-        favicon = ("data:image/svg+xml,"
-                   "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
-                   f"%3Crect width='32' height='32' rx='6' fill='%23{pri}'/%3E"
-                   f"%3Ctext x='16' y='23' font-size='22' text-anchor='middle' fill='%23fff'%3E{ico_urlencoded}%3C/text%3E"
-                   "%3C/svg%3E")
+        favicon = get_favicon_svg(theme.get("id", ""))
     else:
-        favicon = ("data:image/svg+xml,"
-                   "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
-                   "%3Crect width='32' height='32' rx='6' fill='%236366f1'/%3E"
-                   "%3Ctext x='16' y='23' font-size='22' text-anchor='middle' fill='%23fff'%3E%F0%9F%93%9D%3C/text%3E"
-                   "%3C/svg%3E")
+        favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M16 6v20M6 16h20' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E"
+
+    # Apple touch icon (PNG fallback) + PWA manifest hints
+    apple_touch = f'<link rel="apple-touch-icon" href="{favicon}">'
+    theme_color = theme["colors"]["primary"] if theme else "#0f172a"
 
     desc_escaped = esc(description[:160]) if description else ""
     img_escaped = esc(image_url) if image_url else ""
@@ -226,6 +287,7 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="{theme_color}">
 <title>{title}</title>
 <meta name="description" content="{desc_escaped}">
 {canonical}
@@ -233,23 +295,27 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 {og_img}
 {schema_tag}
 <link rel="icon" type="image/svg+xml" href="{favicon}">
+{apple_touch}
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?{google_fonts}&display=swap" rel="stylesheet">
+{_DARK_MODE_JS}
 <style>{_BASE_CSS}{theme_css}</style>
 </head>
 <body>
 {body_html}
+{_cookie_banner_html(slug)}
 </body>
 </html>"""
 
 
-# ─── HEADER ──────────────────────────────────────────────────────────────
+# ─── HEADER v2 ───────────────────────────────────────────────────────
 
 def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: str = "") -> str:
-    """Gera header fixo com logo, navegacao por categorias e busca."""
+    """Gera header fixo com logo SVG profissional, dark mode toggle, busca."""
     categories = _get_categories(blog_niche)
     theme = detect_theme(blog_niche)
-    header_icon = theme.get("header_icon", "&#10013;")
+    logo_svg = get_logo_svg(blog_niche)
     nav_items = "".join(
         f'<a href="/blog/{slug}?cat={c.lower()}" class="nav-link{" active" if current_cat.lower() == c.lower() else ""}">{c}</a>'
         for c in categories
@@ -257,45 +323,40 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
     return f"""<header class="site-header">
   <div class="header-inner">
     <a href="/blog/{slug}" class="header-logo">
-      <span class="logo-icon">{header_icon}</span>
+      <span class="logo-icon">{logo_svg}</span>
       <span class="logo-text">{blog_name}</span>
     </a>
     <nav class="header-nav" id="mainNav">
       {nav_items}
     </nav>
     <div class="header-actions">
-      <button class="search-toggle" onclick="toggleSearch()" aria-label="Buscar">&#128269;</button>
-      <button class="menu-toggle" onclick="toggleMobileMenu()" aria-label="Menu">&#9776;</button>
+      <button class="search-toggle" onclick="var s=document.getElementById('searchBar');if(s)s.style.display=s.style.display==='none'?'flex':'none';" aria-label="Buscar">&#128269;</button>
+      <button class="dark-toggle" onclick="toggleDark()" aria-label="Alternar tema">&#9790;</button>
+      <button class="menu-toggle" onclick="var n=document.getElementById('mainNav');if(n)n.classList.toggle('open');" aria-label="Menu">&#9776;</button>
     </div>
   </div>
   <div class="search-bar" id="searchBar" style="display:none">
-    <input type="text" id="searchInput" placeholder="Buscar artigos..." onkeydown="if(event.key==='Enter') searchArticles()">
-    <button onclick="searchArticles()">Buscar</button>
+    <input type="text" id="searchInput" placeholder="Buscar artigos..." onkeydown="if(event.key==='Enter'){{var q=document.getElementById('searchInput');if(q&&q.value.trim())window.location='/blog/{slug}?q='+encodeURIComponent(q.value.trim());}}">
+    <button onclick="var q=document.getElementById('searchInput');if(q&&q.value.trim())window.location='/blog/{slug}?q='+encodeURIComponent(q.value.trim());">Buscar</button>
   </div>
-</header>
-<script>
-function toggleSearch(){{var sb=document.getElementById('searchBar');if(sb)sb.style.display=sb.style.display==='none'?'flex':'none';}}
-function toggleMobileMenu(){{var nav=document.getElementById('mainNav');if(nav)nav.classList.toggle('open');}}
-function searchArticles(){{var q=document.getElementById('searchInput');if(q&&q.value.trim())window.location='/blog/{slug}?q='+encodeURIComponent(q.value.trim());}}
-</script>"""
+</header>"""
 
 
-# ─── FOOTER ──────────────────────────────────────────────────────────────
+# ─── FOOTER v2 ───────────────────────────────────────────────────────
 
 def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str = None) -> str:
-    """Gera footer com links e informacoes."""
+    """Gera footer com logo SVG, links reais e newsletter call-to-action."""
     if not year:
         year = str(datetime.now().year)
     theme = detect_theme(blog_niche)
-    header_icon = theme.get("header_icon", "&#10013;")
+    logo_svg = get_logo_svg(blog_niche)
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])
-    # Descricao dinâmica baseada no nicho
     niche_desc = blog_niche[:80] if blog_niche else "conhecimento e inspiracao"
     return f"""<footer class="site-footer">
   <div class="footer-grid">
     <div class="footer-brand">
-      <span class="logo-icon">{header_icon}</span>
+      <span class="logo-icon">{logo_svg}</span>
       <strong>{blog_name}</strong>
       <p>Blog dedicado a {niche_desc.lower()}.</p>
     </div>
@@ -326,19 +387,43 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
 <a href="/" class="admin-link">&#9881; Admin</a>"""
 
 
-# ─── PAGE GENERATORS ─────────────────────────────────────────────────────
+# ─── PAGE GENERATORS v2 ──────────────────────────────────────────────
 
 def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
-    """Gera HTML da pagina inicial do blog com grade de artigos."""
+    """Gera HTML da pagina inicial com hero section + grade de artigos + scroll-fade."""
     blog_name = esc(blog_info["name"])
     blog_niche = esc(blog_info.get("nicho", ""))
     pcount = len(posts)
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
+    # Hero — artigo mais recente em destaque
+    hero_html = ""
+    if posts:
+        top = posts[0]
+        wc = top.get("word_count", 0) or 0
+        rt = max(1, round(wc / 200))
+        img = top.get("featured_image_url")
+        img_tag = f'<img class="card-image" src="{esc(img)}" alt="{esc(top["title"])}" loading="eager">' if img else f'<div class="card-image-placeholder">{placeholder_icon}</div>'
+        hero_html = f"""
+    <div class="blog-hero">
+      <div class="hero-content">
+        <span class="hero-badge">&#9733; Artigo em Destaque</span>
+        <h1>{blog_name}</h1>
+        <p>Artigos, estudos e reflexoes sobre {blog_niche.lower()}.</p>
+        <a href="/blog/{slug}?post={esc(top["id"])}" class="hero-featured">
+          {img_tag}
+          <div class="hf-body">
+            <h3>{esc(top["title"])}</h3>
+            <p>&#128197; {fmt_date(top.get("created_at"))} &middot; {rt} min de leitura</p>
+          </div>
+        </a>
+      </div>
+    </div>"""
 
+    # Card grid com scroll-fade
     cards_html = ""
-    for p in posts:
+    for i, p in enumerate(posts):
         wc = p.get("word_count", 0) or 0
         rt = max(1, round(wc / 200))
         excerpt = esc(p.get("excerpt", "")[:200])
@@ -352,8 +437,10 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
         pid = esc(p["id"])
         tit = esc(p["title"])
 
+        # Delay nos primeiros cards para efeito cascata
+        delay = min(i * 0.1, 1.0)
         cards_html += f"""
-        <a href="/blog/{slug}?post={pid}" class="post-card">
+        <a href="/blog/{slug}?post={pid}" class="post-card scroll-fade" style="transition-delay:{delay}s">
           {img_tag}
           <div class="card-body">
             <h2 class="post-title">{tit}</h2>
@@ -378,25 +465,25 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     canonical = f"https://dezafira.com.br/blog/{slug}"
 
     body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+{hero_html}
 <main class="blog-content">
   {subdomain_html}
   <h2 style="font-family:var(--font-heading,inherit);font-size:1.5rem;margin-bottom:20px">&#128214; Todos os Artigos</h2>
   <div class="blog-stats" style="margin-bottom:20px">{pcount} artigo{"s" if pcount != 1 else ""}</div>
   {posts_html}
 </main>
-{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}"""
+{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+{_SCROLL_OBSERVER_JS}"""
 
     title = f"{blog_name} &mdash; Blog sobre {blog_niche}" if blog_niche else blog_name
-    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme)
+    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme, slug=slug)
 
 
 def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts: list = None) -> str:
-    """Gera HTML da visualizacao de um artigo individual.
-    Inclui breadcrumb, autor no meta bar e secao Leia Tambem com artigos relacionados.
-    """
+    """Gera HTML de artigo individual com newsletter, progress bar, related posts."""
     blog_name = esc(blog_info["name"])
     blog_niche = esc(blog_info.get("nicho", ""))
-    raw_title = post["title"]  # raw for breadcrumb truncation
+    raw_title = post["title"]
     title = esc(raw_title)
     content = post.get("content", "")
     excerpt = esc(post.get("excerpt", "")[:200])
@@ -406,14 +493,13 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     dt_str = fmt_date(post.get("created_at"))
     keywords = post.get("keywords", "")
     tags = "".join(f'<span class="tag">{esc(k.strip())}</span>' for k in keywords.split(",") if k.strip())
-    # Author do post ou nome do blog
     author_name = esc(post.get("author") or blog_info.get("name", "Equipe"))
 
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
 
-    img_html = (f'<img class="featured-image" src="{esc(img)}" alt="{title}">' if img
+    img_html = (f'<img class="featured-image" src="{esc(img)}" alt="{title}" loading="eager">' if img
                 else f'<div class="card-image-placeholder" style="height:280px;margin-bottom:24px">{placeholder_icon}</div>')
 
     # Breadcrumb
@@ -426,17 +512,27 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
       <span class="current">{esc(raw_title[:60])}</span>
     </nav>"""
 
-    # Author in meta bar
+    # Author
     author_html = f'<span class="meta-item author">&#9997; {author_name}</span>'
 
-    # Related articles (Leia Tambem)
+    # Newsletter inline
+    newsletter_html = f"""
+    <aside class="newsletter-inline scroll-fade" aria-label="Newsletter">
+      <h3>&#128231; Gostou do artigo?</h3>
+      <p>Receba novos conteudos diretamente no seu e-mail. Sem spam, apenas conteudo de qualidade.</p>
+      <form class="newsletter-form" onsubmit="alert('Funcionalidade em breve! Envie um e-mail para contato@dezafira.com.br');return false">
+        <input type="email" placeholder="Seu melhor e-mail" required aria-label="Email">
+        <button type="submit">Inscrever</button>
+      </form>
+    </aside>"""
+
+    # Related
     related_html = ""
     if related_posts:
         related_cards = ""
         for rp in related_posts:
             rp_id = esc(rp["id"])
             rp_tit = esc(rp["title"])
-            rp_excerpt = esc(rp.get("excerpt", "")[:120])
             rp_img = rp.get("featured_image_url")
             rp_wc = rp.get("word_count", 0) or 0
             rp_rt = max(1, round(rp_wc / 200))
@@ -446,7 +542,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
                 rp_img_tag = f'<div class="card-image-placeholder">{placeholder_icon}</div>'
             rp_dt = fmt_date(rp.get("created_at"))
             related_cards += f"""
-            <a href="/blog/{slug}?post={rp_id}" class="related-card">
+            <a href="/blog/{slug}?post={rp_id}" class="related-card scroll-fade">
               {rp_img_tag}
               <div class="card-body">
                 <h4 class="post-title">{rp_tit}</h4>
@@ -464,7 +560,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
       </div>
     </section>"""
 
-    # Schema.org JSON-LD para o artigo — usa json.dumps() para serializacao segura
+    # Schema.org
     schema_obj = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
@@ -472,10 +568,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
         "description": (post.get("excerpt") or "")[:500],
         "wordCount": wc,
         "datePublished": post.get("created_at", ""),
-        "author": {
-            "@type": "Organization",
-            "name": blog_info.get("name", "O Reino")
-        }
+        "author": {"@type": "Organization", "name": blog_info.get("name", "O Reino")}
     }
     schema = json.dumps(schema_obj, ensure_ascii=False, indent=2)
 
@@ -484,6 +577,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     img_url = img or ""
 
     body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+<div class="reading-progress"><div class="reading-progress-bar" id="readingProgress"></div></div>
 <main class="blog-content">
   {breadcrumb}
   <article class="post-viewer">
@@ -497,17 +591,20 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     </div>
     {f'<div class="post-tags">{tags}</div>' if tags else ''}
     <div class="post-content">{content}</div>
+    {newsletter_html}
     {related_html}
     <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);text-align:center">
       <a href="/blog/{slug}" class="back-link" style="display:inline-flex">&larr; Voltar para todos os artigos</a>
     </div>
   </article>
 </main>
-{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}"""
+{_get_footer_html(slug, blog_info["name"], blog_info.get("nicho", ""))}
+{_READING_PROGRESS_JS}
+{_SCROLL_OBSERVER_JS}"""
 
     return _page_frame(f"{title} &mdash; {blog_name}", body, theme_css,
                        description=excerpt_clean, image_url=img_url,
-                       canonical_url=canonical, schema_json=schema, theme=theme)
+                       canonical_url=canonical, schema_json=schema, theme=theme, slug=slug)
 
 
 # ─── STATIC PAGES ────────────────────────────────────────────────────
@@ -534,11 +631,9 @@ _PAGE_STYLES = """
 
 
 def generate_static_page(slug: str, blog_info: dict, page_title: str, content_html: str, meta: str = "") -> str:
-    """Gera pagina estatica (Sobre, Contato, Privacidade, Termos) com header/footer do blog."""
     blog_name = blog_info.get("name", "O Reino")
     blog_niche = blog_info.get("nicho", "")
     theme_css = _PAGE_STYLES
-
     body = f"""{_get_header_html(slug, blog_name, blog_niche)}
 <main class="blog-content">
   <div class="static-page">
@@ -548,29 +643,25 @@ def generate_static_page(slug: str, blog_info: dict, page_title: str, content_ht
     {content_html}
   </div>
 </main>
-{_get_footer_html(slug, blog_name, blog_niche)}"""
-
+{_get_footer_html(slug, blog_name, blog_niche)}
+{_SCROLL_OBSERVER_JS}"""
     full_title = f"{page_title} &mdash; {blog_name}"
-    return _page_frame(full_title, body, theme_css, theme=detect_theme(blog_niche))
+    return _page_frame(full_title, body, theme_css, theme=detect_theme(blog_niche), slug=slug)
 
 
 def generate_privacy_page(slug: str, blog_info: dict) -> str:
-    """Pagina de Politica de Privacidade."""
     content = """
 <h2>1. Introducao</h2>
 <p>O blog respeita a sua privacidade. Esta Politica de Privacidade explica como coletamos, usamos, compartilhamos e protegemos suas informacoes quando voce visita nosso site.</p>
-
 <h2>2. Dados que Coletamos</h2>
 <ul>
 <li><strong>Dados de navegacao:</strong> endereco IP, tipo de navegador, paginas visitadas</li>
 <li><strong>Cookies:</strong> utilizamos cookies proprios e de terceiros para melhorar a experiencia</li>
 <li><strong>Dados fornecidos voluntariamente:</strong> nome e e-mail em formularios de contato</li>
 </ul>
-
 <h2>3. Cookies do Google (AdSense)</h2>
 <p>Utilizamos o <strong>Google AdSense</strong> para exibir anuncios. O Google utiliza cookies para veicular anuncios com base nas visitas anteriores dos usuarios ao nosso site ou a outros sites. Voce pode desativar a personalizacao de anuncios visitando as <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Configuracoes de Anuncios do Google</a>.</p>
 <p>Para mais informacoes: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Como o Google usa as informacoes de sites</a>.</p>
-
 <h2>4. LGPD (Lei Geral de Protecao de Dados)</h2>
 <p>Em conformidade com a Lei 13.709/2018 (LGPD), voce tem direito a:</p>
 <ul>
@@ -579,7 +670,6 @@ def generate_privacy_page(slug: str, blog_info: dict) -> str:
 <li>Solicitar a eliminacao dos dados</li>
 <li>Revogar o consentimento a qualquer momento</li>
 </ul>
-
 <h2>5. Contato para Exercer seus Direitos</h2>
 <p>Para qualquer questao relacionada a privacidade: <strong>contato@dezafira.com.br</strong></p>
 """
@@ -587,23 +677,19 @@ def generate_privacy_page(slug: str, blog_info: dict) -> str:
 
 
 def generate_about_page(slug: str, blog_info: dict) -> str:
-    """Pagina Sobre Nos."""
     blog_name = blog_info.get("name", "O Reino")
     niche = blog_info.get("nicho", "")
     content = f"""
 <h2>Nosso Proposito</h2>
 <p><strong>"{blog_name}"</strong> e um blog dedicado a explorar e compartilhar conhecimento sobre <strong>{niche}</strong>. Oferecemos reflexoes profundas, estudos e meditacoes que ajudam pessoas a compreender e aplicar principios transformadores em sua vida diaria.</p>
-
 <h2>Nossa Missao</h2>
 <ul>
 <li><strong>Ensinar:</strong> Explicar temas complexos de forma clara e acessivel</li>
 <li><strong>Refletir:</strong> Provocar reflexao profunda sobre fe, valores e proposito</li>
 <li><strong>Aplicar:</strong> Mostrar como viver esses ensinamentos no seculo XXI</li>
 </ul>
-
 <h2>Nossa Equipe</h2>
 <p>Contamos com uma equipe dedicada de redatores, revisores e pesquisadores que trabalham para trazer o melhor conteudo, sempre com qualidade e profundidade.</p>
-
 <h2>Entre em Contato</h2>
 <p>Tem alguma duvida ou sugestao? Fale conosco: <strong>contato@dezafira.com.br</strong></p>
 """
@@ -611,24 +697,18 @@ def generate_about_page(slug: str, blog_info: dict) -> str:
 
 
 def generate_contact_page(slug: str, blog_info: dict) -> str:
-    """Pagina de Contato."""
     content = """
 <div class="contact-card">
   <label for="contact-name">Seu Nome</label>
   <input type="text" id="contact-name" placeholder="Digite seu nome">
-
   <label for="contact-email">Seu E-mail</label>
   <input type="email" id="contact-email" placeholder="Digite seu e-mail">
-
   <label for="contact-subject">Assunto</label>
   <input type="text" id="contact-subject" placeholder="Assunto da mensagem">
-
   <label for="contact-message">Mensagem</label>
   <textarea id="contact-message" rows="5" placeholder="Sua mensagem..."></textarea>
-
   <button onclick="alert('Funcionalidade em breve! Envie um e-mail para contato@dezafira.com.br')">Enviar Mensagem</button>
 </div>
-
 <h3>Outras formas de contato</h3>
 <p><strong>E-mail:</strong> contato@dezafira.com.br</p>
 """
@@ -636,24 +716,19 @@ def generate_contact_page(slug: str, blog_info: dict) -> str:
 
 
 def generate_terms_page(slug: str, blog_info: dict) -> str:
-    """Pagina de Termos de Uso."""
     content = """
 <h2>1. Aceitacao dos Termos</h2>
 <p>Ao acessar este blog, voce concorda com estes Termos de Uso. Se nao concordar, por favor, nao utilize nosso site.</p>
-
 <h2>2. Uso do Conteudo</h2>
 <p>Todo o conteudo publicado neste blog e protegido por direitos autorais. E permitido compartilhar os links e trechos com devida atribuicao, mas a reproducao integral do conteudo sem autorizacao e proibida.</p>
-
 <h2>3. Responsabilidades</h2>
 <ul>
 <li>O conteudo e fornecido "como esta", para fins informativos e educacionais</li>
 <li>Nao nos responsabilizamos por decisoes tomadas com base no conteudo</li>
 <li>Links externos sao fornecidos como conveniencia, sem endorsamento</li>
 </ul>
-
 <h2>4. Alteracoes</h2>
 <p>Estes termos podem ser atualizados a qualquer momento. Recomendamos revisar esta pagina periodicamente.</p>
-
 <h2>5. Contato</h2>
 <p>Para questoes sobre estes termos: <strong>contato@dezafira.com.br</strong></p>
 """
@@ -662,13 +737,14 @@ def generate_terms_page(slug: str, blog_info: dict) -> str:
 
 def generate_not_found() -> str:
     return _page_frame("Pagina nao encontrada",
-        '<div class="error-state"><div class="icon">&#128533;</div><h2>Pagina nao encontrada</h2><p><a href="/">Voltar ao inicio</a></p></div>')
+        '<div class="error-state"><div class="icon">&#128533;</div><h2>Pagina nao encontrada</h2><p><a href="/">Voltar ao inicio</a></p></div>',
+        slug="")
 
 
 def generate_blog_html(slug: str, blog_info: dict, posts: list, post: dict = None, related_posts: list = None) -> str:
     """Gera HTML completo do blog com tema personalizado por nicho.
     Se post for fornecido, mostra artigo individual (com related_posts).
-    Senao, mostra lista de artigos.
+    Senao, mostra lista de artigos com hero section.
     """
     if not blog_info:
         return generate_not_found()

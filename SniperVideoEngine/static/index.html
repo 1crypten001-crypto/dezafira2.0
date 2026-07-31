@@ -83,11 +83,14 @@
   .table-row .meta{font-size:12px;color:#5c6370}
   .cols-3{grid-template-columns:1fr auto auto}
   .cols-4{grid-template-columns:1fr auto auto auto}
+  .cols-5{grid-template-columns:1fr auto auto auto auto}
   .tag{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
   .tag-green{background:rgba(34,197,94,.12);color:#4ade80}
   .tag-blue{background:rgba(59,130,246,.12);color:#60a5fa}
 .tag-yellow{background:rgba(245,158,11,.12);color:#fbbf24}
 .tag-purple{background:rgba(139,92,246,.12);color:#a78bfa}
+  .btn-danger{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+  .btn-danger:hover{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.4)}
   .page{display:none}.page.active{display:block}
   .page-header{margin-bottom:20px}
   .page-header h2{font-size:22px;font-weight:800;margin-bottom:4px}
@@ -214,20 +217,25 @@
   .lili-issue-tag.low{background:rgba(59,130,246,.15);color:#60a5fa}
   .lili-score-bar{width:80px;height:6px;background:#14161f;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
 
-  /* Blog tabs */
+  /* Blog tabs v2 — branding profissional */
   .blog-tabs{display:flex;gap:0;margin-bottom:0;overflow-x:auto;overflow-y:hidden;position:relative;background:#0b0c12;border:1px solid #14161f;border-radius:12px 12px 0 0}
-  .blog-tab{display:flex;align-items:center;gap:8px;padding:12px 20px;cursor:pointer;color:#5c6370;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s ease;white-space:nowrap;flex-shrink:0}
+  .blog-tab{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;color:#5c6370;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s ease;white-space:nowrap;flex-shrink:0}
   .blog-tab:hover{color:#e8edf2;background:#12141e}
-  .blog-tab.active{color:#a5b4fc;border-bottom-color:#6366f1;background:rgba(99,102,241,.08)}
+  .blog-tab.active{color:#e8edf2;border-bottom-color:var(--tab-color,#6366f1);background:rgba(255,255,255,.04)}
+  .blog-tab .tab-logo{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
   .blog-tab .tab-badge{background:#1e2030;padding:1px 7px;border-radius:8px;font-size:10px;color:#8a91a5}
-  .blog-tab.active .tab-badge{background:rgba(99,102,241,.2);color:#a5b4fc}
+  .blog-tab.active .tab-badge{background:rgba(255,255,255,.1);color:#8a91a5}
   .blog-panel{display:none}
   .blog-panel.active{display:block}
-  .blog-panel .panel-header{background:#0b0c12;border:1px solid #14161f;border-top:none;border-radius:0 0 12px 12px;padding:20px 24px;margin-bottom:20px}
-  .blog-panel .panel-header h3{font-size:18px;font-weight:700;margin-bottom:4px}
-  .blog-panel .panel-header .panel-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:#5c6370;margin-top:8px}
+  .blog-panel .panel-header{background:#0b0c12;border:1px solid #14161f;border-top:none;border-radius:0 0 12px 12px;padding:24px;position:relative;overflow:hidden;margin-bottom:20px}
+  .blog-panel .panel-header::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--panel-color,#6366f1)}
+  .blog-panel .panel-header .ph-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .blog-panel .panel-header .ph-logo{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
+  .blog-panel .panel-header h3{font-size:18px;font-weight:700;margin:0}
+  .blog-panel .panel-header .ph-niche{font-size:12px;color:#5c6370;margin-left:44px}
+  .blog-panel .panel-header .panel-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:#5c6370;margin-top:12px;margin-left:44px}
   .blog-panel .panel-header .panel-meta span{display:flex;align-items:center;gap:4px}
-  .blog-panel .panel-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .blog-panel .panel-actions{display:flex;gap:8px;margin-top:12px;margin-left:44px;flex-wrap:wrap}
   .blog-panel .panel-actions .btn{font-size:12px}
   .blog-empty-state{padding:32px;text-align:center;color:#5c6370}
 
@@ -631,11 +639,13 @@ async function loadDashboard(){
     return;
   }
 
-  // Build tabs
+  // Build tabs com branding
   var tabsHtml=chs.map(function(c,i){
     var blogPosts=posts.filter(function(p){return p.channel_id===c.id});
     var totalCountPerBlog = c.post_count || blogPosts.length;
-    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" onclick="switchBlogTab(\''+c.id+'\')">'+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
+    var pri=c.brand_primary||'#6366f1';
+    var init=(c.name||'B')[0];
+    return '<div class="blog-tab'+(i===0?' active':'')+'" data-blog="'+c.id+'" style="'+(i===0?'--tab-color:'+pri:'')+'" onclick="switchBlogTab(\''+c.id+'\')"><span class="tab-logo" style="background:'+pri+'">'+init+'</span>'+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
   }).join('');
   $("blogTabs").innerHTML=tabsHtml;
 
@@ -658,15 +668,17 @@ async function loadDashboard(){
       var imgBadge=hasImg
         ?'<span class="tag tag-green" style="background:rgba(34,197,94,.12);color:#4ade80">🖼️</span>'
         :'<span class="tag" style="background:rgba(239,68,68,.12);color:#f87171">🚫 Img</span>';
-      return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div></div>';
+      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||"")+' '+imgBadge+'</div><div class="meta">'+(p.status||"draft")+' &#8226; '+(p.word_count||0)+' palavras</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+(p.status||"draft")+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div><button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
     }).join(''):'<div class="blog-empty-state">Nenhum artigo neste blog</div>';
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 
     return '<div class="blog-panel'+(i===0?' active':'')+'" id="panel_'+c.id+'">'+
-      '<div class="panel-header">'+
-        '<h3>'+escapeHtml(c.name)+'</h3>'+
-        '<div style="font-size:13px;color:#5c6370;margin-bottom:8px">'+escapeHtml(c.nicho)+'</div>'+
+      '<div class="panel-header" style="--panel-color:'+pri+'">'+
+        '<div class="ph-top">'+
+          '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>'+
+          '<div><h3>'+escapeHtml(c.name)+'</h3><div style="font-size:12px;color:#5c6370">'+escapeHtml(c.nicho)+'</div></div>'+
+        '</div>'+
         '<div class="panel-meta">'+
           '<span>📄 '+totalC+' artigos</span>'+
           '<span>📝 '+(pubC||0)+' publicados</span>'+
@@ -713,6 +725,18 @@ async function liliReviewAllForBlog(channelId){
     var res=await api("/api/v1/lili/review-all?channel_id="+encodeURIComponent(channelId));
     if(res.error){showToast("Erro: "+res.error);return;}
     showToast("Revisao concluida! "+res.approved+"/"+res.total+" aprovados. Media: "+res.avg_score+"/100");
+    loadBlogs();
+  }catch(e){showToast("Erro: "+e.message);}
+}
+
+async function deleteBlogPost(postId,title){
+  // Decodifica entidades HTML para exibir corretamente no confirm
+  var d=document.createElement("textarea");d.innerHTML=title||"";var cleanTitle=d.value;
+  if(!confirm("Tem certeza que deseja excluir o artigo \""+cleanTitle+"\"? Esta acao nao pode ser desfeita."))return;
+  try{
+    var res=await api("/api/v1/blog/post/"+encodeURIComponent(postId),{method:"DELETE"});
+    if(res.error){showToast("Erro: "+res.error);return;}
+    showToast("\u2705 Artigo excluido com sucesso!");
     loadBlogs();
   }catch(e){showToast("Erro: "+e.message);}
 }
