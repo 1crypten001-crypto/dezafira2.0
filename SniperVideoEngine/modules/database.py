@@ -1250,6 +1250,36 @@ def get_db_blog_pipeline_run(run_id: str) -> dict:
         db.close()
 
 
+def get_db_blog_pipeline_runs(limit: int = 10) -> list:
+    """Retorna uma lista dos pipeline runs mais recentes."""
+    db = SessionLocal()
+    try:
+        runs = db.query(BlogPipelineRun).order_by(BlogPipelineRun.started_at.desc()).limit(limit).all()
+        return [
+            {
+                "id": r.id,
+                "channel_id": r.channel_id,
+                "blog_name": r.blog_name,
+                "niche": r.niche,
+                "language": r.language,
+                "phase": r.phase,
+                "status": r.status,
+                "total_articles_target": r.total_articles_target,
+                "articles_generated": r.articles_generated,
+                "current_round": r.current_round,
+                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                "error": r.error,
+            } for r in runs
+        ]
+    except Exception as e:
+        print(f"[Database] Erro ao listar pipeline runs: {e}")
+        return []
+    finally:
+        db.close()
+
+
+
 def get_stuck_pipeline_runs() -> list:
     """Retorna pipelines que estão como 'running' (interrompidas)."""
     db = SessionLocal()
