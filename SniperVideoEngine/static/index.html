@@ -390,6 +390,8 @@
             <select id="liliChannelFilter" onchange="loadLili()" style="background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:4px 8px;font-size:12px"><option value="">Todos os blogs</option></select>
             <select id="liliStatusFilter" onchange="loadLili()" style="background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:4px 8px;font-size:12px"><option value="">Todos os status</option><option value="draft">Draft</option><option value="published">Publicado</option></select>
             <button class="btn btn-sm btn-primary" id="liliReviewAllBtn" onclick="liliReviewAll()">🔄 Recalcular Scores</button>
+            <input id="liliBatchLimit" type="number" min="1" max="50" value="10" title="Quantos artigos regenerar por lote" style="width:64px;background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:4px 8px;font-size:12px">
+            <button class="btn btn-sm" id="liliBatchBtn" style="background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="regenerateBatchReproved()" title="Regenera em lote os artigos reprovados (score < 70)">🤖 Regenerar Reprovados</button>
           </div>
         </div>
         <div class="card-table" id="liliResults"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando ranking...</div></div>
@@ -667,7 +669,8 @@ async function loadDashboard(){
       var liliScore=(typeof p.lili_score==='number')?p.lili_score:null;
       var liliBadge=liliScore!==null?'<span class="tag" title="'+(p.lili_approved?'✅ Aprovado':'❌ Reprovado')+' pela LiLi" style="background:'+(liliScore>=85?'rgba(16,185,129,.15);color:#34d399':liliScore>=70?'rgba(251,191,36,.15);color:#fbbf24':'rgba(239,68,68,.15);color:#f87171')+';font-size:10px">🌸 '+liliScore+'/100</span>':'';
       var regenBtn=(liliScore!==null&&(liliScore<70||!p.lili_approved))?'<button class="btn btn-sm" style="background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="regenerateBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Regenerar artigo (score baixo)">🔄</button>':'';
-      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+(liliBadge?' &#8226; '+liliBadge:'')+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div style="display:flex;gap:4px">'+regenBtn+'<button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
+      var imgBtn='<button class="btn btn-sm" style="background:#0891b2;border-color:#0891b2;color:#fff" onclick="regeneratePostImage(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Gerar nova imagem (mantem o texto)">🖼️</button>';
+      return '<div class="table-row cols-5"><div><div class="title">'+escapeHtml(p.title||'')+'</div><div class="meta">'+(p.status||'draft')+' &#8226; '+(p.word_count||0)+' palavras &#8226; '+imgBadge+(liliBadge?' &#8226; '+liliBadge:'')+'</div></div><div><span class="tag '+(p.status==="published"?"tag-green":"tag-yellow")+'">'+( p.status||'draft')+'</span></div><div><a href="'+artUrl+'" target="_blank" class="btn btn-sm">&#128279; Ver</a></div><div style="display:flex;gap:4px">'+imgBtn+regenBtn+'<button class="btn btn-sm btn-danger" onclick="deleteBlogPost(\''+p.id+'\',\''+escapeHtml(p.title||"").replace(/'/g,"\\'")+'\')" title="Excluir artigo">🗑️</button></div></div>';
     }).join(''):'<div class="blog-empty-state" >Nenhum artigo neste blog</div>';
 
     // Estatistica de provedores de imagem
@@ -1149,6 +1152,7 @@ async function loadLili(){
     if(scoreVal!==null&&scoreVal<70){
       actions+='<button class="btn btn-sm" style="background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="regenerateBlogPost(\''+r.id+'\',\''+escapeHtml(r.title||"").replace(/'/g,"\\'")+'\')" title="Regenerar artigo">🔄</button>';
     }
+    actions+='<button class="btn btn-sm" style="background:#0891b2;border-color:#0891b2;color:#fff" onclick="regeneratePostImage(\''+r.id+'\',\''+escapeHtml(r.title||"").replace(/'/g,"\\'")+'\')" title="Gerar nova imagem">🖼️</button>';
     actions+='<button class="btn btn-sm" onclick="liliCorrectArticle(\''+r.id+'\')" title="Corrigir automaticamente">🛠️</button>';
     actions+='<button class="btn btn-sm" onclick="window.open(\''+artUrl+'\')" title="Ver artigo">🔗</button></div>';
 
@@ -1209,6 +1213,38 @@ async function regenerateBlogPost(postId,title){
   }catch(e){
     showToast("Erro ao regenerar: "+e.message);
   }
+}
+
+async function regeneratePostImage(postId,title){
+  if(!postId)return;
+  var d=document.createElement("textarea");d.innerHTML=title||"";var cleanTitle=d.value;
+  if(!confirm("Gerar uma nova imagem para \""+cleanTitle+"\"? O texto do artigo sera mantido."))return;
+  showToast("Gerando nova imagem... pode levar alguns minutos.");
+  try{
+    var res=await api("/api/v1/blog/post/"+encodeURIComponent(postId)+"/regenerate-image",{method:"POST"});
+    if(res.error){showToast("Erro: "+res.error);return;}
+    if(res.success){
+      showToast("✅ Nova imagem gerada!");
+      loadBlogs();
+      if(typeof loadLili==='function')loadLili();
+    }else{
+      showToast("Falha ao gerar imagem: "+(res.error||"erro desconhecido"));
+    }
+  }catch(e){showToast("Erro: "+e.message);}
+}
+
+async function regenerateBatchReproved(){
+  var limit=parseInt((document.getElementById("liliBatchLimit")||{}).value||"10");
+  if(!limit||limit<1)limit=10;
+  if(limit>50)limit=50;
+  if(!confirm("Regenerar em lote os artigos reprovados pela LiLi (ate "+limit+")? Isso vai recriar texto, imagem e revisao de cada um. Pode demorar."))return;
+  showToast("Agendando regeneracao de "+limit+" artigos...");
+  try{
+    var res=await api("/api/v1/lili/regenerate-batch",{method:"POST",body:JSON.stringify({limit:limit})});
+    if(res.error){showToast("Erro: "+res.error);return;}
+    showToast("✅ "+res.message);
+    if(typeof loadLili==='function')loadLili();
+  }catch(e){showToast("Erro: "+e.message);}
 }
 
 async function loadBooks(){

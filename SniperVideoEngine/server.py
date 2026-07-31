@@ -3401,6 +3401,82 @@ async def regenerate_blog_post(post_id: str):
         return {"success": False, "error": str(e)}
 
 
+@app.post("/api/v1/blog/post/{post_id}/regenerate-image")
+async def regenerate_blog_post_image(post_id: str):
+    """Regenera APENAS a imagem de destaque do artigo (mantem o texto e o score)."""
+    from modules.database import get_db_blog_post, update_db_blog_post
+    from modules.image_factory import ImageGeneratorAgent
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        return {"error": "Post nao encontrado"}
+
+    title = post.get("title", "") or post_id
+    keywords = post.get("keywords", "") or title
+    topic = post.get("topic", "") or title
+
+    agent = ImageGeneratorAgent()
+    img = await agent.generate_for_article(title=title, keywords=keywords, topic=topic)
+    if not img.get("image_url"):
+        return {"success": False, "error": "Nenhuma imagem retornada pelo ImageGeneratorAgent"}
+
+    update_db_blog_post(
+        post_id,
+        featured_image_url=img["image_url"],
+        image_provider=img.get("provider") or "flux",
+    )
+    return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
+
+
+@app.post("/api/v1/lili/regenerate-batch")
+async def lili_regenerate_batch(payload: dict, background_tasks: BackgroundTasks):
+    """Regenera em lote os artigos reprovados pela LiLi (score < 70 ou nao aprovados).
+    Roda em background via BackgroundTasks para nao travar a UI."""
+    try:
+        limit = int(payload.get("limit") or 10)
+    except (TypeError, ValueError):
+        limit = 10
+    limit = max(1, min(limit, 50))  # max 50 por lote
+    channel_id = payload.get("channel_id") or ""
+
+    from modules.database import get_db_all_posts_with_meta
+
+    posts = get_db_all_posts_with_meta()
+    if channel_id:
+        posts = [p for p in posts if p["channel_id"] == channel_id]
+
+    reproved = [
+        p for p in posts
+        if (p.get("lili_score") is not None and p.get("lili_score", 0) < 70)
+        or not p.get("lili_approved")
+    ]
+    # Piores primeiro
+    reproved.sort(key=lambda p: (p.get("lili_score") if p.get("lili_score") is not None else 0))
+    target = reproved[:limit]
+
+    if not target:
+        return {"success": True, "queued": 0, "message": "Nenhum artigo reprovado encontrado"}
+
+    async def _run_batch(post_ids):
+        for pid in post_ids:
+            try:
+                r = await regenerate_blog_post(pid)
+                if r.get("success"):
+                    print(f"[Batch] {pid}: OK -> {r.get('post_id')}")
+                else:
+                    print(f"[Batch] {pid}: FALHA -> {r.get('error')}")
+            except Exception as e:
+                print(f"[Batch] Erro em {pid}: {e}")
+
+    background_tasks.add_task(_run_batch, [p["id"] for p in target])
+    return {
+        "success": True,
+        "queued": len(target),
+        "post_ids": [p["id"] for p in target],
+        "message": f"{len(target)} artigos reprovados agendados para regeneracao em background",
+    }
+
+
 @app.post("/api/v1/blog/generate-article")
 async def generate_single_article(payload: dict):
     """Gera um artigo completo de forma direta (sem pipeline em background).
