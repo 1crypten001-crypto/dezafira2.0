@@ -1463,7 +1463,37 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
         post_id = article.get("post_id")
         title = article.get("title", topic)
         article_data = article.get("article", {})
-        emit("blog_writer", "completed", 100, f"Escrito por Carlão: {title}", article_data)
+        
+        # Fase 2.5: Qualidade & Auto-correção (LiLi)
+        emit("blog_writer", "active", 85, "LiLi auditando e corrigindo o texto do Carlão...")
+        try:
+            from modules.lili import corrigir_conteudo_automatico, revisar_conteudo
+            from modules.database import update_db_blog_post
+            raw_body = article_data.get("body", "")
+            
+            # Aplica correção da LiLi
+            corrected_body = corrigir_conteudo_automatico(raw_body)
+            review = revisar_conteudo(post_id, title, corrected_body, kw_string)
+            
+            # Se o score for baixo ou reprovado, dá uma chance de regeneração
+            if not review["approved"] or review["score"] < 80:
+                print(f"[LiLi/Pipeline] Artigo REPROVADO (Score: {review['score']}/100). Regenerando...")
+                article = await write(topic=topic, channel_id=channel_id, language=language,
+                                      target_words=1500, keywords=kw_string)
+                post_id = article.get("post_id")
+                title = article.get("title", topic)
+                article_data = article.get("article", {})
+                raw_body = article_data.get("body", "")
+                corrected_body = corrigir_conteudo_automatico(raw_body)
+                review = revisar_conteudo(post_id, title, corrected_body, kw_string)
+            
+            # Atualiza no banco o conteúdo limpo de forma definitiva!
+            update_db_blog_post(post_id, content=corrected_body)
+            article_data["body"] = corrected_body
+            emit("blog_writer", "completed", 100, f"Escrito por Carlão (Auditado pela LiLi: {review['score']}/100)", article_data)
+        except Exception as e_lili:
+            print(f"[Pipeline] Erro na auditoria da LiLi: {e_lili}")
+            emit("blog_writer", "completed", 100, f"Escrito por Carlão: {title}", article_data)
 
         # Fase 3: SEO & Injeção de Tags
         emit("seo_optimizer", "active", 20, "Otimizando SEO do post...")

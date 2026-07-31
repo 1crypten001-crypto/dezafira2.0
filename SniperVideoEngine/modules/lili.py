@@ -535,7 +535,21 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         content_html
     )
 
-        # 9. (ANTES de remover backslashes!) Remover secoes INTEIRAS (h2/h3) com garbage
+    # 12. (Mover para antes da remoção das barras!) Remover paragrafos <p> INTEIROS com garbage text (barras invertidas e códigos vazados)
+    content_html = re.sub(
+        r'<p[^>]*>[^<]*?(?:\\{2,}|DataFrame|lambda|equation|acheter|studentsavirus|Thomas subsystem|DDR|SELECT|Victims)[^<]*?</p>',
+        '',
+        content_html,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    content_html = re.sub(
+        r'<p[^>]*>[^<]*?<\d+[:.]\d+>[^<]*?</p>',
+        '',
+        content_html,
+        flags=re.DOTALL
+    )
+
+    # 9. (ANTES de remover backslashes!) Remover secoes INTEIRAS (h2/h3) com garbage
     content_html = re.sub(
         r'<h[23][^>]*>.*?(?=<h[23]|\\Z)',
         lambda m: '' if re.search(r'\\{2,}', m.group(0)) else m.group(0),
@@ -543,13 +557,13 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         flags=re.DOTALL
     )
 
-    # 10. Remover 2+ barras invertidas consecutivas
+    # 10. Remover 2+ barras invertidas consecutivas remanescentes
     content_html = re.sub(r'\\{2,}', '', content_html)
 
     # 11. Remover padrao <numero:numero>
     content_html = re.sub(r'<\\d+[:.]\\d+>', '', content_html)
 
-        # 13. Remover repeticoes de 'assistant'
+    # 13. Remover repeticoes de 'assistant'
     content_html = re.sub(r'\bassistant\b(?:\s+\bassistant\b)+', '', content_html, flags=re.IGNORECASE)
 
     # 14. Remover tokens corrompidos 'A Es:R' e similares
@@ -562,24 +576,10 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     content_html = re.sub(r'<p>[^<]*\bassistant\b[^<]*</p>', '', content_html, flags=re.IGNORECASE)
 
     # 17. Remover paragrafos duplicados consecutivos (mesmo texto >2x)
-    content_html = re.sub(r'(<p>[^<]+</p>)\s*\1\s*\1', r'\\1', content_html, flags=re.DOTALL)
+    content_html = re.sub(r'(<p>[^<]+</p>)\s*\1\s*\1', r'\1', content_html, flags=re.DOTALL)
 
     # 18. Remover 'user:' ou 'assistant:' no meio do texto
     content_html = re.sub(r'\b(?:user|assistant)\s*:\s*"', '', content_html, flags=re.IGNORECASE)
-
-# 12. Remover paragrafos <p> INTEIROS com garbage text
-    content_html = re.sub(
-        r'<p>[^<]*\\{2,}[^<]*</p>',
-        '',
-        content_html,
-        flags=re.DOTALL
-    )
-    content_html = re.sub(
-        r'<p>[^<]*<\\d+[:.]\\d+>[^<]*</p>',
-        '',
-        content_html,
-        flags=re.DOTALL
-    )
 
     return content_html
 
