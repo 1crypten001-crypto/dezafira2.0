@@ -688,8 +688,17 @@ async function loadDashboard(){
         '</div>'+
         '<div class="panel-actions">'+
           '<button class="btn btn-sm" onclick="window.open(\''+blogUrl+'\')">🔗 Abrir Blog</button>'+
-          '<button class="btn btn-sm btn-primary" onclick="generateForBlog(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\')">✍️ Novo Artigo</button>'+
-          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\')">🔥 Criar por Tendência</button>'+
+          '<div style="display:inline-flex;align-items:center;gap:6px;margin:0 4px">'+
+            '<span style="font-size:11px;color:#8a91a5">Qtd:</span>'+
+            '<select id="hype_qty_'+c.id+'" style="background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:3px 6px;font-size:12px;font-weight:600;outline:none">'+
+              '<option value="1">1</option>'+
+              '<option value="2">2</option>'+
+              '<option value="3">3</option>'+
+              '<option value="5">5</option>'+
+              '<option value="10">10</option>'+
+            '</select>'+
+          '</div>'+
+          '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">🔥 Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
         '</div>'+
       '</div>'+
@@ -711,12 +720,13 @@ function switchBlogTab(channelId){
 
 var activeMonitors = {};
 
-async function generateForBlogHype(channelId, niche) {
-  showToast("Minerando tendências no Google para " + niche + "...");
+async function generateForBlogHype(channelId, niche, qty) {
+  qty = parseInt(qty) || 1;
+  showToast("Minerando tendências no Google (" + qty + " artigos) para " + niche + "...");
   try {
     var res = await api("/api/v1/blog/generate-article-hype", {
       method: "POST",
-      body: JSON.stringify({ channel_id: channelId })
+      body: JSON.stringify({ channel_id: channelId, quantity: qty })
     });
     if (res.error) {
       showToast("Erro: " + res.error);
@@ -724,26 +734,26 @@ async function generateForBlogHype(channelId, niche) {
     }
     showToast(res.message);
     
-    // Configura a esteira única global para rastrear este artigo individual
+    // Configura a esteira única global para rastrear este lote de artigos
     ms.running = true;
     ms.taskId = res.task_id;
     ms.topic = res.topic;
-    ms.target = 1;
+    ms.target = qty;
     ms.gen = 0;
     ms.cur = 1;
     ms.start = Date.now();
     
     // Exibe os componentes visuais da esteira integrada
     $("macroBlogLabel").textContent = niche;
-    $("macroArticleCounter").textContent = "Geração por Hype: 1 Artigo";
-    $("macroTargetLabel").textContent = "1 artigo";
-    $("macroGlobalFill").style.width = "5%";
+    $("macroArticleCounter").textContent = "Geração por Hype: 0 / " + qty + " artigos";
+    $("macroTargetLabel").textContent = qty + " artigos";
+    $("macroGlobalFill").style.width = "2%";
     $("macroGlobalProgress").style.display = "block";
     $("macroCurrentArticle").style.display = "block";
     $("macroCurrentTitle").textContent = res.topic;
     $("macroCurrentBadge").textContent = "🔥 Tendência do Google";
     $("macroCurrentPhase").textContent = "Iniciando esteira...";
-    $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">🚀 Esteira de Hype iniciada. Aguardando progresso...</div>';
+    $("macroPipelineLog").innerHTML = '<div class="load-log" style="color:#a5b4fc;padding:8px">🚀 Esteira de Hype iniciada para lote. Aguardando progresso...</div>';
     
     // Inicializa a animação e estrutura dos agentes na tela
     renderPipeline();
@@ -768,17 +778,6 @@ async function generateForBlogHype(channelId, niche) {
   }
 }
 
-async function generateForBlog(channelId,niche){
-  var topic=prompt("Tema do novo artigo para "+niche+":");
-  if(!topic)return;
-  showToast("Gerando artigo...");
-  try{
-    var res=await api("/api/v1/blog/generate-article",{method:"POST",body:JSON.stringify({topic:topic,channel_id:channelId,keywords:topic,target_words:1200,language:"pt"})});
-    if(res.error){showToast("Erro: "+res.error);return;}
-    showToast("Artigo gerado! "+res.word_count+" palavras");
-    loadBlogs();
-  }catch(e){showToast("Erro: "+e.message);}
-}
 
 async function liliReviewAllForBlog(channelId){
   showToast("Revisando todos os artigos...");

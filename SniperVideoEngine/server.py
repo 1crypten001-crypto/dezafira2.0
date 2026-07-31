@@ -2407,10 +2407,18 @@ async def get_blog_factory_status(task_id: str):
 @app.post("/api/v1/blog/generate-article-hype")
 async def generate_article_hype_endpoint(payload: dict, background_tasks: BackgroundTasks):
     """
-    Inicia a esteira de criação do artigo em segundo plano, minerando as tendências
-    do Google Hype ativamente no primeiro estágio do pipeline.
+    Inicia a esteira de criação de artigos em segundo plano, minerando as tendências
+    do Google Hype ativamente no primeiro estágio e gerando-os de forma sequencial.
     """
     channel_id = payload.get("channel_id", "")
+    quantity = payload.get("quantity", 1)
+    
+    try:
+        quantity = int(quantity)
+    except (ValueError, TypeError):
+        quantity = 1
+    quantity = max(1, min(10, quantity)) # Limite de segurança de 1 a 10 artigos por lote
+
     if not channel_id:
         from modules.database import get_db_blog_channels
         channels = get_db_blog_channels()
@@ -2437,66 +2445,93 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
 
     # 1. Armazena estado inicial para consulta via GET
     _macro_results[task_id] = {
-        "status": "starting", "topic": initial_topic, "channel_id": channel_id,
-        "phase": "Pesquisando Hype", "progress": 5, "data": None
+        "status": "starting", "topic": f"Lote: {initial_topic}", "channel_id": channel_id,
+        "phase": "Iniciando Lote", "progress": 2, "data": {"target_articles": quantity, "articles_generated": 0}
     }
 
-    # 2. Orquestração ws que atualiza progresso dinamicamente com o novo título descoberto
-    async def _run_with_ws(tid, top, ch, lang):
+    # 2. Orquestração ws do lote sequencial
+    async def _run_with_ws(tid, top, ch, lang, qty):
         hub = _ws_hub
-        current_topic = top
-        def on_progress(pid, stage_id, progress, message, data):
-            nonlocal current_topic
-            if data and data.get("topic"):
-                current_topic = data["topic"]
-            _macro_results[pid] = {
-                "status": "active", "topic": current_topic, "channel_id": ch,
-                "phase": message or stage_id, "progress": progress, "data": data
-            }
-            if stage_id == "__broadcast__":
+        articles_generated = 0
+        all_results = []
+        
+        for i in range(qty):
+            current_topic = f"Minerando tendência {i+1} de {qty} em {nicho}..."
+            
+            def on_progress(pid, stage_id, progress, message, data):
+                nonlocal current_topic
+                if data and data.get("topic"):
+                    current_topic = data["topic"]
+                
+                # Progresso total do lote: (concluidos / total) + (progresso_atual / total)
+                batch_progress = int((articles_generated / qty) * 100 + (progress / qty))
+                
+                _macro_results[pid] = {
+                    "status": "active", 
+                    "topic": f"[{i+1}/{qty}] {current_topic}", 
+                    "channel_id": ch,
+                    "phase": message or stage_id, 
+                    "progress": batch_progress, 
+                    "data": {**(data or {}), "articles_generated": articles_generated, "target_articles": qty}
+                }
                 try:
                     loop = asyncio.get_running_loop()
-                    loop.create_task(hub.broadcast(message, data))
+                    loop.create_task(hub.broadcast("pipeline_progress", {
+                        "task_id": pid, 
+                        "stage_id": stage_id,
+                        "progress": progress,
+                        "message": f"[{i+1}/{qty}] {message}",
+                        "status": "completed" if progress >= 100 else "active",
+                        "data": {
+                            **(data or {}), 
+                            "topic": current_topic, 
+                            "articles_generated": articles_generated,
+                            "target_articles": qty
+                        },
+                    }))
                 except Exception:
                     pass
-                return
+            
             try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(hub.broadcast("pipeline_progress", {
-                    "task_id": pid, "stage_id": stage_id,
-                    "progress": progress, "message": message,
-                    "status": "completed" if progress >= 100 else "active",
-                    "data": {**(data or {}), "topic": current_topic},
-                }))
-            except Exception:
-                pass
+                # Executa o pipeline de um artigo individual de cada vez na esteira
+                result = await _run_pipeline(
+                    topic=current_topic, channel_id=ch, language=lang, task_id=tid, 
+                    on_progress=on_progress, auto_schedule=True, mine_hype=True
+                )
+                if result.get("status") == "completed":
+                    articles_generated += 1
+                all_results.append(result)
+                
+                # Pequeno delay entre gerações
+                await asyncio.sleep(2)
+            except Exception as e:
+                print(f"[HypeLote] Erro no artigo {i+1} de {qty}: {e}")
+                
+        # Finalização da esteira do lote
+        _macro_results[tid] = {
+            "status": "completed", 
+            "topic": f"Lote de {articles_generated} artigos concluído!", 
+            "channel_id": ch,
+            "phase": "concluido", 
+            "progress": 100, 
+            "data": {"articles_generated": articles_generated, "results": all_results}
+        }
         try:
-            result = await _run_pipeline(
-                topic=current_topic, channel_id=ch, language=lang, task_id=tid, 
-                on_progress=on_progress, auto_schedule=True, mine_hype=True
-            )
-            final_topic = result.get("topic", current_topic)
-            _macro_results[tid] = {
-                "status": "completed", "topic": final_topic, "channel_id": ch,
-                "phase": "concluido", "progress": 100, "data": result
-            }
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(hub.broadcast("pipeline_complete", result))
-            except Exception:
-                pass
-        except Exception as e:
-            _macro_results[tid] = {
-                "status": "failed", "topic": current_topic, "channel_id": ch,
-                "phase": "erro", "progress": 0, "error": str(e)
-            }
+            loop = asyncio.get_running_loop()
+            loop.create_task(hub.broadcast("pipeline_complete", {
+                "task_id": tid,
+                "articles_generated": articles_generated,
+                "target_articles": qty
+            }))
+        except Exception:
+            pass
 
-    background_tasks.add_task(_run_with_ws, task_id, initial_topic, channel_id, "pt")
+    background_tasks.add_task(_run_with_ws, task_id, initial_topic, channel_id, "pt", quantity)
     return {
         "task_id": task_id, 
         "topic": initial_topic, 
         "status": "starting",
-        "message": "Esteira do Google Hype iniciada no background!",
+        "message": f"Esteira do Google Hype iniciada para lote de {quantity} artigos!",
     }
 
 
