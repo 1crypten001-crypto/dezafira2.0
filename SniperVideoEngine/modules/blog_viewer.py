@@ -530,6 +530,51 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
 
+    is_affiliate = blog_info.get("is_affiliate", False)
+    if is_affiliate:
+        theme_css += """
+        /* === AFFILIATE CRO CSS === */
+        .blog-content { max-width: 800px !important; margin: 0 auto; display: block; }
+        .sidebar { display: none !important; }
+        .post-viewer { width: 100% !important; border: none; padding: 10px; box-shadow: none; }
+        .post-content a[href^="http"] { 
+            display: block; 
+            background: #25d366; 
+            color: #fff !important; 
+            padding: 16px 24px; 
+            border-radius: 8px; 
+            font-weight: 800; 
+            text-align: center; 
+            text-decoration: none; 
+            margin: 30px auto; 
+            width: 100%; 
+            max-width: 500px; 
+            box-sizing: border-box; 
+            box-shadow: 0 6px 12px rgba(37,211,102,0.3); 
+            font-size: 18px; 
+            text-transform: uppercase; 
+            transition: all 0.2s;
+            border-bottom: 4px solid #1da851;
+        }
+        .post-content a[href^="http"]:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 16px rgba(37,211,102,0.4); 
+            text-decoration: none;
+            border-bottom-width: 6px;
+        }
+        .post-content h2, .post-content h3 { text-align: left; margin-top: 40px; }
+        .post-content p { font-size: 18px; line-height: 1.8; color: #1e293b; margin-bottom: 20px; }
+        .featured-image { border-radius: 12px; margin-bottom: 30px; width: 100%; height: auto; }
+        h1 { font-size: 36px; text-align: center; margin-bottom: 24px; font-weight: 800; line-height: 1.3; }
+        .post-content table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 16px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .post-content th { background: #0f172a; color: #fff; font-weight: 700; padding: 12px 16px; text-align: left; }
+        .post-content td { border: 1px solid #e2e8f0; padding: 12px 16px; }
+        .post-content tr:nth-child(even) td { background: #f8fafc; }
+        .post-content td:first-child { font-weight: 600; }
+        .post-content ul, .post-content ol { margin: 16px 0; }
+        .post-content li { margin-bottom: 8px; }
+        """
+
     img_html = (f'<img class="featured-image" src="{esc(img)}" alt="{title}" loading="eager">' if img
                 else f'<div class="card-image-placeholder" style="height:280px;margin-bottom:24px">{placeholder_icon}</div>')
 

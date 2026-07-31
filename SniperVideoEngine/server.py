@@ -773,6 +773,7 @@ async def blog_factory_dashboard():
                     "logo_svg": get_logo_svg(c.nicho) if c.nicho else "",
                     "favicon_svg": get_favicon_svg(c.nicho) if c.nicho else "",
                     "is_affiliate": c.is_affiliate,
+                    "is_discover": c.is_discover,
                     "affiliate_providers": c.affiliate_providers,
                     "amazon_tag": c.amazon_tag,
                     "amazon_key": c.amazon_key,
@@ -2324,6 +2325,42 @@ async def update_blog_affiliate_settings(slug: str, payload: dict):
         db.close()
 
 
+@app.post("/api/v1/blog/{slug}/update-modes")
+async def update_blog_modes(slug: str, payload: dict):
+    """Atualiza os modos de monetizacao/trafego de um blog (Afiliado e/ou Discover).
+    Aceita is_affiliate, is_discover e configuracoes de afiliado (amazon_tag etc)."""
+    from modules.database import SessionLocal, BlogChannel
+    db = SessionLocal()
+    try:
+        # Buscar canal pelo slug do nome
+        channels = db.query(BlogChannel).all()
+        chan = None
+        for c in channels:
+            if c.name.lower().replace(" ", "-")[:50] == slug:
+                chan = c
+                break
+
+        if not chan:
+            raise HTTPException(status_code=404, detail="Blog nao encontrado")
+
+        # Atualizar
+        for k, v in payload.items():
+            if hasattr(chan, k):
+                # Conversao explicita de tipos para flags booleanas
+                if k in ("is_affiliate", "is_discover"):
+                    setattr(chan, k, bool(v))
+                else:
+                    setattr(chan, k, v)
+        db.commit()
+        return {"success": True, "message": "Modos do blog atualizados com sucesso!",
+                "is_affiliate": bool(chan.is_affiliate), "is_discover": bool(chan.is_discover)}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 @app.get("/api/v1/affiliate/clicks")
 async def get_affiliate_clicks_stats(channel_id: str = ""):
     """Retorna dados de estatisticas de cliques em links de afiliados."""
@@ -3859,6 +3896,7 @@ async def run_blog_factory_frontend(payload: dict):
     language = payload.get("language", "pt")
     target_articles = payload.get("target_articles", 3)
     is_affiliate = bool(payload.get("is_affiliate", False))
+    is_discover = bool(payload.get("is_discover", False))
     if not blog_name or not niche:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="blog_name and niche are required")
@@ -3944,6 +3982,7 @@ async def run_blog_factory_frontend(payload: dict):
                     task_id=tid, target_articles=target_articles,
                     on_progress=on_progress,
                     is_affiliate=is_affiliate,
+                    is_discover=is_discover,
                 )
                 _macro_results[tid]["status"] = state.get("status", "completed")
                 _macro_results[tid]["data"] = state
@@ -3989,9 +4028,20 @@ async def suggest_blog_idea(payload: dict):
     Se is_affiliate for True, foca em produtos físicos e reviews de afiliados.
     """
     is_affiliate = bool(payload.get("is_affiliate", False))
+    is_discover = bool(payload.get("is_discover", False))
     from modules.blog_writer import _call_llm
     
-    if is_affiliate:
+    if is_affiliate and is_discover:
+        system = "Você é o Seu Hermes, o inteligente orquestrador focado em tráfego massivo e vendas de e-commerce."
+        prompt = (
+            "Sugira uma ideia única e MUITO chocante/curiosa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
+            "O blog deve atrair tráfego através do Google Discover (curiosidade extrema) e converter em vendas.\n"
+            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
+            '{"name": "Nome do Blog sugerido (viral e atraente)", "niche": "Micro-nicho curioso de produtos inovadores"}\n'
+            "Exemplo:\n"
+            '{"name": "SegredosSmart", "niche": "Tecnologias ocultas e gadgets que impressionam"}'
+        )
+    elif is_affiliate:
         system = "Você é o Seu Hermes, o inteligente orquestrador e estrategista de e-commerce e afiliados."
         prompt = (
             "Sugira uma ideia única e lucrativa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
@@ -3999,6 +4049,15 @@ async def suggest_blog_idea(payload: dict):
             '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog"}\n'
             "Exemplo:\n"
             '{"name": "CozinhaTech", "niche": "Eletroportáteis inteligentes e airfryers premium"}'
+        )
+    elif is_discover:
+        system = "Você é o Seu Hermes, o editor-chefe focado em tráfego viral do Google Discover."
+        prompt = (
+            "Sugira uma ideia única de blog voltado para conteúdo informativo viral (monetização via AdSense) focado no Google Discover.\n"
+            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho altamente bizarro, chocante ou de tendências extremas"}\n'
+            "Exemplo:\n"
+            '{"name": "FatosOcultos", "niche": "Mistérios históricos e descobertas científicas bizarras"}'
         )
     else:
         system = "Você é o Seu Hermes, o inteligente orquestrador e editor-chefe de blogs focados em AdSense."

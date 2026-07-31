@@ -221,6 +221,7 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 |--------|------|-----------|
 | GET | `/api/v1/monetization/status` | Status do Seu Pereira (AdSense) |
 | POST | `/api/v1/blog/{slug}/update-affiliate` | Atualiza configurações do Modo Afiliado |
+| POST | `/api/v1/blog/{slug}/update-modes` | Alterna modos do blog (is_affiliate/is_discover) |
 | GET | `/api/v1/affiliate/clicks` | Métricas consolidadas de cliques de afiliados |
 | GET | `/go/{post_slug}/{provider}` | Cloaking de links e redirecionamento de afiliados |
 
@@ -316,6 +317,7 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 | frequency | VARCHAR(20) | Frequência (daily) |
 | created_at | DateTime | Data de criação |
 | is_affiliate | BOOLEAN | Ativação do Modo Afiliado |
+| is_discover | BOOLEAN | Ativação do Modo Viral (Google Discover) |
 | affiliate_providers | VARCHAR(500) | Provedores separados por vírgula |
 | amazon_tag | VARCHAR(100) | Tag de associado da Amazon |
 | amazon_key | VARCHAR(200) | Key API Amazon |
