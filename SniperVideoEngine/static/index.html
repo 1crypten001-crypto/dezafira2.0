@@ -860,7 +860,9 @@ async function loadDashboard(){
     var liliScores=blogPosts.map(function(p){return (typeof p.lili_score==='number')?p.lili_score:null;}).filter(function(s){return s!==null;});
     var avgLili=(typeof c.lili_avg==='number')?c.lili_avg:(liliScores.length?Math.round(liliScores.reduce(function(a,b){return a+b;},0)/liliScores.length):null);
     var avgLiliHtml=avgLili!==null?'<span title="Média do score LiLi do blog">🌸 LiLi: <b style="color:'+(avgLili>=85?'#34d399':avgLili>=70?'#fbbf24':'#f87171')+'">'+avgLili+'/100</b></span>':'';
-    var liliApprovedHtml=(typeof c.lili_approved_count==='number' && c.lili_approved_count>0)?'<span title="Artigos aprovados pela LiLi" style="color:#34d399">✅ '+c.lili_approved_count+' aprovado'+(c.lili_approved_count>1?'s':'')+'</span>':'';
+    var liliRevC=(typeof c.lili_reviewed_count==='number')?c.lili_reviewed_count:(liliScores.length||null);
+    var liliAppC=(typeof c.lili_approved_count==='number')?c.lili_approved_count:0;
+    var liliApprovedHtml=((liliAppC>0)||(liliRevC&&liliRevC>0))?'<span title="Artigos aprovados pela LiLi (aprovados/revisados)" style="color:#34d399">✅ '+liliAppC+'/'+(liliRevC||0)+' aprovados</span>':'';
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 

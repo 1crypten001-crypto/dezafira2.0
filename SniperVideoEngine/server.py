@@ -776,6 +776,7 @@ async def blog_factory_dashboard():
                 "avg_words": round(words / len(ch_all)) if ch_all else 0,
                 "provider_stats": prov,
                 "lili_avg": round(sum(lili) / len(lili)) if lili else None,
+                "lili_reviewed_count": len(lili),
                 "lili_approved_count": sum(1 for p in ch_all if p.lili_approved),
                 "recent_posts": [{
                     "id": p.id, "title": p.title, "slug": p.slug,
