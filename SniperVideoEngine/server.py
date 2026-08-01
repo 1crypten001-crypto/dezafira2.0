@@ -751,7 +751,13 @@ async def blog_factory_dashboard():
 
         # Agregados por canal (para que TODOS os paineis de blog tenham dados completos,
         # independente de estar ou nao no 'recent' global de 10 posts)
-        all_posts = db.query(BlogPost).order_by(BlogPost.created_at.desc()).all()
+        # with_entities: evita carregar a coluna content (texto grande) de todos os posts
+        all_posts = db.query(
+            BlogPost.id, BlogPost.channel_id, BlogPost.title, BlogPost.slug,
+            BlogPost.status, BlogPost.word_count, BlogPost.featured_image_url,
+            BlogPost.image_provider, BlogPost.lili_score, BlogPost.lili_approved,
+            BlogPost.created_at,
+        ).order_by(BlogPost.created_at.desc()).all()
         ch_map = {}
         for p in all_posts:
             ch_map.setdefault(p.channel_id, []).append(p)
