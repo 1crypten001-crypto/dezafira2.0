@@ -2,6 +2,7 @@ import asyncio
 import os
 import uuid
 import json
+import html as html_mod
 import httpx
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
@@ -11,6 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+
+def esc(text):
+    """Escape HTML para injecao segura."""
+    return html_mod.escape(str(text or ""))
 
 # Singleton globais — compartilhados entre todas as requisicoes (Bug C1)
 from pipeline.websocket import WebSocketHub
@@ -1566,15 +1571,61 @@ async def create_checkout(payload: dict):
 
 @app.post("/api/v1/checkout/confirm")
 async def confirm_checkout(payload: dict):
-    """Confirma pagamento (webhook manual ou admin)."""
-    from modules.database import update_db_transaction
+    """Confirma pagamento (webhook manual ou admin) e gera token de acesso."""
+    from modules.database import (
+        update_db_transaction, create_db_ebook_access,
+        SessionLocal, Transaction, Product
+    )
     txn_id = payload.get("transaction_id", "")
     if not txn_id:
         raise HTTPException(status_code=400, detail="transaction_id obrigatorio")
+
+    # Buscar transacao para obter book_id
+    db = SessionLocal()
+    try:
+        txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
+        if not txn:
+            raise HTTPException(status_code=404, detail="Transacao nao encontrada")
+        product = db.query(Product).filter(Product.id == txn.product_id).first()
+        book_id = product.book_id if product else None
+        buyer_email = txn.buyer_email
+        buyer_name = txn.buyer_name or ""
+    finally:
+        db.close()
+
     ok = update_db_transaction(txn_id, status="completed")
     if not ok:
         raise HTTPException(status_code=404, detail="Transacao nao encontrada")
-    return {"message": "Pagamento confirmado!", "status": "completed"}
+
+    # Gerar token de acesso ao ebook
+    access_token = ""
+    reader_url = ""
+    if book_id:
+        access = create_db_ebook_access(
+            book_id=book_id, buyer_email=buyer_email,
+            buyer_name=buyer_name, transaction_id=txn_id,
+        )
+        access_token = access.get("token", "")
+        reader_url = f"/ebook/{access_token}/reader"
+
+    # Notificar via Telegram
+    try:
+        from modules.telegram_bot import send_telegram_notification
+        send_telegram_notification(
+            f"💰 *Venda Confirmada!*\n"
+            f"📧 Comprador: {buyer_email}\n"
+            f"📖 Ebook: {book_id}\n"
+            f"🔗 Leitor: {reader_url}"
+        )
+    except Exception:
+        pass
+
+    return {
+        "message": "Pagamento confirmado!",
+        "status": "completed",
+        "access_token": access_token,
+        "reader_url": reader_url,
+    }
 
 
 @app.get("/api/v1/transactions")
@@ -1598,6 +1649,145 @@ async def ebook_sales_page(slug: str):
         return HTMLResponse(content=book.sales_page_html)
     finally:
         db.close()
+
+
+@app.get("/ebook/{token}/reader")
+async def ebook_reader(token: str):
+    """Leitor HTML do ebook — area de membro."""
+    from modules.database import (
+        get_db_ebook_access_by_token, get_db_book_chapters_for_reader,
+        SessionLocal, Book
+    )
+    access = get_db_ebook_access_by_token(token)
+    if not access or not access.get("is_active"):
+        raise HTTPException(status_code=403, detail="Acesso invalido ou inativo")
+
+    book_id = access["book_id"]
+    chapters = get_db_book_chapters_for_reader(book_id)
+
+    db = SessionLocal()
+    try:
+        book = db.query(Book).filter(Book.id == book_id).first()
+        book_title = book.title if book else access.get("book_title", "")
+        book_author = book.author if book else ""
+        cover_url = book.cover_url if book else ""
+    finally:
+        db.close()
+
+    # Montar HTML do leitor
+    chapters_nav = ""
+    for ch in chapters:
+        chapters_nav += f'<button class="ch-btn" onclick="loadChapter({ch["number"]})" data-ch="{ch["number"]}">{ch["number"]}. {esc(ch["title"])}</button>\n'
+
+    chapters_json = json.dumps(chapters, ensure_ascii=False)
+
+    reader_html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{esc(book_title)} — Leitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:'Merriweather',Georgia,serif;background:#faf9f6;color:#2d2d2d;line-height:1.8}}
+.header{{background:#1a1a2e;color:#fff;padding:16px 24px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}}
+.header-inner{{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}}
+.header h1{{font-family:'Inter',sans-serif;font-size:18px;font-weight:700;color:#d4af37}}
+.header .buyer{{font-family:'Inter',sans-serif;font-size:12px;color:#8a91a5}}
+.container{{max-width:720px;margin:0 auto;padding:32px 24px 80px}}
+.toc{{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:24px;margin-bottom:32px}}
+.toc h2{{font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:#1a1a2e;margin-bottom:16px}}
+.ch-btn{{display:block;width:100%;text-align:left;padding:12px 16px;border:none;background:transparent;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;color:#4a4a4a;cursor:pointer;transition:background .15s}}
+.ch-btn:hover{{background:#f0f0f0}}
+.ch-btn.active{{background:#1a1a2e;color:#d4af37;font-weight:600}}
+.chapter-content{{min-height:300px}}
+.chapter-content h2{{font-family:'Inter',sans-serif;font-size:24px;font-weight:700;color:#1a1a2e;margin:32px 0 16px}}
+.chapter-content h3{{font-family:'Inter',sans-serif;font-size:18px;font-weight:600;color:#333;margin:24px 0 12px}}
+.chapter-content p{{margin-bottom:16px;font-size:16px}}
+.chapter-content ul,.chapter-content ol{{margin:0 0 16px 24px}}
+.chapter-content li{{margin-bottom:8px}}
+.chapter-content strong{{color:#1a1a2e}}
+.loading{{text-align:center;padding:40px;color:#8a91a5;font-family:'Inter',sans-serif}}
+.nav-bottom{{display:flex;justify-content:space-between;margin-top:40px;padding-top:24px;border-top:1px solid #e5e5e5}}
+.nav-bottom button{{font-family:'Inter',sans-serif;padding:12px 24px;border:1px solid #1a1a2e;background:transparent;border-radius:8px;font-size:14px;cursor:pointer;transition:all .15s}}
+.nav-bottom button:hover{{background:#1a1a2e;color:#fff}}
+.nav-bottom button:disabled{{opacity:.3;cursor:not-allowed}}
+@media(max-width:600px){{
+  .container{{padding:20px 16px 60px}}
+  .header h1{{font-size:15px}}
+}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-inner">
+    <h1>📖 {esc(book_title)}</h1>
+    <span class="buyer">Olá, {esc(access.get("buyer_name", "") or access.get("buyer_email", ""))}</span>
+  </div>
+</div>
+<div class="container">
+  <div class="toc">
+    <h2>Sumário</h2>
+    {chapters_nav}
+  </div>
+  <div class="chapter-content" id="chapterContent">
+    <div class="loading">Selecione um capítulo acima para começar a ler</div>
+  </div>
+  <div class="nav-bottom">
+    <button id="prevBtn" onclick="prevChapter()" disabled>← Anterior</button>
+    <button id="nextBtn" onclick="nextChapter()" disabled>Próximo →</button>
+  </div>
+</div>
+<script>
+var chapters={chapters_json};
+var current=0;
+function loadChapter(n){{
+  var idx=chapters.findIndex(function(c){{return c.number===n}});
+  if(idx<0)return;
+  current=idx;
+  var ch=chapters[idx];
+  document.getElementById("chapterContent").innerHTML="<h2>"+ch.title+"</h2>"+ch.content;
+  document.querySelectorAll(".ch-btn").forEach(function(b){{
+    b.classList.toggle("active",parseInt(b.dataset.ch)===n);
+  }});
+  document.getElementById("prevBtn").disabled=idx===0;
+  document.getElementById("nextBtn").disabled=idx===chapters.length-1;
+  window.scrollTo({{top:0,behavior:"smooth"}});
+}}
+function prevChapter(){{if(current>0)loadChapter(chapters[current-1].number)}}
+function nextChapter(){{if(current<chapters.length-1)loadChapter(chapters[current+1].number)}}
+if(chapters.length>0)loadChapter(chapters[0].number);
+</script>
+</body>
+</html>"""
+
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=reader_html)
+
+
+@app.get("/api/v1/ebook-reader/{token}/chapter/{chapter_number}")
+async def ebook_reader_chapter(token: str, chapter_number: int):
+    """Retorna o conteudo de um capitulo especifico (API JSON)."""
+    from modules.database import get_db_ebook_access_by_token, get_db_book_chapters_for_reader
+    access = get_db_ebook_access_by_token(token)
+    if not access or not access.get("is_active"):
+        raise HTTPException(status_code=403, detail="Acesso invalido")
+    chapters = get_db_book_chapters_for_reader(access["book_id"])
+    ch = next((c for c in chapters if c["number"] == chapter_number), None)
+    if not ch:
+        raise HTTPException(status_code=404, detail="Capitulo nao encontrado")
+    return {"chapter": ch, "total_chapters": len(chapters)}
+
+
+@app.get("/api/v1/my-ebooks")
+async def my_ebooks(email: str):
+    """Lista ebooks acessiveis por email."""
+    from modules.database import get_db_ebook_access_by_email
+    if not email:
+        raise HTTPException(status_code=400, detail="Email obrigatorio")
+    access_list = get_db_ebook_access_by_email(email)
+    return {"ebooks": access_list}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

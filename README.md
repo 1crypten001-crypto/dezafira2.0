@@ -6,7 +6,7 @@
 > 
 > **Status atual:** 77 artigos publicados em 2 blogs, 100% com imagem, score LiLi médio 99.1/100
 
-Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Livros, Cursos, Imagens** — tudo orquestrado por agentes inteligentes com nomes brasileiros e monitorado pelo **Seu Pereira**, o analista de monetização.
+Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Ebooks, Cursos, Imagens** — tudo orquestrado por agentes inteligentes com nomes brasileiros e monitorado pelo **Seu Pereira**, o analista de monetização.
 
 ---
 
@@ -53,6 +53,38 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 │  │  Database PostgreSQL + SQLAlchemy ORM                         ││
 │  └──────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📚 Fábrica de Ebooks (Nova)
+
+### Pipeline de 6 Fases
+
+```
+🔍 Fundação → 🧠 Pesquisa → 📋 Oferta → 📝 Produção → 🎨 Refino → 🚀 Entrega
+```
+
+| Fase | Agentes | Descrição |
+|------|---------|-----------|
+| **Fundação** | Hermes + Dona Célia | Cria ebook no banco, gera título, branding |
+| **Pesquisa** | Minerador de Dores + Obscura | Reddit, PAA, keywords, ranking de dores |
+| **Oferta** | Copywriter Infoprodutos | Mecanismo único, promessa, bônus, preço |
+| **Produção** | Carlão + LiLi | Capítulo a capítulo com revisão de qualidade |
+| **Refino** | Formatter | HTML formatado + página de vendas |
+| **Entrega** | Seu Francisco | Produto criado, token de acesso gerado |
+
+### Checkout e Área de Membro
+
+- **Página de Vendas**: HTML completo gerado por IA
+- **Checkout**: Transação + confirmação manual
+- **Token de Acesso**: SHA-256 único por comprador
+- **Leitor HTML**: Área de membro com sumário + navegação
+
+### Fluxo de Compra
+
+```
+Página de Vendas → Checkout → Confirmação → Token Gerado → Leitor HTML
 ```
 
 ---
@@ -232,15 +264,17 @@ bab06f4 fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] Dashboard SPA com métricas em tempo real
 - [x] Deploy Railway com domínio próprio (dezafira.com.br)
 - [x] Banco PostgreSQL em produção
+- [x] **Fábrica de Ebooks** — Pipeline de 6 fases + Checkout + Área de Membro
 
 ### 🔜 Próximos Passos
 - [ ] Google Search Console — Verificação e monitoramento
 - [ ] Indexação Google — Solicitar indexação dos artigos
 - [ ] Google AdSense — Solicitar aprovação
-- [ ] Fábrica de Livros e Cursos — Integrar na UI principal
+- [ ] Fábrica de Cursos — Integrar na UI principal
 - [ ] Página de Vendas 1Convite — Mini App com checkout
 - [ ] Blog to Podcast — Artigos → Áudio
+- [ ] Email de confirmação com link de acesso (SMTP/Resend)
 
 ---
 
-*Dezafira — Ecossistema de Fábricas de Conteúdo v2.1*
+*Dezafira — Ecossistema de Fábricas de Conteúdo v2.2*

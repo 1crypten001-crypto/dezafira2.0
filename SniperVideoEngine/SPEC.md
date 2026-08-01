@@ -1,10 +1,10 @@
 # DEZAFIRA — Fábrica de Blogs & Sistemas de Monetização
 
-> **Versão:** 2.0.0  
+> **Versão:** 2.1.0  
 > **Produção:** https://dezafira.com.br  
 > **API:** https://backend-production-f90d.up.railway.app  
 > **Database:** PostgreSQL (Railway)  
-> **Última atualização:** 31/07/2026
+> **Última atualização:** 01/08/2026
 
 ---
 
@@ -377,6 +377,12 @@ Modelos completos para Livros e Cursos com:
 - Chapters, Formats, Modules, Lessons, Materials, Quizzes
 - Suporte a preço, dificuldade, status de publicação
 
+### Ebook Access (Área de Membro)
+Sistema de tokens para acesso a ebooks comprados:
+- Token SHA-256 único por combinacao ebook + email
+- Validação a cada requisição
+- Suporte a múltiplos ebooks por comprador
+
 ### Knowledge (Shared Memory)
 Armazenamento de aprendizados por canal — estilo, SEO, preferências.
 
@@ -543,6 +549,126 @@ Cada blog recebe identidade visual personalizada por nicho:
 **Agentes:** Seu Francisco  
 **Peso:** 5%  
 **Ações:** Confere estoque, valida qualidade, libera blog
+
+---
+
+## 📚 FÁBRICA DE EBOOKS (Nova)
+
+### Visão Geral
+Sistema completo de criação e venda de ebooks low-ticket (R$17-97) com pipeline de 6 fases, página de vendas e área de membro.
+
+### Pipeline de 6 Fases
+
+| Fase | Nome | Agentes | Descrição |
+|------|------|---------|-----------|
+| 1 | **Fundação** | Hermes + Dona Célia | Cria ebook no banco, gera título, branding |
+| 2 | **Pesquisa de Dores** | Minerador de Dores + Obscura | Reddit, PAA, keywords, ranking de dores |
+| 3 | **Criar Oferta** | Copywriter Infoprodutos | Mecanismo único, promessa, bônus, preço |
+| 4 | **Produção** | Carlão + LiLi | Capítulo a capítulo com revisão de qualidade |
+| 5 | **Refino** | Formatter | HTML formatado + página de vendas |
+| 6 | **Entrega** | Seu Francisco | Produto criado, token de acesso gerado |
+
+### Endpoints da Pipeline
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/pipeline/run-ebook-factory` | Inicia pipeline |
+| GET | `/api/v1/pipeline/ebook-factory/status/{task_id}` | Polling de status |
+| GET | `/api/v1/pipeline/ebook-factory/history` | Histórico de execuções |
+| GET | `/api/v1/ebooks` | Lista todos os ebooks |
+| GET | `/api/v1/ebooks/{book_id}` | Detalhes do ebook |
+| DELETE | `/api/v1/ebooks/{book_id}` | Deleta ebook |
+
+### Checkout e Área de Membro
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/checkout/create` | Cria sessão de checkout |
+| POST | `/api/v1/checkout/confirm` | Confirma pagamento + gera token |
+| GET | `/api/v1/my-ebooks?email=` | Lista ebooks por email |
+| GET | `/ebook/{slug}/venda` | Página de vendas HTML |
+| GET | `/ebook/{token}/reader` | **Leitor HTML (área de membro)** |
+| GET | `/api/v1/ebook-reader/{token}/chapter/{n}` | API de capítulo |
+
+### Fluxo de Compra
+
+```
+Página de Vendas → Checkout → Confirmação → Token Gerado → Leitor HTML
+```
+
+### Database Models
+
+#### Books (`books`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (book_xxxx) |
+| title | VARCHAR(500) | Título do ebook |
+| niche | VARCHAR(100) | Nicho temático |
+| style_id | VARCHAR(30) | Estilo visual |
+| price_cents | INTEGER | Preço em centavos |
+| sales_page_html | TEXT | HTML da página de vendas |
+| sales_page_slug | VARCHAR(200) | Slug da página de vendas |
+| status | VARCHAR(20) | draft/published |
+
+#### Book Chapters (`book_chapters`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (bch_xxxx) |
+| book_id | VARCHAR(50) FK | Ebook associado |
+| chapter_number | INTEGER | Número do capítulo |
+| title | VARCHAR(500) | Título do capítulo |
+| content | TEXT | HTML do conteúdo |
+| word_count | INTEGER | Contagem de palavras |
+
+#### Products (`products`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (prod_xxxx) |
+| book_id | VARCHAR(50) FK | Ebook associado |
+| name | VARCHAR(200) | Nome do produto |
+| price_cents | INTEGER | Preço em centavos |
+| status | VARCHAR(20) | active/inactive |
+
+#### Transactions (`transactions`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (txn_xxxx) |
+| product_id | VARCHAR(50) FK | Produto associado |
+| buyer_email | VARCHAR(200) | Email do comprador |
+| buyer_name | VARCHAR(200) | Nome do comprador |
+| amount_cents | INTEGER | Valor em centavos |
+| status | VARCHAR(20) | pending/completed/refunded |
+| payment_method | VARCHAR(20) | pix/credit_card/boleto |
+
+#### Ebook Access (`ebook_access`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (eacc_xxxx) |
+| token | VARCHAR(200) UK | Token SHA-256 de acesso |
+| book_id | VARCHAR(50) FK | Ebook associado |
+| transaction_id | VARCHAR(50) FK | Transação associada |
+| buyer_email | VARCHAR(200) | Email do comprador |
+| buyer_name | VARCHAR(200) | Nome do comprador |
+| is_active | BOOLEAN | Token ativo |
+
+### Leitor HTML
+
+O leitor é uma página completa com:
+- Header dourado com nome do comprador
+- Sumário clicável
+- Navegação anterior/próximo
+- Tipografia Merriweather (conforto de leitura)
+- Design responsivo mobile
+
+### Geração de Token
+
+```python
+token = sha256(book_id + ":" + buyer_email + ":" + SECRET_KEY)[:48]
+```
+
+- Token é único por combinacao ebook + email
+- Idempotente (não duplica)
+- Validação a cada requisição
 
 ---
 

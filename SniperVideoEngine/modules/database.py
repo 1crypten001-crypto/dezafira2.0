@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import hashlib
 from datetime import datetime
 from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -399,6 +400,20 @@ class Transaction(Base):
     amount_cents = Column(Integer, nullable=False)
     status = Column(String(20), default="pending")       # pending/completed/refunded
     payment_method = Column(String(20), nullable=True)   # pix/credit_card/boleto
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EbookAccess(Base):
+    """Token de acesso ao ebook comprado (area de membro)."""
+    __tablename__ = "ebook_access"
+
+    id = Column(String(50), primary_key=True, index=True)
+    token = Column(String(200), unique=True, nullable=False, index=True)
+    book_id = Column(String(50), ForeignKey("books.id"), nullable=False, index=True)
+    transaction_id = Column(String(50), ForeignKey("transactions.id"), nullable=True, index=True)
+    buyer_email = Column(String(200), nullable=False, index=True)
+    buyer_name = Column(String(200), nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -1827,6 +1842,96 @@ def get_db_transactions(product_id: str = None, limit: int = 50) -> list:
             "payment_method": t.payment_method,
             "created_at": t.created_at.isoformat() if t.created_at else None,
         } for t in txns]
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — EBOOK ACCESS (AREA DE MEMBRO)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _generate_ebook_token(book_id: str, buyer_email: str) -> str:
+    """Gera token unico de acesso ao ebook."""
+    secret = os.getenv("SECRET_KEY", "dezafira-ebook-secret-2024")
+    raw = f"{book_id}:{buyer_email}:{secret}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:48]
+
+
+def create_db_ebook_access(book_id: str, buyer_email: str, buyer_name: str = "",
+                           transaction_id: str = None) -> dict:
+    db = SessionLocal()
+    try:
+        token = _generate_ebook_token(book_id, buyer_email)
+        existing = db.query(EbookAccess).filter(
+            EbookAccess.token == token
+        ).first()
+        if existing:
+            return {"id": existing.id, "token": existing.token, "is_new": False}
+        access = EbookAccess(
+            id=f"eacc_{uuid.uuid4().hex[:8]}",
+            token=token, book_id=book_id, transaction_id=transaction_id,
+            buyer_email=buyer_email, buyer_name=buyer_name, is_active=True,
+        )
+        db.add(access)
+        db.commit()
+        return {"id": access.id, "token": access.token, "is_new": True}
+    finally:
+        db.close()
+
+
+def get_db_ebook_access_by_token(token: str) -> dict:
+    db = SessionLocal()
+    try:
+        acc = db.query(EbookAccess).filter(EbookAccess.token == token).first()
+        if not acc:
+            return None
+        book = db.query(Book).filter(Book.id == acc.book_id).first()
+        return {
+            "id": acc.id, "token": acc.token, "book_id": acc.book_id,
+            "buyer_email": acc.buyer_email, "buyer_name": acc.buyer_name,
+            "is_active": acc.is_active,
+            "book_title": book.title if book else None,
+            "book_author": book.author if book else None,
+            "created_at": acc.created_at.isoformat() if acc.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+def get_db_ebook_access_by_email(buyer_email: str) -> list:
+    db = SessionLocal()
+    try:
+        accs = db.query(EbookAccess).filter(
+            EbookAccess.buyer_email == buyer_email,
+            EbookAccess.is_active == True,
+        ).order_by(EbookAccess.created_at.desc()).all()
+        result = []
+        for acc in accs:
+            book = db.query(Book).filter(Book.id == acc.book_id).first()
+            result.append({
+                "id": acc.id, "token": acc.token, "book_id": acc.book_id,
+                "book_title": book.title if book else None,
+                "book_cover": book.cover_url if book else None,
+                "created_at": acc.created_at.isoformat() if acc.created_at else None,
+            })
+        return result
+    finally:
+        db.close()
+
+
+def get_db_book_chapters_for_reader(book_id: str) -> list:
+    """Retorna capitulos formatados para o leitor."""
+    db = SessionLocal()
+    try:
+        chapters = db.query(BookChapter).filter(
+            BookChapter.book_id == book_id
+        ).order_by(BookChapter.chapter_number).all()
+        return [{
+            "number": ch.chapter_number,
+            "title": ch.title,
+            "content": ch.content,
+            "word_count": ch.word_count,
+        } for ch in chapters]
     finally:
         db.close()
 
