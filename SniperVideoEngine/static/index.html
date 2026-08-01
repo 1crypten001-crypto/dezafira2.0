@@ -827,6 +827,7 @@ async function loadDashboard(){
             '<input type="checkbox" id="disc_active_'+c.id+'" '+(c.is_discover?'checked':'')+' onchange="saveDiscoverQuick(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')" style="accent-color:#8b5cf6;width:14px;height:14px" /> 🚀 Discover'+
           '</label>'+
           '<button class="btn btn-sm" onclick="toggleAffiliateSettings(\''+c.id+'\')">⚙️ Afiliação</button>'+
+          '<button class="btn btn-sm" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3)" onclick="toggleBrandingSettings(\''+c.id+'\')">🎨 Branding</button>'+
         '</div>'+
       '</div>'+
       '<div id="pipeline_container_'+c.id+'" class="pipeline-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px"></div>'+
@@ -848,6 +849,34 @@ async function loadDashboard(){
         '</div>'+
         '<div style="margin-top:12px;text-align:right">'+
           '<button class="btn btn-sm btn-primary" onclick="saveAffiliateSettings(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Salvar Configurações</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="branding_container_'+c.id+'" class="branding-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px">'+
+        '<h4>🎨 Personalização Visual e Branding</h4>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;margin-top:12px">'+
+          '<div>'+
+            '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Upload do Logo (PNG, JPG ou SVG)</label>'+
+            '<input type="file" id="brand_logo_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'logo\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_logo_status_'+c.id+'">Nenhum logo customizado.</div>'+
+          '</div>'+
+          '<div>'+
+            '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Upload do Favicon (PNG, ICO ou SVG)</label>'+
+            '<input type="file" id="brand_favicon_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'favicon\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_favicon_status_'+c.id+'">Nenhum favicon customizado.</div>'+
+          '</div>'+
+          '<div>'+
+            '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Imagem de Fundo do Site (Background)</label>'+
+            '<input type="file" id="brand_bg_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'bg\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_bg_status_'+c.id+'">Nenhum fundo customizado.</div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="margin-top:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:12px;">'+
+          '<h5 style="margin:0 0 6px 0;font-size:12px;color:#a5b4fc">🪄 Sugestão de Prompt para IA Externa (Midjourney, ChatGPT, DALL-E)</h5>'+
+          '<textarea readonly style="width:100%;height:64px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#34d399;font-size:11px;font-family:monospace;padding:6px;outline:none;resize:none" id="brand_prompt_'+c.id+'"></textarea>'+
+        '</div>'+
+        '<div style="margin-top:12px;text-align:right;display:flex;justify-content:space-between;align-items:center">'+
+          '<button class="btn btn-sm" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3)" onclick="clearBrandingCustomizations(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Limpar Customizações</button>'+
+          '<button class="btn btn-sm btn-primary" onclick="saveBrandingSettings(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Salvar Customizações</button>'+
         '</div>'+
       '</div>'+
       '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
@@ -940,6 +969,135 @@ function toggleAffiliateSettings(channelId) {
   var div = document.getElementById("affiliate_container_" + channelId);
   if (div) {
     div.style.display = div.style.display === "none" ? "block" : "none";
+  }
+}
+
+function toggleBrandingSettings(channelId) {
+  var div = document.getElementById("branding_container_" + channelId);
+  if (div) {
+    var isNowOpen = div.style.display === "none";
+    div.style.display = isNowOpen ? "block" : "none";
+    if (isNowOpen) {
+      var c = chs.find(function(x){return x.id === channelId});
+      if (c) {
+        var nicho = c.nicho || "";
+        var name = c.name || "";
+        var promptText = "Flat minimal vector logo for '" + name + "', theme: " + nicho + ", modern typography, dynamic geometric shapes, solid background, clean design for app icon --no realism 3d shadows";
+        var txt = document.getElementById("brand_prompt_" + channelId);
+        if (txt) txt.value = promptText;
+        
+        var configObj = {};
+        if (c.brand_config) {
+          try { configObj = JSON.parse(c.brand_config); } catch(e) {}
+        }
+        document.getElementById("brand_logo_status_" + channelId).innerHTML = configObj.custom_logo ? "✅ Logo customizado ativo (já salvo no banco)." : "Nenhum logo customizado.";
+        document.getElementById("brand_favicon_status_" + channelId).innerHTML = configObj.custom_favicon ? "✅ Favicon customizado ativo (já salvo no banco)." : "Nenhum favicon customizado.";
+        document.getElementById("brand_bg_status_" + channelId).innerHTML = configObj.custom_bg ? "✅ Imagem de fundo ativa (já salva no banco)." : "Nenhum fundo customizado.";
+      }
+    }
+  }
+}
+
+function uploadBrandFile(channelId, type) {
+  var fileInput = document.getElementById("brand_" + type + "_file_" + channelId);
+  var statusDiv = document.getElementById("brand_" + type + "_status_" + channelId);
+  if (!fileInput.files || !fileInput.files[0]) return;
+  var file = fileInput.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fileInput.dataset.base64 = e.target.result;
+    statusDiv.innerHTML = "⚡ Pronto para salvar (" + (file.size > 1024 ? Math.round(file.size / 1024) + " KB" : file.size + " B") + ")";
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveBrandingSettings(channelId, slug) {
+  var c = chs.find(function(x){return x.id === channelId});
+  if (!c) return;
+  
+  var brandConfigObj = {};
+  if (c.brand_config) {
+    try { brandConfigObj = JSON.parse(c.brand_config); } catch(e) {}
+  }
+  
+  var logoFile = document.getElementById("brand_logo_file_" + channelId);
+  var faviconFile = document.getElementById("brand_favicon_file_" + channelId);
+  var bgFile = document.getElementById("brand_bg_file_" + channelId);
+  
+  var changed = false;
+  if (logoFile && logoFile.dataset.base64) {
+    brandConfigObj.custom_logo = logoFile.dataset.base64;
+    changed = true;
+  }
+  if (faviconFile && faviconFile.dataset.base64) {
+    brandConfigObj.custom_favicon = faviconFile.dataset.base64;
+    changed = true;
+  }
+  if (bgFile && bgFile.dataset.base64) {
+    brandConfigObj.custom_bg = bgFile.dataset.base64;
+    changed = true;
+  }
+  
+  if (!changed) {
+    showToast("Por favor, selecione algum arquivo antes de salvar.");
+    return;
+  }
+  
+  showToast("Salvando customização de branding...");
+  try {
+    var res = await fetch("/api/v1/blog/" + slug + "/update-modes", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        brand_config: JSON.stringify(brandConfigObj)
+      })
+    });
+    var data = await res.json();
+    if (data.success) {
+      showToast("✅ Customizações salvas com sucesso!", "success");
+      c.brand_config = JSON.stringify(brandConfigObj);
+      loadDashboard();
+    } else {
+      showToast("❌ Erro ao salvar: " + (data.detail || "desconhecido"), "error");
+    }
+  } catch(e) {
+    showToast("❌ Erro: " + e.message, "error");
+  }
+}
+
+async function clearBrandingCustomizations(channelId, slug) {
+  var c = chs.find(function(x){return x.id === channelId});
+  if (!c) return;
+  if (!confirm("Deseja remover logo, favicon e imagem de fundo customizados?")) return;
+  
+  var brandConfigObj = {};
+  if (c.brand_config) {
+    try { brandConfigObj = JSON.parse(c.brand_config); } catch(e) {}
+  }
+  
+  delete brandConfigObj.custom_logo;
+  delete brandConfigObj.custom_favicon;
+  delete brandConfigObj.custom_bg;
+  
+  showToast("Limpando customizações...");
+  try {
+    var res = await fetch("/api/v1/blog/" + slug + "/update-modes", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        brand_config: JSON.stringify(brandConfigObj)
+      })
+    });
+    var data = await res.json();
+    if (data.success) {
+      showToast("✅ Customizações limpas com sucesso!", "success");
+      c.brand_config = JSON.stringify(brandConfigObj);
+      loadDashboard();
+    } else {
+      showToast("❌ Erro ao limpar: " + (data.detail || "desconhecido"), "error");
+    }
+  } catch(e) {
+    showToast("❌ Erro: " + e.message, "error");
   }
 }
 

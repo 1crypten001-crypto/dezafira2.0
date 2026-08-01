@@ -84,6 +84,17 @@ def _apply_brand_overrides(blog_info: dict, theme_css: str) -> tuple[str, dict]:
     css_overrides += f"  --header-bg: {cd.get('bg_dark', '#0f172a')} !important;\n"
     css_overrides += "}\n"
     
+    custom_bg = brand_config.get("custom_bg") if brand_config else None
+    if custom_bg:
+        css_overrides += f"""
+        body {{
+            background-image: url("{custom_bg}") !important;
+            background-size: cover !important;
+            background-attachment: fixed !important;
+            background-position: center !important;
+        }}
+        """
+    
     return font_import_css + theme_css + "\n" + css_overrides, brand_config
 
 
@@ -354,13 +365,23 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 
     google_fonts = "&".join(f"family={f}" for f in requested_fonts)
 
-    # Favicon profissional — usa SVG vetorial em vez de emoji
-    if brand_config and brand_config.get("favicon_svg"):
+    # Favicon profissional
+    if brand_config and brand_config.get("custom_favicon"):
+        favicon = brand_config["custom_favicon"]
+    elif brand_config and brand_config.get("favicon_svg"):
         favicon = brand_config["favicon_svg"]
     elif theme:
         favicon = get_favicon_svg(theme.get("id", ""))
     else:
         favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M16 6v20M6 16h20' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E"
+
+    icon_type = 'type="image/svg+xml"'
+    if favicon.startswith("data:image/png") or ".png" in favicon.lower():
+        icon_type = 'type="image/png"'
+    elif favicon.startswith("data:image/x-icon") or ".ico" in favicon.lower():
+        icon_type = 'type="image/x-icon"'
+    elif favicon.startswith("data:image/jpeg") or ".jpg" in favicon.lower() or ".jpeg" in favicon.lower():
+        icon_type = 'type="image/jpeg"'
 
     # Apple touch icon (PNG fallback) + PWA manifest hints
     apple_touch = f'<link rel="apple-touch-icon" href="{favicon}">'
@@ -392,7 +413,7 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 {og_tags}
 {og_img}
 {schema_tag}
-<link rel="icon" type="image/svg+xml" href="{favicon}">
+<link rel="icon" {icon_type} href="{favicon}">
 {apple_touch}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -414,6 +435,12 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
     categories = _get_categories(blog_niche)
     theme = detect_theme(blog_niche)
     logo_svg = brand_config.get("logo_svg") if (brand_config and brand_config.get("logo_svg")) else get_logo_svg(blog_niche)
+    custom_logo = brand_config.get("custom_logo") if brand_config else None
+    if custom_logo:
+        logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:180px; object-fit:contain;" alt="{blog_name}" />'
+    else:
+        logo_markup = f'<span class="logo-icon">{logo_svg}</span><span class="logo-text">{blog_name}</span>'
+
     nav_items = "".join(
         f'<a href="/blog/{slug}?cat={c.lower()}" class="nav-link{" active" if current_cat.lower() == c.lower() else ""}">{c}</a>'
         for c in categories
@@ -421,8 +448,7 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
     return f"""<header class="site-header">
   <div class="header-inner">
     <a href="/blog/{slug}" class="header-logo">
-      <span class="logo-icon">{logo_svg}</span>
-      <span class="logo-text">{blog_name}</span>
+      {logo_markup}
     </a>
     <nav class="header-nav" id="mainNav">
       {nav_items}
@@ -448,14 +474,19 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
         year = str(datetime.now().year)
     theme = detect_theme(blog_niche)
     logo_svg = brand_config.get("logo_svg") if (brand_config and brand_config.get("logo_svg")) else get_logo_svg(blog_niche)
+    custom_logo = brand_config.get("custom_logo") if brand_config else None
+    if custom_logo:
+        logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:180px; object-fit:contain; margin-bottom:12px;" alt="{blog_name}" />'
+    else:
+        logo_markup = f'<span class="logo-icon">{logo_svg}</span><strong style="display:block;margin-top:4px;">{blog_name}</strong>'
+
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])
     niche_desc = blog_niche[:80] if blog_niche else "conhecimento e inspiracao"
     return f"""<footer class="site-footer">
   <div class="footer-grid">
     <div class="footer-brand">
-      <span class="logo-icon">{logo_svg}</span>
-      <strong>{blog_name}</strong>
+      {logo_markup}
       <p>Blog dedicado a {niche_desc.lower()}.</p>
     </div>
     <div class="footer-links">
