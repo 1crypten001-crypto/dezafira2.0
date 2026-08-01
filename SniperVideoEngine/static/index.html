@@ -259,7 +259,7 @@
       <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🤖</span> Hermes</a>
       <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">🔍</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
     </nav>
-    <div class="sidebar-footer">Dezafira v1.0</div>
+    <div class="sidebar-footer">Dezafira <span id="uiVersion">v1.1.0</span></div>
   </aside>
   <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <main class="main">
@@ -1879,6 +1879,15 @@ window.sendHermes=function(){
   },1500);
 };
 
+// Versao do build no rodape (cache-busting visual)
+(function(){
+  try{
+    fetch('/api/v1/version').then(function(r){return r.json();}).then(function(v){
+      var el=document.getElementById('uiVersion');
+      if(el&&v&&v.version)el.textContent='v'+v.version+(v.build?' · build '+v.build:'');
+    }).catch(function(){});
+  }catch(e){}
+})();
 </script>
 </body>
 </html>

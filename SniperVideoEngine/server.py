@@ -160,13 +160,24 @@ uploader = YouTubeUploader()
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.middleware("http")
+async def no_cache_html_middleware(request, call_next):
+    """Forca Cache-Control no-store para a UI admin (evita versao obsoleta no navegador)."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or (path.startswith("/static/") and path.endswith(".html")):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 @app.get("/", include_in_schema=False)
 async def serve_ui():
     template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
     if not os.path.exists(template_path):
         return HTMLResponse("<h1>Dezafira</h1>")
     with open(template_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+        return HTMLResponse(content=f.read(), headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"})
 
 @app.get("/app/{slug}", response_class=HTMLResponse)
 async def serve_pwa_app(slug: str):
@@ -176,6 +187,25 @@ async def serve_pwa_app(slug: str):
     with open(template_path, "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
+
+# Versao do build (cache-busting visual na UI Admin)
+APP_VERSION = "1.1.0"
+def _get_build_id():
+    try:
+        import subprocess
+        h = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True, timeout=5)
+        if h.returncode == 0 and h.stdout.strip():
+            return h.stdout.strip()
+    except Exception:
+        pass
+    return "dev"
+
+APP_BUILD = _get_build_id()
+
+@app.get("/api/v1/version")
+async def get_app_version():
+    return {"version": APP_VERSION, "build": APP_BUILD, "name": "Dezafira Admin"}
 
 @app.get("/api/v1/logs")
 async def get_application_logs():
