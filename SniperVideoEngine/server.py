@@ -748,6 +748,40 @@ async def blog_factory_dashboard():
                 "lili_approved": lili_approved,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             })
+
+        # Agregados por canal (para que TODOS os paineis de blog tenham dados completos,
+        # independente de estar ou nao no 'recent' global de 10 posts)
+        all_posts = db.query(BlogPost).order_by(BlogPost.created_at.desc()).all()
+        ch_map = {}
+        for p in all_posts:
+            ch_map.setdefault(p.channel_id, []).append(p)
+
+        def _channel_agg(cid):
+            ch_all = ch_map.get(cid, [])
+            ch_recent = ch_all[:5]
+            words = sum(p.word_count or 0 for p in ch_all)
+            prov = {}
+            for p in ch_all:
+                k = (p.image_provider or "pexels").lower()
+                prov[k] = prov.get(k, 0) + 1
+            lili = [p.lili_score for p in ch_all if p.lili_score is not None]
+            return {
+                "total_words": words,
+                "avg_words": round(words / len(ch_all)) if ch_all else 0,
+                "provider_stats": prov,
+                "lili_avg": round(sum(lili) / len(lili)) if lili else None,
+                "lili_approved_count": sum(1 for p in ch_all if p.lili_approved),
+                "recent_posts": [{
+                    "id": p.id, "title": p.title, "slug": p.slug,
+                    "status": p.status, "word_count": p.word_count or 0,
+                    "featured_image_url": p.featured_image_url,
+                    "channel_id": p.channel_id,
+                    "image_provider": p.image_provider,
+                    "lili_score": p.lili_score,
+                    "lili_approved": bool(p.lili_approved),
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                } for p in ch_recent],
+            }
         return {
             "channels": {
                 "total": len(channels),
@@ -784,6 +818,7 @@ async def blog_factory_dashboard():
                     "mercadolivre_client_secret": c.mercadolivre_client_secret,
                     "brand_config": getattr(c, "brand_config", None),
                     "subdomain": __get_subdomain_for_channel(c.id, c.name.lower().replace(" ", "-")[:50]),
+                    **_channel_agg(c.id),
                 } for c in channels],
             },
             "posts": {
