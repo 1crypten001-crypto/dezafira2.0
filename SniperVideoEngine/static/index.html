@@ -15,7 +15,7 @@
   ::-webkit-scrollbar-track{background:#0d0e14}
   ::-webkit-scrollbar-thumb{background:#1e2030;border-radius:3px}
   .app{display:flex;min-height:100vh}
-  .sidebar{width:260px;background:#0b0c12;border-right:1px solid #14161f;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s ease}
+  .sidebar{width:260px;background:#0b0c12;border-right:1px solid #14161f;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s ease,width .25s ease}
   .sidebar-brand{padding:24px 20px 20px;border-bottom:1px solid #14161f}
   .sidebar-brand .logo{display:flex;align-items:center;gap:12px}
   .sidebar-brand .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
@@ -33,7 +33,27 @@
   .nav-item .pipeline-dot.done{background:#22c55e}
   @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.4)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
   .sidebar-footer{padding:16px 20px;border-top:1px solid #14161f;font-size:11px;color:#3b4050;text-align:center}
-  .main{margin-left:260px;flex:1;padding:24px 32px;max-width:1400px}
+  .main{margin-left:260px;flex:1;padding:24px 32px;max-width:1400px;transition:margin-left .25s ease,padding .25s ease}
+  /* Menu collapse (desktop rail) + hamburger (mobile) */
+  .menu-toggle,.sidebar-collapse-btn{background:#0d0e14;border:1px solid #1e2030;color:#c3c9d9;border-radius:8px;width:36px;height:36px;font-size:15px;line-height:1;cursor:pointer;align-items:center;justify-content:center;transition:all .15s ease;flex-shrink:0;padding:0}
+  .menu-toggle:hover,.sidebar-collapse-btn:hover{background:#14161f;color:#fff;border-color:#2a2d3e}
+  .menu-toggle:focus-visible,.sidebar-collapse-btn:focus-visible,.nav-item:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+  .nav-item:focus-visible{background:#12141e}
+  .menu-toggle{display:none}
+  .sidebar-collapse-btn{display:flex}
+  body.sidebar-collapsed .sidebar{width:68px}
+  body.sidebar-collapsed .sidebar-brand{padding:20px 12px}
+  body.sidebar-collapsed .sidebar-brand .logo{justify-content:center;gap:0}
+  body.sidebar-collapsed .sidebar-brand .logo>div:last-child{display:none}
+  body.sidebar-collapsed .sidebar-nav{padding:10px 0}
+  body.sidebar-collapsed .nav-section{display:none}
+  body.sidebar-collapsed .nav-item{justify-content:center;padding:10px 0;margin:3px 10px}
+  body.sidebar-collapsed .nav-item .icon{width:auto;font-size:20px}
+  body.sidebar-collapsed .nav-item .nav-label,
+  body.sidebar-collapsed .nav-item .badge,
+  body.sidebar-collapsed .nav-item .pipeline-dot{display:none}
+  body.sidebar-collapsed .sidebar-footer{display:none}
+  body.sidebar-collapsed .main{margin-left:68px;padding:24px 20px}
   @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
   .main{margin-left:0;padding:12px}
@@ -56,6 +76,8 @@
   .macro-current-article{padding:14px 16px}
   .macro-current-title{font-size:13px}
   #hermesChat{padding:12px!important}
+  .menu-toggle{display:flex!important}
+  .sidebar-collapse-btn{display:none!important}
 }
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
   .topbar h2{font-size:22px;font-weight:800}
@@ -97,23 +119,6 @@
   .page-header p{color:#5c6370;font-size:14px}
   .empty{padding:32px;text-align:center;color:#5c6370;font-size:14px}
   .spinner{width:18px;height:18px;border:2px solid #1e2030;border-top-color:#6366f1;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
-@media(max-width:480px){
-  .sidebar{width:100%}
-  .sidebar-brand{padding:16px}
-  .nav-item{padding:12px 16px;margin:1px 4px}
-  .main{padding:8px}
-  .stat-card{padding:12px 14px}
-  .stat-card .value{font-size:18px}
-  .section-header{flex-direction:column;align-items:flex-start;gap:8px}
-  .topbar{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:16px}
-  .macro-global-header{flex-direction:column;align-items:flex-start;gap:6px}
-  .macro-article-counter{font-size:11px}
-  .btn{padding:10px 14px;font-size:14px}
-  .conveyor-track{padding:12px 8px 20px}
-  .conveyor-stage{width:130px;padding:12px 8px}
-  .cs-agent-avatar{font-size:11px}
-  .cs-name{font-size:11px}
-}
 @media(max-width:480px){
   .sidebar{width:100%}
   .sidebar-brand{padding:16px}
@@ -249,22 +254,27 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Visao Geral</div>
-      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</a>
+      <a class="nav-item active" data-page="dashboard" title="Dashboard" href="#dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="nav-label">Dashboard</span></a>
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
-      <a class="nav-item" data-page="blogs" onclick="navigate('blogs')"><span class="icon">📝</span> Blogs & Pipeline <span class="badge" id="blogCount">-</span></a>
+      <a class="nav-item" data-page="blogs" title="Blogs & Pipeline" href="#blogs" onclick="navigate('blogs')"><span class="icon">📝</span><span class="nav-label">Blogs & Pipeline</span> <span class="badge" id="blogCount">-</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
-      <a class="nav-item" data-page="books" onclick="navigate('books')"><span class="icon">📚</span> Livros <span class="badge" id="bookCount">-</span></a>
-      <a class="nav-item" data-page="courses" onclick="navigate('courses')"><span class="icon">🎓</span> Cursos <span class="badge" id="courseCount">-</span></a>
-      <a class="nav-item" data-page="images" onclick="navigate('images')"><span class="icon">🖼️</span> Imagens</a>
-      <a class="nav-item" data-page="hermes" onclick="navigate('hermes')"><span class="icon">🤖</span> Hermes</a>
-      <a class="nav-item" data-page="lili" onclick="navigate('lili')"><span class="icon">🔍</span> Qualidade <span class="badge" id="liliBadge">-</span></a>
+      <a class="nav-item" data-page="books" title="Livros" href="#books" onclick="navigate('books')"><span class="icon">📚</span><span class="nav-label">Livros</span> <span class="badge" id="bookCount">-</span></a>
+      <a class="nav-item" data-page="courses" title="Cursos" href="#courses" onclick="navigate('courses')"><span class="icon">🎓</span><span class="nav-label">Cursos</span> <span class="badge" id="courseCount">-</span></a>
+      <a class="nav-item" data-page="images" title="Imagens" href="#images" onclick="navigate('images')"><span class="icon">🖼️</span><span class="nav-label">Imagens</span></a>
+      <div class="nav-section" style="margin-top:8px">Inteligencia</div>
+      <a class="nav-item" data-page="hermes" title="Hermes — Orquestrador" href="#hermes" onclick="navigate('hermes')"><span class="icon">🤖</span><span class="nav-label">Hermes</span></a>
+      <a class="nav-item" data-page="lili" title="Qualidade — Revisora LiLi" href="#lili" onclick="navigate('lili')"><span class="icon">🔍</span><span class="nav-label">Qualidade</span> <span class="badge" id="liliBadge">-</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira <span id="uiVersion">v1.1.0</span></div>
   </aside>
   <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <main class="main">
     <div class="topbar">
-      <div><button class="menu-toggle" onclick="toggleSidebar()" style="display:none">░</button><h2 id="pageTitle">Dashboard</h2></div>
+      <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
+        <button class="menu-toggle" onclick="toggleSidebar()" title="Abrir menu" aria-label="Abrir menu">☰</button>
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Recuar menu" aria-label="Recuar menu">«</button>
+        <h2 id="pageTitle">Dashboard</h2>
+      </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="status"><span class="dot"></span>Online</div>
         <button class="btn btn-sm" onclick="location.reload()">🔄 Atualizar</button>
@@ -442,7 +452,7 @@ function renderLogoHtml(svgOrUri){
 function escapeHtml(t){var d=document.createElement("div");d.appendChild(document.createTextNode(t||""));return d.innerHTML}
 function blogSlug(n){return "/blog/"+n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")}
 
-function navigate(p){
+function navigate(p,skipHash){
   document.querySelectorAll(".page").forEach(function(x){x.classList.remove("active")});
   var pg=$("page-"+p);if(pg)pg.classList.add("active");
   document.querySelectorAll(".nav-item").forEach(function(x){x.classList.remove("active")});
@@ -455,10 +465,78 @@ function navigate(p){
   else if(p==="images")loadImages();
   else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
-  closeSidebar();window.scrollTo(0,0);
+  closeSidebar();
+  var an=document.querySelector('.nav-item.active');
+  if(an){try{an.focus({preventScroll:true})}catch(e){}}
+  if(!skipHash&&("#"+p)!==location.hash){try{history.pushState(null,"","#"+p)}catch(e){location.hash=p}}
+  window.scrollTo(0,0);
 }
-function toggleSidebar(){$("sidebar").classList.toggle("open");}
-function closeSidebar(){$("sidebar").classList.remove("open");}
+function pageFromHash(){
+  var h=(""+location.hash).replace(/^#/,"").split(":")[0];
+  if(pageTitles[h]===undefined)return null;
+  if(!document.getElementById("page-"+h))return null;
+  return h;
+}
+window.addEventListener("hashchange",function(){
+  var p=pageFromHash();
+  if(p)navigate(p,true);
+});
+(function(){
+  var p=pageFromHash();
+  if(p)navigate(p,true);
+})();
+var mqMobile=window.matchMedia('(max-width: 768px)');
+function isMobile(){return mqMobile.matches}
+function setOverlay(show){
+  var o=$("sidebarOverlay");if(!o)return;
+  o.style.display=(show&&isMobile())?"block":"none";
+}
+function toggleSidebar(){
+  var s=$("sidebar");if(!s)return;
+  var open=s.classList.toggle("open");
+  setOverlay(open);
+}
+function closeSidebar(){
+  var s=$("sidebar");if(s)s.classList.remove("open");
+  setOverlay(false);
+}
+function updateCollapseIcon(){
+  var b=$("sidebarCollapseBtn");if(!b)return;
+  var c=document.body.classList.contains("sidebar-collapsed");
+  b.innerHTML=c?"»":"«";
+  b.title=c?"Expandir menu":"Recuar menu";
+  b.setAttribute("aria-label",c?"Expandir menu":"Recuar menu");
+}
+function toggleSidebarCollapse(){
+  if(isMobile())return;
+  document.body.classList.toggle("sidebar-collapsed");
+  try{localStorage.setItem("dz_sidebar_collapsed",document.body.classList.contains("sidebar-collapsed")?"1":"0")}catch(e){}
+  updateCollapseIcon();
+}
+function savedCollapsed(){try{return localStorage.getItem("dz_sidebar_collapsed")==="1"}catch(e){return false}}
+function initSidebarState(){
+  if(!isMobile()&&savedCollapsed())document.body.classList.add("sidebar-collapsed");
+  updateCollapseIcon();
+  window.addEventListener("resize",function(){
+    if(isMobile()){
+      document.body.classList.remove("sidebar-collapsed");
+      closeSidebar();
+    }else{
+      setOverlay(false);
+      if(savedCollapsed())document.body.classList.add("sidebar-collapsed");
+    }
+    updateCollapseIcon();
+  });
+}
+initSidebarState();
+document.addEventListener("keydown",function(e){
+  var t=e.target;
+  if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT"||t.isContentEditable))return;
+  if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==="b"){
+    e.preventDefault();
+    if(isMobile())toggleSidebar();else toggleSidebarCollapse();
+  }
+});
 
 async function api(url,opts){
   try{var r=await fetch(url,{headers:{"Content-Type":"application/json"},...opts});return await r.json()}
@@ -974,9 +1052,12 @@ async function loadDashboard(){
     '</div>';
   }).join('');
   $("blogPanels").innerHTML=panelsHtml;
+  var savedTab=null;try{savedTab=localStorage.getItem("dz_blog_tab")}catch(e){}
+  if(savedTab&&savedTab!=="new"&&$("panel_"+savedTab))switchBlogTab(savedTab);
 }
 
 function switchBlogTab(channelId){
+  try{localStorage.setItem("dz_blog_tab",channelId)}catch(e){}
   document.querySelectorAll(".blog-tab").forEach(function(t){t.classList.remove("active")});
   document.querySelectorAll(".blog-panel").forEach(function(p){p.classList.remove("active")});
   var tab=document.querySelector('.blog-tab[data-blog="'+channelId+'"]');
