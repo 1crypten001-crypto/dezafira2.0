@@ -3636,22 +3636,6 @@ async def regenerate_blog_post(post_id: str):
             try:
                 from modules.lili import lili_review_after_generation
                 lili_review = await lili_review_after_generation(new_post_id)
-                # Persiste o score no banco imediatamente (cache consistente)
-                if lili_review:
-                    cr = (lili_review.get("content_review") or {})
-                    score = cr.get("score")
-                    if score is None:
-                        score = lili_review.get("overall_score")
-                    if isinstance(score, (int, float)):
-                        try:
-                            from modules.database import save_db_lili_score
-                            save_db_lili_score(
-                                new_post_id,
-                                int(score),
-                                bool(lili_review.get("approved") or (cr or {}).get("approved")),
-                            )
-                        except Exception as e_save:
-                            print(f"[Regenerate] Falha ao persistir score: {e_save}")
             except Exception as e_lili:
                 print(f"[Regenerate] Lili error: {e_lili}")
 
@@ -4038,7 +4022,7 @@ async def run_blog_factory_frontend(payload: dict):
                             "progress": real_prog,
                             "message": real_msg,
                             "status": real_status if real_status != "running" else "active",
-                            "current_article": (data or {}).get("state", {}).get("current_macro_stage"),
+                            "current_article": (data or {}).get("state", {}).get("articles_generated", 0) if isinstance(data, dict) else 0,
                             "article_topic": (data or {}).get("article_topic"),
                             "phase_detail": real_stage,
                             "lili_score": (data or {}).get("lili_score"),

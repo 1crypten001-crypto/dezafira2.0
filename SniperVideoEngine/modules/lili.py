@@ -367,6 +367,65 @@ async def revisar_artigo(post: dict) -> dict:
 # REVISAO EM MASSA (todos os artigos de um blog)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def lili_review_after_generation(post_id: str) -> dict:
+    """
+    Revisa um artigo recem-gerado (conteudo + imagem), aplica auto-correcao
+    se houver problemas corrigiveis e persiste score/approval no banco.
+
+    Assinatura usada pela pipeline e pelos endpoints (blog_pipeline.py,
+    server.py /regenerate e /lili/review): retorna
+    {"status", "post_id", "approved", "overall_score", "auto_corrected",
+     "content_review", "image_check", "reviewed_at"}
+    """
+    from modules.database import get_db_blog_post, save_db_lili_score, update_db_blog_post
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        return {"status": "erro", "post_id": post_id, "message": "Post nao encontrado"}
+
+    # Revisao completa (conteudo + imagem)
+    review = await revisar_artigo(post)
+    content_review = review.get("content_review") or {}
+    approved = bool(review.get("approved"))
+    overall_score = int(review.get("overall_score") or 0)
+    auto_corrected = False
+
+    # Se reprovado por problemas corrigiveis, tenta auto-correcao e re-revisa
+    if not approved:
+        content = post.get("content") or ""
+        try:
+            corrected = corrigir_conteudo_automatico(content)
+        except Exception as e:
+            print(f"[LiLi] Erro no auto-correct: {e}")
+            corrected = content
+        if corrected and corrected != content:
+            update_db_blog_post(post_id, content=corrected)
+            auto_corrected = True
+            post2 = get_db_blog_post(post_id)
+            if post2:
+                review2 = await revisar_artigo(post2)
+                content_review = review2.get("content_review") or {}
+                approved = bool(review2.get("approved"))
+                overall_score = int(review2.get("overall_score") or 0)
+
+    # Persistir score (cache)
+    try:
+        save_db_lili_score(post_id, overall_score, approved)
+    except Exception as e:
+        print(f"[LiLi] Falha ao persistir score do post {post_id}: {e}")
+
+    return {
+        "status": "ok",
+        "post_id": post_id,
+        "approved": approved,
+        "overall_score": overall_score,
+        "auto_corrected": auto_corrected,
+        "content_review": content_review,
+        "image_check": review.get("image_check"),
+        "reviewed_at": datetime.utcnow().isoformat(),
+    }
+
+
 async def revisar_blog(channel_id: str) -> dict:
     """
     Revisa todos os artigos de um blog.

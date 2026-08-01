@@ -568,6 +568,8 @@ class BlogMacroPipeline:
             self.state.status = "failed"
             self.state.error = str(e)
             self.state.completed_at = datetime.utcnow()
+            print(f"[Pipeline] PIPELINE_FAILED: {e}")
+            traceback.print_exc()
             self._emit("pipeline_failed", {
                 **self.state.to_dict(),
                 "error_detail": traceback.format_exc(),
@@ -584,6 +586,8 @@ class BlogMacroPipeline:
             await stage_fn()
         except Exception as e:
             self._update_macro(stage_id, "failed", 0, str(e))
+            print(f"[Pipeline] Fase '{stage_name}' falhou: {e}")
+            traceback.print_exc()
             raise RuntimeError(f"Falha na fase {stage_name}: {str(e)}") from e
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -879,7 +883,8 @@ class BlogMacroPipeline:
 
     # ═══════════════════════════════════════════════════════════════════════════
     # FASE 3: PRODUÇÃO — O CORAÇÃO DA ESTEIRA
-    # ═══════════════════════════════════════════════════════════════════════════    async def _phase_producao(self):
+    # ═══════════════════════════════════════════════════════════════════════════
+    async def _phase_producao(self):
         """Gera 30-40 artigos em 3 rodadas de qualidade crescente."""
         sid = "producao"
         channel_id = self.state.channel_id
@@ -958,7 +963,13 @@ class BlogMacroPipeline:
             sec_name = sec.get("name", f"Seção {sec_idx + 1}")
             sec_keywords = sec.get("keywords", self.state.niche)
 
-            for a_idx in range(article_count):
+            # Loop com RETRY: so avanca quando o artigo passa imagem + LiLi
+            _approved_in_sec = 0
+            _max_attempts = max(article_count * 4, 8)
+            _attempts = 0
+            while _approved_in_sec < article_count and _attempts < _max_attempts:
+                _attempts += 1
+                a_idx = _attempts - 1
                 if self.state.status != "running":
                     return
 
@@ -1000,7 +1011,7 @@ class BlogMacroPipeline:
                     print(f"[Pipeline] Revisor warning: {e}")
 
                 self._update_macro(sid, "active", overall_progress,
-                    f"✍️ [{self.state.articles_generated + a_idx + 1}/{target}] Gerando: {article_topic[:50]}...")
+                    f"✍️ [{_approved_in_sec + 1}/{target}] Gerando: {article_topic[:50]}...")
 
                 # --- GERA O ARTIGO ---
                 article_result = await self._generate_single_article(
@@ -1073,7 +1084,8 @@ class BlogMacroPipeline:
                                     # BLOQUEANTE: artigo reprovado mesmo apos correcao
                                     self._update_macro(
                                         sid, "active", overall_progress,
-                                        f"🚫 LiLi REPROVOU: '{title_preview}' score {lili_score}/100. Deletando...")
+                                        f"🚫 LiLi REPROVOU: '{title_preview}' score {lili_score}/100. Deletando...",
+                                        {"lili_score": lili_score, "lili_approved": False, "article_title": article_result.get("title", "")})
                                     delete_db_blog_post(post_id)
                                     article_result["success"] = False
                                     print(f"[Pipeline] BLOQUEADO: LiLi reprovou artigo {post_id[:12]}... (score {lili_score}/100). Artigo deletado.")
@@ -1086,11 +1098,29 @@ class BlogMacroPipeline:
 
                     # Checkpoint após cada artigo
                     await self._save_checkpoint()
+                    _approved_in_sec += 1
 
                 # Pequena pausa entre artigos
                 await asyncio.sleep(0.3)
 
         # Finalizar produção
+        # Guard baseado em APROVADOS (success) — total_articles conta geracoes
+        # que escreveram (antes dos gates de imagem/LiLi) e pode superar o
+        # target com retries mesmo com 0 aprovados.
+        _approved = len([a for a in self.state.articles if a.get("success")])
+        if _approved < target:
+            partial = _approved > 0
+            _warn = f"⚠️ Produção {'parcial' if partial else 'não atingiu o alvo'}: {_approved}/{target} aprovados (LiLi bloqueou os demais)"
+            self._update_macro(sid, "completed" if partial else "failed", 100, _warn, {
+                "total_articles": _approved,
+                "total_words": total_words,
+                "target_articles": target,
+            })
+            print(f"[Pipeline] {_warn}")
+            if not partial:
+                self.state.status = "failed"
+                print("[Pipeline] Produção zerada. Esteira interrompida (nada para refinar/entregar).")
+            return
         self._update_macro(sid, "completed", 100,
             f"✅ Produção concluída! {total_articles} artigos gerados, ~{total_words} palavras", {
                 "total_articles": total_articles,
@@ -1099,6 +1129,195 @@ class BlogMacroPipeline:
                 "dynamic_topics_count": len(dynamic_topics),
                 "lili_reviews": len([a for a in self.state.articles if a.get("lili_review")]),
             })
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # FASE 4: REFINO
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _phase_refino(self):
+        """Gera imagens, links internos e programa publicação."""
+        sid = "refino"
+        channel_id = self.state.channel_id
+        articles = self.state.articles
+        self._update_macro(sid, "active", 5,
+            f"🎨 Refinando {len(articles)} artigos...")
+
+        # 1. Processar CTAs de afiliado se for blog de afiliado
+        self._update_macro(sid, "active", 30,
+            "🛒 Convertendo marcações de CTA para links de afiliados...")
+        from modules.database import SessionLocal, BlogPost, BlogChannel
+        db = SessionLocal()
+        try:
+            channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+            is_affiliate = channel.is_affiliate if channel else False
+            
+            if is_affiliate:
+                processed_ctas = 0
+                for article in articles:
+                    if not article.get("success") or not article.get("post_id"):
+                        continue
+                    post_id = article["post_id"]
+                    post = db.query(BlogPost).filter(BlogPost.id == post_id).first()
+                    if post and post.content:
+                        new_content = render_affiliate_ctas(post.content, post.slug or post.id)
+                        post.content = new_content
+                        processed_ctas += 1
+                db.commit()
+                print(f"[Pipeline] Refino: processados CTAs para {processed_ctas} artigos.")
+        except Exception as e_ctas:
+            print(f"[Pipeline] Refino: erro ao processar CTAs de afiliado: {e_ctas}")
+        finally:
+            db.close()
+
+        # 2. Links internos
+        self._update_macro(sid, "active", 70,
+            "🔗 Gerando links internos entre artigos...")
+
+        try:
+            from modules.seo_optimizer import generate_internal_links
+            internal_links_count = 0
+            for i, article in enumerate(articles):
+                if not article.get("success"):
+                    continue
+                # Links são sugestões — em produção seriam inseridos no HTML
+                internal_links_count += 1
+            self._update_macro(sid, "active", 80,
+                f"🔗 {internal_links_count} artigos com links internos")
+        except Exception as e_links:
+            print(f"[Pipeline] Refino: erro ao gerar links internos: {e_links}")
+
+        # 2. Agendamento
+        self._update_macro(sid, "active", 85,
+            "📅 Configurando agendamento de publicação...")
+
+        try:
+            from modules.scheduler import add_daily_job, start
+            job_id = f"blg_{channel_id or 'demo'}_{datetime.utcnow().strftime('%Y%m%d')}"
+            add_daily_job(
+                job_id=job_id,
+                seed=self.state.niche,
+                channel_id=channel_id or "default",
+                hour=8, minute=0, publish=True, index=True,
+            )
+            start()
+            self._update_macro(sid, "active", 95,
+                f"✅ Publicação agendada: 1 artigo/dia às 08:00")
+        except Exception as e:
+            self._update_macro(sid, "active", 95,
+                f"ℹ️ Agendamento: {e}")
+
+        # Finalizar
+        self._update_macro(sid, "completed", 100,
+            f"✅ Refino concluído! Agendamento diário configurado", {
+                "scheduled": True,
+            })
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # FASE 5: ENTREGA
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def _phase_entrega(self):
+        """Finaliza o blog — Seu Francisco confere, libera, e agenda Seu Zé."""
+        sid = "entrega"
+        articles = self.state.articles
+        successful = [a for a in articles if a.get("success")]
+        total_words = sum(a.get("word_count", 0) for a in successful)
+        channel_id = self.state.channel_id
+
+        self._update_macro(sid, "active", 10,
+            "👴 Seu Francisco: 'Deixa eu conferir a produção...'")
+        await asyncio.sleep(0.3)
+
+        # ─── SEU FRANCISCO: supervisionar ────────────────────────────────
+        try:
+            from modules.seu_francisco import sinal_verde
+            avaliacao = sinal_verde(channel_id=channel_id, target_articles=self.state.target_articles)
+
+            if avaliacao.get("liberado"):
+                self._update_macro(sid, "active", 30,
+                    f"👴 Seu Francisco: \"{avaliacao['resumo'][:60]}...\"")
+            else:
+                self._update_macro(sid, "active", 30,
+                    f"👴 Seu Francisco: \"{avaliacao['resumo'][:60]}...\"")
+        except Exception as e:
+            print(f"[Pipeline] Seu Francisco warning: {e}")
+
+        await asyncio.sleep(0.3)
+
+        # --- Lili: Revisao final de todos os artigos pendentes ---
+        self._update_macro(sid, "active", 45,
+            "🌸 Lili: revisando qualidade de todos os artigos...")
+        try:
+            from modules.lili import lili_review_all_pending
+            lili_final = await lili_review_all_pending(channel_id=channel_id)
+            if lili_final.get("status") == "completo":
+                self._update_macro(sid, "active", 50,
+                    f"🌸 Lili: {lili_final.get('approved',0)}/{lili_final.get('total',0)} artigos aprovados, score medio {lili_final.get('avg_score',0)}/100")
+        except ImportError:
+            pass
+        except Exception as e_lili:
+            print(f"[Pipeline] Lili warning: {e_lili}")
+
+        self._update_macro(sid, "active", 40,
+            "✅ Gerando relatório final...")
+        try:
+            from modules.database import update_db_blog_pipeline_run
+            if self.state.pipeline_run_id:
+                update_db_blog_pipeline_run(self.state.pipeline_run_id, **{
+                    "status": "completed",
+                    "phase": "entrega",
+                    "articles_generated": len(successful),
+                    "completed_at": datetime.utcnow(),
+                })
+        except Exception as e_run:
+            print(f"[Pipeline] Entrega: erro ao atualizar pipeline: {e_run}")
+
+        # ─── SEU ZÉ: agendar publicação diária ───────────────────────────
+        self._update_macro(sid, "active", 60,
+            "📅 Seu Zé: 'Agendando 1 artigo/dia às 08:00...'")
+        try:
+            from modules.seu_ze import agendar_publicacao
+            agenda = agendar_publicacao(
+                channel_id=channel_id or "default",
+                blog_name=self.state.blog_name or "Blog",
+                hour=8, minute=0,
+            )
+            self._update_macro(sid, "active", 75,
+                f"📅 Seu Zé: '{agenda.get('status', 'agendado')}! 1 artigo/dia às 08:00'")
+        except Exception as e:
+            print(f"[Pipeline] Seu Ze warning: {e}")
+
+        await asyncio.sleep(0.3)
+
+        self._update_macro(sid, "active", 85,
+            f"📊 Relatório: {len(successful)} artigos, ~{total_words} palavras")
+
+        self._update_macro(sid, "active", 90,
+            "🖼️ Verificando imagens pendentes...")
+        
+        # 📸 Gerar imagens para artigos sem imagem (função compartilhada)
+        try:
+            from modules.ricardo import gerar_imagens_pendentes
+            _img_result = await gerar_imagens_pendentes(channel_id=channel_id)
+            print(f"[Pipeline] Imagens geradas: {_img_result.get('message', 'OK')}")
+            self._update_macro(sid, "active", 95,
+                f"✅ {_img_result.get('images_generated', 0)} imagens geradas")
+
+        except Exception as e:
+            print(f"[Pipeline] Entrega: erro ao gerar imagens: {e}")
+
+        self._update_macro(sid, "completed", 100,
+            f"🎉 Blog '{self.state.blog_name}' COMPLETO! {len(successful)} artigos prontos!", {
+                "total_articles": len(successful),
+                "total_words": total_words,
+                "blog_name": self.state.blog_name,
+                "niche": self.state.niche,
+                "channel_id": self.state.channel_id,
+                "articles_preview": [a.get("title") for a in successful[:10]],
+                "message": "Pipeline pronto para o próximo blog!",
+            })
+
+
 
     async def _generate_single_article(self, topic: str, keywords: str,
                                        target_words: int, section_id: str,
@@ -1245,195 +1464,6 @@ def render_affiliate_ctas(content: str, post_slug: str) -> str:
         return card_html
 
     return re.sub(pattern, replace_cta, content, flags=re.IGNORECASE)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # FASE 4: REFINO
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    async def _phase_refino(self):
-        """Gera imagens, links internos e programa publicação."""
-        sid = "refino"
-        channel_id = self.state.channel_id
-        articles = self.state.articles
-        self._update_macro(sid, "active", 5,
-            f"🎨 Refinando {len(articles)} artigos...")
-
-        # 1. Processar CTAs de afiliado se for blog de afiliado
-        self._update_macro(sid, "active", 30,
-            "🛒 Convertendo marcações de CTA para links de afiliados...")
-        from modules.database import SessionLocal, BlogPost, BlogChannel
-        db = SessionLocal()
-        try:
-            channel = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
-            is_affiliate = channel.is_affiliate if channel else False
-            
-            if is_affiliate:
-                processed_ctas = 0
-                for article in articles:
-                    if not article.get("success") or not article.get("post_id"):
-                        continue
-                    post_id = article["post_id"]
-                    post = db.query(BlogPost).filter(BlogPost.id == post_id).first()
-                    if post and post.content:
-                        new_content = render_affiliate_ctas(post.content, post.slug or post.id)
-                        post.content = new_content
-                        processed_ctas += 1
-                db.commit()
-                print(f"[Pipeline] Refino: processados CTAs para {processed_ctas} artigos.")
-        except Exception as e_ctas:
-            print(f"[Pipeline] Refino: erro ao processar CTAs de afiliado: {e_ctas}")
-        finally:
-            db.close()
-
-        # 2. Links internos
-        self._update_macro(sid, "active", 70,
-            "🔗 Gerando links internos entre artigos...")
-
-        try:
-            from modules.seo_optimizer import generate_internal_links
-            internal_links_count = 0
-            for i, article in enumerate(articles):
-                if not article.get("success"):
-                    continue
-                # Links são sugestões — em produção seriam inseridos no HTML
-                internal_links_count += 1
-            self._update_macro(sid, "active", 80,
-                f"🔗 {internal_links_count} artigos com links internos")
-        except Exception as e_links:
-            print(f"[Pipeline] Refino: erro ao gerar links internos: {e_links}")
-
-        # 2. Agendamento
-        self._update_macro(sid, "active", 85,
-            "📅 Configurando agendamento de publicação...")
-
-        try:
-            from modules.scheduler import add_daily_job, start
-            job_id = f"blg_{channel_id or 'demo'}_{datetime.utcnow().strftime('%Y%m%d')}"
-            add_daily_job(
-                job_id=job_id,
-                seed=self.state.niche,
-                channel_id=channel_id or "default",
-                hour=8, minute=0, publish=True, index=True,
-            )
-            start()
-            self._update_macro(sid, "active", 95,
-                f"✅ Publicação agendada: 1 artigo/dia às 08:00")
-        except Exception as e:
-            self._update_macro(sid, "active", 95,
-                f"ℹ️ Agendamento: {e}")
-
-        # Finalizar
-        self._update_macro(sid, "completed", 100,
-            f"✅ Refino concluído! Agendamento diário configurado", {
-                "scheduled": True,
-            })
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # FASE 5: ENTREGA
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    async def _phase_entrega(self):
-        """Finaliza o blog — Seu Francisco confere, libera, e agenda Seu Zé."""
-        sid = "entrega"
-        articles = self.state.articles
-        successful = [a for a in articles if a.get("success")]
-        total_words = sum(a.get("word_count", 0) for a in successful)
-        channel_id = self.state.channel_id
-
-        self._update_macro(sid, "active", 10,
-            "👴 Seu Francisco: 'Deixa eu conferir a produção...'")
-        await asyncio.sleep(0.3)
-
-        # ─── SEU FRANCISCO: supervisionar ────────────────────────────────
-        try:
-            from modules.seu_francisco import sinal_verde
-            avaliacao = sinal_verde(channel_id=channel_id, target_articles=self.state.target_articles)
-
-            if avaliacao.get("liberado"):
-                self._update_macro(sid, "active", 30,
-                    f"👴 Seu Francisco: \"{avaliacao['resumo'][:60]}...\"")
-            else:
-                self._update_macro(sid, "active", 30,
-                    f"👴 Seu Francisco: \"{avaliacao['resumo'][:60]}...\"")
-        except Exception as e:
-            print(f"[Pipeline] Seu Francisco warning: {e}")
-
-        await asyncio.sleep(0.3)
-
-        # --- Lili: Revisao final de todos os artigos pendentes ---
-        self._update_macro(sid, "active", 45,
-            "🌸 Lili: revisando qualidade de todos os artigos...")
-        try:
-            from modules.lili import lili_review_all_pending
-            lili_final = await lili_review_all_pending(channel_id=channel_id)
-            if lili_final.get("status") == "completo":
-                self._update_macro(sid, "active", 50,
-                    f"🌸 Lili: {lili_final.get('approved',0)}/{lili_final.get('total',0)} artigos aprovados, score medio {lili_final.get('avg_score',0)}/100")
-        except ImportError:
-            pass
-        except Exception as e_lili:
-            print(f"[Pipeline] Lili warning: {e_lili}")
-
-        self._update_macro(sid, "active", 40,
-            "✅ Gerando relatório final...")
-        try:
-            from modules.database import update_db_blog_pipeline_run
-            if self.state.pipeline_run_id:
-                update_db_blog_pipeline_run(self.state.pipeline_run_id, {
-                    "status": "completed",
-                    "phase": "entrega",
-                    "articles_generated": len(successful),
-                    "completed_at": datetime.utcnow(),
-                })
-        except Exception as e_run:
-            print(f"[Pipeline] Entrega: erro ao atualizar pipeline: {e_run}")
-
-        # ─── SEU ZÉ: agendar publicação diária ───────────────────────────
-        self._update_macro(sid, "active", 60,
-            "📅 Seu Zé: 'Agendando 1 artigo/dia às 08:00...'")
-        try:
-            from modules.seu_ze import agendar_publicacao
-            agenda = agendar_publicacao(
-                channel_id=channel_id or "default",
-                blog_name=self.state.blog_name or "Blog",
-                hour=8, minute=0,
-            )
-            self._update_macro(sid, "active", 75,
-                f"📅 Seu Zé: '{agenda.get('status', 'agendado')}! 1 artigo/dia às 08:00'")
-        except Exception as e:
-            print(f"[Pipeline] Seu Ze warning: {e}")
-
-        await asyncio.sleep(0.3)
-
-        self._update_macro(sid, "active", 85,
-            f"📊 Relatório: {len(successful)} artigos, ~{total_words} palavras")
-
-        self._update_macro(sid, "active", 90,
-            "🖼️ Verificando imagens pendentes...")
-        
-        # 📸 Gerar imagens para artigos sem imagem (função compartilhada)
-        try:
-            from modules.ricardo import gerar_imagens_pendentes
-            _img_result = await gerar_imagens_pendentes(channel_id=channel_id)
-            print(f"[Pipeline] Imagens geradas: {_img_result.get('message', 'OK')}")
-            self._update_macro(sid, "active", 95,
-                f"✅ {_img_result.get('images_generated', 0)} imagens geradas")
-
-        except Exception as e:
-            print(f"[Pipeline] Entrega: erro ao gerar imagens: {e}")
-
-        self._update_macro(sid, "completed", 100,
-            f"🎉 Blog '{self.state.blog_name}' COMPLETO! {len(successful)} artigos prontos!", {
-                "total_articles": len(successful),
-                "total_words": total_words,
-                "blog_name": self.state.blog_name,
-                "niche": self.state.niche,
-                "channel_id": self.state.channel_id,
-                "articles_preview": [a.get("title") for a in successful[:10]],
-                "message": "Pipeline pronto para o próximo blog!",
-            })
-
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RESUME — Retomar pipeline interrompida

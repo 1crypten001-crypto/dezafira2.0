@@ -516,14 +516,16 @@ function updateStage(sid,status,prog,msg,data){
         qw.style.display = "block";
       }
     }
-    if(data.current_article!==undefined){ms.cur=data.current_article;$("macroCurrentBadge").textContent="📝 Artigo "+data.current_article+"/"+ms.target;updateBar()}
+    if(data.target_articles!==undefined&&data.target_articles>0){ms.target=parseInt(data.target_articles)||ms.target;$("macroTargetLabel").textContent=ms.target+" artigos";}
+    if(data.current_article!==undefined){var _ca=parseInt(data.current_article);if(!isNaN(_ca)){ms.cur=_ca;$("macroCurrentBadge").textContent="📝 Artigo "+_ca+"/"+ms.target;updateBar()}}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
     if(data.phase_detail){$("macroCurrentPhase").textContent="🔄 "+data.phase_detail}
     // LiLi score display
-    if(data.lili_score!==undefined||data.lili_approved!==undefined){
+    var _hasLili=(data.lili_score!==undefined&&data.lili_score!==null)||(data.lili_approved!==undefined&&data.lili_approved!==null);
+    if(_hasLili){
       var ls=$("macroLiliScore");
       if(ls){
-        var scr=data.lili_score||0;
+        var scr=(typeof data.lili_score==="number")?data.lili_score:0;
         var color=scr>=80?'#4ade80':scr>=50?'#fbbf24':'#f87171';
         var icon=data.lili_approved?'✓':'🚫';
         var label=data.lili_approved?'LiLi Aprovou':'LiLi Reprovou';
