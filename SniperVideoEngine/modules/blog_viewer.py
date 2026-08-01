@@ -430,6 +430,16 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 
 # ─── HEADER v2 ───────────────────────────────────────────────────────
 
+def _safe_logo_el(logo: str, img_style: str = "height:36px; max-width:180px; object-fit:contain;") -> str:
+    """Retorna elemento de logo seguro: data URI/URL vira <img>, SVG inline volta intacto."""
+    logo = (logo or "").strip()
+    if not logo:
+        return ""
+    if logo.startswith("data:") or logo.startswith("http://") or logo.startswith("https://") or logo.startswith("/"):
+        return f'<img src="{logo}" style="{img_style}" alt="" />'
+    return logo  # SVG inline — seguro para embutir
+
+
 def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: str = "", brand_config: dict = None) -> str:
     """Gera header fixo com logo SVG profissional, dark mode toggle, busca."""
     categories = _get_categories(blog_niche)
@@ -439,7 +449,7 @@ def _get_header_html(slug: str, blog_name: str, blog_niche: str, current_cat: st
     if custom_logo:
         logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:180px; object-fit:contain;" alt="{blog_name}" />'
     else:
-        logo_markup = f'<span class="logo-icon">{logo_svg}</span><span class="logo-text">{blog_name}</span>'
+        logo_markup = f'<span class="logo-icon">{_safe_logo_el(logo_svg)}</span><span class="logo-text">{blog_name}</span>'
 
     nav_items = "".join(
         f'<a href="/blog/{slug}?cat={c.lower()}" class="nav-link{" active" if current_cat.lower() == c.lower() else ""}">{c}</a>'
@@ -478,7 +488,7 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
     if custom_logo:
         logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:180px; object-fit:contain; margin-bottom:12px;" alt="{blog_name}" />'
     else:
-        logo_markup = f'<span class="logo-icon">{logo_svg}</span><strong style="display:block;margin-top:4px;">{blog_name}</strong>'
+        logo_markup = f'<span class="logo-icon">{_safe_logo_el(logo_svg, img_style="height:36px; max-width:180px; object-fit:contain; margin-bottom:12px;")}</span><strong style="display:block;margin-top:4px;">{blog_name}</strong>'
 
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])

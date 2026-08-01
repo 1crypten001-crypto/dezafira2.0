@@ -40,6 +40,12 @@ LOGOS_SVG = {
   <rect x="12" y="18" width="8" height="8" rx="1" fill="#fff" opacity=".8"/>
   <path d="M6 18l10-10 10 10" stroke="#fff" stroke-width="1" fill="none" opacity=".3"/>
 </svg>""",
+    "default": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="8" fill="#6366f1"/>
+  <path d="M16 8l8 8-8 8-8-8 8-8z" fill="#fff" opacity=".9"/>
+  <path d="M16 11l5 5-5 5-5-5 5-5z" fill="#c7d2fe"/>
+  <circle cx="16" cy="16" r="13" stroke="#a5b4fc" stroke-width="1.5" fill="none" opacity=".4"/>
+</svg>""",
 }
 
 # Versões simplificadas para favicon (apenas 16-32px)
@@ -360,12 +366,12 @@ def get_logo_svg(nicho: str, size: int = 32) -> str:
     """Retorna logo SVG profissional para o nicho."""
     theme = detect_theme(nicho)
     theme_id = theme.get("id", "default")
-    svg = LOGOS_SVG.get(theme_id)
+    svg = LOGOS_SVG.get(theme_id) or LOGOS_SVG.get("default")
     if svg:
         if size != 32:
             svg = svg.replace('viewBox="0 0 32 32"', f'viewBox="0 0 32 32" width="{size}" height="{size}"')
         return svg
-    # Fallback: favicon
+    # Fallback final: favicon (data URI — apenas se nenhum SVG inline existir)
     return get_favicon_svg(nicho)
 
 

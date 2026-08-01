@@ -430,6 +430,15 @@ var ws=null,tt;
 
 function showToast(m){var t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("show")},3500)}
 function $(id){return document.getElementById(id)}
+function renderLogoHtml(svgOrUri){
+  if(!svgOrUri) return '';
+  var s=String(svgOrUri).trim();
+  if(s.indexOf('<svg')===0 || s.indexOf('<?xml')===0){
+    return s.replace('<svg ', '<svg style="width:100%;height:100%;object-fit:contain" ');
+  }
+  // qualquer outra coisa (data URI, http(s), /path, base64) -> <img>, nunca texto cru
+  return '<img src="'+s+'" style="width:100%;height:100%;object-fit:contain" alt="" />';
+}
 function escapeHtml(t){var d=document.createElement("div");d.appendChild(document.createTextNode(t||""));return d.innerHTML}
 function blogSlug(n){return "/blog/"+n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")}
 
@@ -742,7 +751,7 @@ async function loadDashboard(){
     var totalCountPerBlog = c.post_count || blogPosts.length;
     var pri=c.brand_primary||'#6366f1';
     var init=(c.name||'B')[0];
-    var logoHtml = c.logo_svg ? '<div class="tab-logo" style="background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden">'+c.logo_svg.replace('<svg ', '<svg style="width:100%;height:100%;object-fit:contain" ')+'</div>' : '<span class="tab-logo" style="background:'+pri+'">'+init+'</span>';
+    var logoHtml = c.logo_svg ? '<div class="tab-logo" style="background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden">'+renderLogoHtml(c.logo_svg)+'</div>' : '<span class="tab-logo" style="background:'+pri+'">'+init+'</span>';
     return '<div class="blog-tab" data-blog="'+c.id+'" onclick="switchBlogTab(\''+c.id+'\')">'+logoHtml+escapeHtml(c.name)+' <span class="tab-badge">'+totalCountPerBlog+'</span></div>';
   }).join('');
   $("blogTabs").innerHTML=tabsHtml;
@@ -849,7 +858,7 @@ async function loadDashboard(){
 
     var bar='<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#14161f;border-radius:3px;overflow:hidden;min-width:80px"><div style="height:100%;width:'+imgPctC+'%;background:'+imgColor+';border-radius:3px"></div></div><span style="font-size:11px;color:#8a91a5">'+withImgC+'/'+totalC+'</span></div>';
 
-    var logoHeader = c.logo_svg ? '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px">'+c.logo_svg+'</div>' : '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>';
+    var logoHeader = c.logo_svg ? '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px">'+renderLogoHtml(c.logo_svg)+'</div>' : '<span class="ph-logo" style="background:'+pri+'">'+init+'</span>';
     var faviconHtml = c.favicon_svg ? '<img src="'+c.favicon_svg+'" style="width:18px;height:18px;border-radius:4px;vertical-align:middle" />' : '<span>-</span>';
     var colorsHtml = '<div style="display:inline-flex;gap:4px;vertical-align:middle"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+pri+';border:1px solid rgba(255,255,255,0.2)" title="Primária"></span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:'+(c.brand_secondary||'#8b5cf6')+';border:1px solid rgba(255,255,255,0.2)" title="Secundária"></span></div>';
 
