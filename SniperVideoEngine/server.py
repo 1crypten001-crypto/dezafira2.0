@@ -694,7 +694,7 @@ async def get_ze_status():
 @app.get("/api/v1/factory/dashboard")
 async def blog_factory_dashboard():
     """Dashboard consolidado com metricas de todas as fabricas."""
-    from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course
+    from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course, __get_subdomain_for_channel
     from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
     from sqlalchemy import func
 
@@ -782,6 +782,8 @@ async def blog_factory_dashboard():
                     "shopee_app_secret": c.shopee_app_secret,
                     "mercadolivre_client_id": c.mercadolivre_client_id,
                     "mercadolivre_client_secret": c.mercadolivre_client_secret,
+                    "brand_config": getattr(c, "brand_config", None),
+                    "subdomain": __get_subdomain_for_channel(c.id, c.name.lower().replace(" ", "-")[:50]),
                 } for c in channels],
             },
             "posts": {
@@ -3882,6 +3884,25 @@ async def delete_blog_post(post_id: str):
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return {"success": True, "message": f"Post {post_id} removido"}
 
+@app.delete("/api/v1/blog/channel/{channel_id}")
+async def delete_blog_channel(channel_id: str):
+    """Remove um canal de blog e todos os seus artigos pelo ID."""
+    from modules.database import SessionLocal, BlogChannel, BlogPost
+    db = SessionLocal()
+    try:
+        chan = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+        if not chan:
+            raise HTTPException(status_code=404, detail="Blog não encontrado")
+        db.query(BlogPost).filter(BlogPost.channel_id == channel_id).delete()
+        db.delete(chan)
+        db.commit()
+        return {"success": True, "message": "Blog e todos os seus artigos deletados com sucesso!"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 
 
 
@@ -4037,40 +4058,40 @@ async def suggest_blog_idea(payload: dict):
             "Sugira uma ideia única e MUITO chocante/curiosa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
             "O blog deve atrair tráfego através do Google Discover (curiosidade extrema) e converter em vendas.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (viral e atraente)", "niche": "Micro-nicho curioso de produtos inovadores"}\n'
+            '{"name": "Nome do Blog sugerido (viral e atraente)", "niche": "Micro-nicho curioso de produtos inovadores", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
             "Exemplo:\n"
-            '{"name": "SegredosSmart", "niche": "Tecnologias ocultas e gadgets que impressionam"}'
+            '{"name": "SegredosSmart", "niche": "Tecnologias ocultas e gadgets que impressionam", "topics": ["Gadgets que ninguem te conta", "Tecnologias ocultas no dia a dia", "Aparelhos que impressionam", "Invencoes curiosas", "Ciencia por tras dos gadgets", "O futuro dos wearables"], "content_format": "Listas curiosas e reviews curtos com links de produto", "colors": ["#6366f1", "#0ea5e9", "#f59e0b"], "monetization_mode": "affiliate"}'
         )
     elif is_affiliate:
         system = "Você é o Seu Hermes, o inteligente orquestrador e estrategista de e-commerce e afiliados."
         prompt = (
             "Sugira uma ideia única e lucrativa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog"}\n'
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
             "Exemplo:\n"
-            '{"name": "CozinhaTech", "niche": "Eletroportáteis inteligentes e airfryers premium"}'
+            '{"name": "CozinhaTech", "niche": "Eletroportáteis inteligentes e airfryers premium", "topics": ["Melhor airfryer custo-beneficio", "Eletroportateis que valem a pena", "Como escolher sua primeira airfryer", "Airfryer vs forno eletrico", "Limpeza e manutencao", "Receitas faceis na airfryer"], "content_format": "Reviews e comparativos com prós/contras e CTA de compra", "colors": ["#f97316", "#1e293b", "#22c55e"], "monetization_mode": "affiliate"}'
         )
     elif is_discover:
         system = "Você é o Seu Hermes, o editor-chefe focado em tráfego viral do Google Discover."
         prompt = (
             "Sugira uma ideia única de blog voltado para conteúdo informativo viral (monetização via AdSense) focado no Google Discover.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho altamente bizarro, chocante ou de tendências extremas"}\n'
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho altamente bizarro, chocante ou de tendências extremas", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "discover"}\n'
             "Exemplo:\n"
-            '{"name": "FatosOcultos", "niche": "Mistérios históricos e descobertas científicas bizarras"}'
+            '{"name": "FatosOcultos", "niche": "Mistérios históricos e descobertas científicas bizarras", "topics": ["Civilizacoes que desapareceram sem explicação", "Experimentos cientificos que deram errado", "Criaturas que a ciencia ainda nao entende", "Lugares proibidos no mundo", "Descobertas acidentais que mudaram tudo", "O que existe no fundo do oceano"], "content_format": "Listas chocantes com paragrafos curtos e imagens impactantes", "colors": ["#8b5cf6", "#0f172a", "#f472b6"], "monetization_mode": "discover"}'
         )
     else:
         system = "Você é o Seu Hermes, o inteligente orquestrador e editor-chefe de blogs focados em AdSense."
         prompt = (
             "Sugira uma ideia única de blog voltado para conteúdo informativo (monetização via AdSense) com alto potencial de buscas e engajamento.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho específico com alta curiosidade do público"}\n'
+            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho específico com alta curiosidade do público", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "normal"}\n'
             "Exemplo:\n"
-            '{"name": "PassaporteHistórico", "niche": "Curiosidades arqueológicas e civilizações antigas"}'
+            '{"name": "PassaporteHistórico", "niche": "Curiosidades arqueológicas e civilizações antigas", "topics": ["Misterios de Pompeia", "Civilizacoes que sumiram", "Artefatos inexplicaveis", "Como os egipcios construiram as piramides", "Cidades perdidas na Amazonia", "Reliquias escondidas do Vaticano"], "content_format": "Artigos informativos extensos com dados e curiosidades", "colors": ["#d97706", "#1e293b", "#0ea5e9"], "monetization_mode": "normal"}'
         )
         
     try:
-        raw = await _call_llm(system, prompt, temperature=0.9, max_tokens=1000)
+        raw = await _call_llm(system, prompt, temperature=0.9, max_tokens=1600)
         # Limpar possíveis blocos markdown do retorno
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -4081,7 +4102,14 @@ async def suggest_blog_idea(payload: dict):
         
         import json
         data = json.loads(cleaned)
-        return {"name": data.get("name", ""), "niche": data.get("niche", "")}
+        return {
+            "name": data.get("name", ""),
+            "niche": data.get("niche", ""),
+            "topics": data.get("topics", []) or [],
+            "content_format": data.get("content_format", ""),
+            "colors": data.get("colors", []) or [],
+            "monetization_mode": data.get("monetization_mode", ""),
+        }
     except Exception as e:
         print(f"[Seu Hermes] Erro ao gerar sugestão de blog: {e}")
         # Fallbacks estáticos caso a IA falhe

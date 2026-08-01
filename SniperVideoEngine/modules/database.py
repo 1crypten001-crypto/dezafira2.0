@@ -176,6 +176,9 @@ class BlogChannel(Base):
     # Configuração de branding customizada (JSON em formato string)
     brand_config = Column(Text, nullable=True)
 
+    # Subdomínio do blog (ex: oreino.dezafira.com.br)
+    subdomain = Column(String(100), nullable=True, index=True)
+
 
 class BlogPost(Base):
     __tablename__ = "blog_posts"
