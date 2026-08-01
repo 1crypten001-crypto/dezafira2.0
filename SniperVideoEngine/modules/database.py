@@ -3,7 +3,7 @@ import uuid
 import re
 import hashlib
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text
+from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text, Float, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # 1. Determinar URL do banco de dados (Railway Postgres ou SQLite local)
@@ -23,6 +23,19 @@ if not DATABASE_URL:
     # No Windows, SQLAlchemy requer forward slashes no path do SQLite
     db_path_unix = DB_PATH.replace("\\", "/")
     DATABASE_URL = f"sqlite:///{db_path_unix}"
+elif DATABASE_URL.startswith("sqlite:///") and not DATABASE_URL.startswith("sqlite:///"):
+    pass  # Already configured
+else:
+    # Se DATABASE_URL é relativo (ex: sqlite:///./backend/auth.db), corrigir para absoluto
+    if DATABASE_URL.startswith("sqlite:///"):
+        raw_path = DATABASE_URL[len("sqlite:///"):]
+        if not os.path.isabs(raw_path):
+            # Path relativo — resolver a partir do diretório do projeto
+            abs_path = os.path.join(SCRIPT_DIR, raw_path.lstrip("./"))
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            db_path_unix = abs_path.replace("\\", "/")
+            DATABASE_URL = f"sqlite:///{db_path_unix}"
+            print(f"[Database] Path relativo corrigido: {DATABASE_URL}")
 
 # 2. Configurar o Engine e Sessão com Fallback Resiliente
 try:
@@ -36,9 +49,12 @@ try:
         pass
 except Exception as db_err:
     print(f"[Database]  Aviso: falha ao conectar no banco configurado: {str(db_err)}")
-    print("[Database] Usando SQLite em memória como fallback. Dados não persistem entre deploys.")
+    print("[Database] Usando SQLite local (dezafira.db) como fallback.")
     print("[Database] Para usar PostgreSQL, verifique a variável DATABASE_URL no Railway.")
-    DATABASE_URL = "sqlite:///:memory:"
+    # Fallback para SQLite file (não memória) para persistir dados localmente
+    DB_PATH = os.path.join(SCRIPT_DIR, "dezafira.db")
+    db_path_unix = DB_PATH.replace("\\", "/")
+    DATABASE_URL = f"sqlite:///{db_path_unix}"
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -493,6 +509,202 @@ class CourseQuiz(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CoursePipelineRun(Base):
+    """Execução do pipeline da fábrica de cursos."""
+    __tablename__ = "course_pipeline_runs"
+
+    id = Column(String(50), primary_key=True, index=True)
+    course_id = Column(String(50), ForeignKey("courses.id"), nullable=False, index=True)
+    phase = Column(String(30), default="fundacao")
+    status = Column(String(20), default="running")  # running/completed/failed
+    total_modules_target = Column(Integer, default=4)
+    total_lessons_generated = Column(Integer, default=0)
+    pipeline_data = Column(Text, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class LearningPath(Base):
+    """Trilha de aprendizado (sequência de cursos)."""
+    __tablename__ = "learning_paths"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    slug = Column(String(200), unique=True, index=True)
+    description = Column(Text, nullable=True)
+    cover_url = Column(String(500), nullable=True)
+    status = Column(String(20), default="draft")  # draft/published
+    total_courses = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    published_at = Column(DateTime, nullable=True)
+
+
+class LearningPathCourse(Base):
+    """Ordem dos cursos dentro de uma trilha."""
+    __tablename__ = "learning_path_courses"
+
+    id = Column(String(50), primary_key=True, index=True)
+    path_id = Column(String(50), ForeignKey("learning_paths.id"), nullable=False, index=True)
+    course_id = Column(String(50), ForeignKey("courses.id"), nullable=False, index=True)
+    order = Column(Integer, nullable=False, default=1)
+    required = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEZAFIRA CLUB — Modelos de Usuário, Auth, Gamificação e Combos
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(50), primary_key=True, index=True)
+    email = Column(String(200), unique=True, index=True, nullable=False)
+    name = Column(String(200), nullable=False)
+    password_hash = Column(String(200), nullable=True)  # NULL se OAuth-only
+    avatar_url = Column(String(500), nullable=True)
+    google_id = Column(String(100), unique=True, nullable=True)
+    role = Column(String(20), default="member")  # admin, member
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(String(50), primary_key=True, index=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(500), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(String(50), primary_key=True, index=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(200), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserPoints(Base):
+    __tablename__ = "user_points"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    points = Column(Integer, default=0)
+    action = Column(String(50), nullable=False)  # lesson_completed, quiz_passed, streak, combo_purchased
+    reference_id = Column(String(100), nullable=True)  # lesson_id, quiz_id, etc
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "action", "reference_id", name="uq_user_action_ref"),
+    )
+
+
+class UserBadges(Base):
+    __tablename__ = "user_badges"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    badge_type = Column(String(50), nullable=False)  # first_lesson, streak_7, course_completed, etc
+    badge_name = Column(String(100), nullable=False)
+    badge_icon = Column(String(10), nullable=True)  # emoji
+    earned_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "badge_type", name="uq_user_badge_type"),
+    )
+
+
+class UserStreak(Base):
+    __tablename__ = "user_streaks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(50), ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    current_streak = Column(Integer, default=0)
+    best_streak = Column(Integer, default=0)
+    last_active_date = Column(DateTime, nullable=True)
+    streak_freezes = Column(Integer, default=2)  # quantos "congelamentos" restam
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CourseTrack(Base):
+    __tablename__ = "course_tracks"
+
+    id = Column(String(50), primary_key=True, index=True)
+    course_id = Column(String(50), ForeignKey("courses.id"), nullable=False, index=True)
+    user_id = Column(String(50), ForeignKey("users.id"), nullable=False, index=True)
+    progress_pct = Column(Float, default=0.0)
+    current_lesson_index = Column(Integer, default=0)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("course_id", "user_id", name="uq_course_user_track"),
+    )
+
+
+class LessonProgress(Base):
+    __tablename__ = "lesson_progress"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    track_id = Column(String(50), ForeignKey("course_tracks.id"), nullable=False, index=True)
+    lesson_id = Column(String(50), ForeignKey("course_lessons.id"), nullable=False, index=True)
+    status = Column(String(20), default="not_started")  # not_started, in_progress, completed
+    score_pct = Column(Float, nullable=True)  # quiz score se houver
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("track_id", "lesson_id", name="uq_track_lesson"),
+    )
+
+
+class Combo(Base):
+    __tablename__ = "combos"
+
+    id = Column(String(50), primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    ebook_id = Column(String(50), ForeignKey("books.id"), nullable=True)
+    course_id = Column(String(50), ForeignKey("courses.id"), nullable=True)
+    original_price_cents = Column(Integer, nullable=False)
+    combo_price_cents = Column(Integer, nullable=False)
+    discount_pct = Column(Float, default=30.0)
+    cover_url = Column(String(500), nullable=True)
+    slug = Column(String(200), unique=True, index=True, nullable=True)
+    status = Column(String(20), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ComboPurchase(Base):
+    __tablename__ = "combo_purchases"
+
+    id = Column(String(50), primary_key=True, index=True)
+    combo_id = Column(String(50), ForeignKey("combos.id"), nullable=False, index=True)
+    buyer_email = Column(String(200), nullable=False, index=True)
+    buyer_name = Column(String(200), nullable=True)
+    amount_cents = Column(Integer, nullable=False)
+    payment_method = Column(String(50), nullable=True)
+    status = Column(String(20), default="pending")  # pending, confirmed, failed
+    ebook_access_token = Column(String(100), nullable=True)
+    course_access_token = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIM DEZAFIRA CLUB — Modelos
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
 # Criar tabelas se não existirem com tratamento de erro
 def _migrate_add_column(conn, sql, label):
     """Adiciona coluna de forma idempotente (ADD COLUMN IF NOT EXISTS).
@@ -573,8 +785,10 @@ try:
 
 except Exception as table_err:
     print(f"[Database]  Falha ao criar tabelas no banco original: {str(table_err)}")
-    print("[Database] Recaindo para banco em memória (sqlite:///:memory:) para tabelas")
-    DATABASE_URL = "sqlite:///:memory:"
+    print("[Database] Recaindo para banco SQLite local (dezafira.db)")
+    DB_PATH = os.path.join(SCRIPT_DIR, "dezafira.db")
+    db_path_unix = DB_PATH.replace("\\", "/")
+    DATABASE_URL = f"sqlite:///{db_path_unix}"
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -2070,6 +2284,71 @@ def create_db_course_lesson(module_id: str, lesson_number: int, title: str,
         db.close()
 
 
+def get_db_course_lesson_content(lesson_id: str) -> str:
+    """Retorna o conteudo de uma aula (ou string vazia)."""
+    db = SessionLocal()
+    try:
+        lesson = db.query(CourseLesson).filter(CourseLesson.id == lesson_id).first()
+        return lesson.content if lesson else ""
+    finally:
+        db.close()
+
+
+def update_db_course_lesson(lesson_id: str, **kwargs) -> bool:
+    """Atualiza campos de uma aula existente."""
+    db = SessionLocal()
+    try:
+        lesson = db.query(CourseLesson).filter(CourseLesson.id == lesson_id).first()
+        if lesson:
+            for key, value in kwargs.items():
+                if hasattr(lesson, key):
+                    setattr(lesson, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def create_db_course_material(lesson_id: str, material_type: str, title: str,
+                               content: str = "", file_url: str = "") -> dict:
+    """Cria um material complementar para uma aula."""
+    db = SessionLocal()
+    try:
+        material = CourseMaterial(
+            id=f"crm_{uuid.uuid4().hex[:6]}",
+            lesson_id=lesson_id, material_type=material_type,
+            title=title, content=content, file_url=file_url,
+        )
+        db.add(material)
+        db.commit()
+        return {"id": material.id, "material_type": material_type, "title": title}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def create_db_course_quiz(lesson_id: str, questions: list) -> dict:
+    """Cria quiz para uma aula (lista de questoes JSON)."""
+    db = SessionLocal()
+    try:
+        quiz = CourseQuiz(
+            id=f"quz_{uuid.uuid4().hex[:6]}",
+            lesson_id=lesson_id,
+            questions_json=questions,
+        )
+        db.add(quiz)
+        db.commit()
+        return {"id": quiz.id, "lesson_id": lesson_id, "num_questions": len(questions)}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
 def update_db_course(course_id: str, **kwargs) -> bool:
     db = SessionLocal()
     try:
@@ -2108,6 +2387,242 @@ def delete_db_course(course_id: str) -> bool:
     finally:
         db.close()
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — COURSE PIPELINE RUNS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_course_pipeline_run(course_id: str, total_modules_target: int = 4) -> dict:
+    db = SessionLocal()
+    try:
+        run = CoursePipelineRun(
+            id=f"crp_{uuid.uuid4().hex[:8]}",
+            course_id=course_id,
+            total_modules_target=total_modules_target,
+            phase="fundacao",
+            status="running",
+        )
+        db.add(run)
+        db.commit()
+        return {"id": run.id, "course_id": run.course_id, "status": run.status}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def update_db_course_pipeline_run(run_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        run = db.query(CoursePipelineRun).filter(CoursePipelineRun.id == run_id).first()
+        if run:
+            for key, value in kwargs.items():
+                if hasattr(run, key):
+                    setattr(run, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def get_db_course_pipeline_run(run_id: str) -> dict:
+    db = SessionLocal()
+    try:
+        run = db.query(CoursePipelineRun).filter(CoursePipelineRun.id == run_id).first()
+        if not run:
+            return None
+        return {
+            "id": run.id, "course_id": run.course_id,
+            "phase": run.phase, "status": run.status,
+            "total_modules_target": run.total_modules_target,
+            "total_lessons_generated": run.total_lessons_generated,
+            "pipeline_data": run.pipeline_data,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        }
+    finally:
+        db.close()
+
+
+def get_db_course_pipeline_runs(limit: int = 10) -> list:
+    db = SessionLocal()
+    try:
+        runs = db.query(CoursePipelineRun).order_by(
+            CoursePipelineRun.started_at.desc()
+        ).limit(limit).all()
+        return [{
+            "id": r.id, "course_id": r.course_id,
+            "phase": r.phase, "status": r.status,
+            "total_modules_target": r.total_modules_target,
+            "total_lessons_generated": r.total_lessons_generated,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+        } for r in runs]
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — LEARNING PATHS (TRILHAS)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_learning_path(title: str, slug: str, description: str = "") -> dict:
+    db = SessionLocal()
+    try:
+        path = LearningPath(
+            id=f"lpt_{uuid.uuid4().hex[:8]}",
+            title=title, slug=slug, description=description,
+        )
+        db.add(path)
+        db.commit()
+        return {"id": path.id, "title": path.title, "slug": path.slug, "status": path.status}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def get_db_learning_paths(limit: int = 50) -> list:
+    db = SessionLocal()
+    try:
+        paths = db.query(LearningPath).order_by(
+            LearningPath.created_at.desc()
+        ).limit(limit).all()
+        result = []
+        for p in paths:
+            courses_count = db.query(LearningPathCourse).filter(
+                LearningPathCourse.path_id == p.id
+            ).count()
+            result.append({
+                "id": p.id, "title": p.title, "slug": p.slug,
+                "description": p.description, "status": p.status,
+                "total_courses": courses_count,
+                "cover_url": p.cover_url,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+        return result
+    finally:
+        db.close()
+
+
+def get_db_learning_path(path_id: str = None, slug: str = None) -> dict:
+    db = SessionLocal()
+    try:
+        if slug:
+            p = db.query(LearningPath).filter(LearningPath.slug == slug).first()
+        else:
+            p = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+        if not p:
+            return None
+        # Buscar cursos ordenados
+        lpc_list = db.query(LearningPathCourse).filter(
+            LearningPathCourse.path_id == p.id
+        ).order_by(LearningPathCourse.order).all()
+        courses = []
+        for lpc in lpc_list:
+            course = db.query(Course).filter(Course.id == lpc.course_id).first()
+            if course:
+                courses.append({
+                    "id": course.id, "title": course.title,
+                    "subtitle": course.subtitle, "cover_url": course.cover_url,
+                    "difficulty": course.difficulty,
+                    "order": lpc.order, "required": lpc.required,
+                })
+        return {
+            "id": p.id, "title": p.title, "slug": p.slug,
+            "description": p.description, "cover_url": p.cover_url,
+            "status": p.status, "total_courses": len(courses),
+            "courses": courses,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+def update_db_learning_path(path_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+        if path:
+            for key, value in kwargs.items():
+                if hasattr(path, key):
+                    setattr(path, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def delete_db_learning_path(path_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        db.query(LearningPathCourse).filter(LearningPathCourse.path_id == path_id).delete()
+        path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+        if path:
+            db.delete(path)
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+def add_course_to_learning_path(path_id: str, course_id: str, order: int = 1, required: bool = True) -> dict:
+    db = SessionLocal()
+    try:
+        # Verificar se já existe
+        existing = db.query(LearningPathCourse).filter(
+            LearningPathCourse.path_id == path_id,
+            LearningPathCourse.course_id == course_id,
+        ).first()
+        if existing:
+            return {"error": "Curso ja existe nesta trilha"}
+        lpc = LearningPathCourse(
+            id=f"lpc_{uuid.uuid4().hex[:6]}",
+            path_id=path_id, course_id=course_id,
+            order=order, required=required,
+        )
+        db.add(lpc)
+        # Atualizar total_courses
+        path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+        if path:
+            path.total_courses = db.query(LearningPathCourse).filter(
+                LearningPathCourse.path_id == path_id
+            ).count() + 1
+        db.commit()
+        return {"id": lpc.id, "path_id": path_id, "course_id": course_id, "order": order}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def remove_course_from_learning_path(path_id: str, course_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        lpc = db.query(LearningPathCourse).filter(
+            LearningPathCourse.path_id == path_id,
+            LearningPathCourse.course_id == course_id,
+        ).first()
+        if lpc:
+            db.delete(lpc)
+            path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+            if path:
+                path.total_courses = max(0, path.total_courses - 1)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2288,4 +2803,527 @@ def reset_db_stuck_job_items(job_id: str):
         return 0
     finally:
         db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEZAFIRA CLUB — CRUD Functions
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_user(email: str, name: str, password_hash: str = None, google_id: str = None, avatar_url: str = None):
+    db = SessionLocal()
+    try:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        user = User(
+            id=user_id, email=email, name=name,
+            password_hash=password_hash, google_id=google_id,
+            avatar_url=avatar_url, role="member"
+        )
+        db.add(user)
+        db.commit()
+        print(f"[Database] User created: {user_id} ({email})")
+        return {"id": user_id, "email": email, "name": name, "role": "member"}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar user: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_user_by_email(email: str):
+    db = SessionLocal()
+    try:
+        return db.query(User).filter(User.email == email).first()
+    finally:
+        db.close()
+
+
+def get_db_user_by_id(user_id: str):
+    db = SessionLocal()
+    try:
+        return db.query(User).filter(User.id == user_id).first()
+    finally:
+        db.close()
+
+
+def get_db_user_by_google_id(google_id: str):
+    db = SessionLocal()
+    try:
+        return db.query(User).filter(User.google_id == google_id).first()
+    finally:
+        db.close()
+
+
+def update_db_user(user_id: str, **kwargs):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        for key, value in kwargs.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+        user.updated_at = datetime.utcnow()
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao atualizar user {user_id}: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def create_db_user_session(user_id: str, token: str, expires_at):
+    db = SessionLocal()
+    try:
+        session = UserSession(
+            id=f"sess_{uuid.uuid4().hex[:12]}",
+            user_id=user_id, token=token, expires_at=expires_at
+        )
+        db.add(session)
+        db.commit()
+        return {"id": session.id, "token": token}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar sessão: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_user_session(token: str):
+    db = SessionLocal()
+    try:
+        return db.query(UserSession).filter(
+            UserSession.token == token,
+            UserSession.expires_at > datetime.utcnow()
+        ).first()
+    finally:
+        db.close()
+
+
+def delete_db_user_sessions(user_id: str):
+    db = SessionLocal()
+    try:
+        db.query(UserSession).filter(UserSession.user_id == user_id).delete()
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao limpar sessões: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def create_db_password_reset(user_id: str, token: str, expires_at):
+    db = SessionLocal()
+    try:
+        pr = PasswordReset(
+            id=f"pr_{uuid.uuid4().hex[:12]}",
+            user_id=user_id, token=token, expires_at=expires_at
+        )
+        db.add(pr)
+        db.commit()
+        return {"token": token}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar password reset: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_password_reset(token: str):
+    db = SessionLocal()
+    try:
+        return db.query(PasswordReset).filter(
+            PasswordReset.token == token,
+            PasswordReset.used == False,
+            PasswordReset.expires_at > datetime.utcnow()
+        ).first()
+    finally:
+        db.close()
+
+
+def use_db_password_reset(token: str):
+    db = SessionLocal()
+    try:
+        pr = db.query(PasswordReset).filter(PasswordReset.token == token).first()
+        if pr:
+            pr.used = True
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao usar password reset: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def add_db_user_points(user_id: str, points: int, action: str, reference_id: str = None):
+    db = SessionLocal()
+    try:
+        up = UserPoints(
+            user_id=user_id, points=points, action=action, reference_id=reference_id
+        )
+        db.add(up)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao adicionar pontos: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def get_db_user_total_points(user_id: str):
+    db = SessionLocal()
+    try:
+        result = db.query(UserPoints).filter(UserPoints.user_id == user_id).all()
+        return sum(r.points for r in result)
+    finally:
+        db.close()
+
+
+def get_db_user_points_history(user_id: str, limit: int = 50):
+    db = SessionLocal()
+    try:
+        rows = db.query(UserPoints).filter(
+            UserPoints.user_id == user_id
+        ).order_by(UserPoints.created_at.desc()).limit(limit).all()
+        return [
+            {"points": r.points, "action": r.action, "reference_id": r.reference_id,
+             "created_at": r.created_at.strftime("%d/%m %H:%M") if r.created_at else ""}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_db_user_badges(user_id: str):
+    db = SessionLocal()
+    try:
+        rows = db.query(UserBadges).filter(UserBadges.user_id == user_id).order_by(UserBadges.earned_at.desc()).all()
+        return [
+            {"badge_type": r.badge_type, "badge_name": r.badge_name, "badge_icon": r.badge_icon,
+             "earned_at": r.earned_at.strftime("%d/%m/%Y") if r.earned_at else ""}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def award_db_user_badge(user_id: str, badge_type: str, badge_name: str, badge_icon: str = None):
+    db = SessionLocal()
+    try:
+        existing = db.query(UserBadges).filter(
+            UserBadges.user_id == user_id, UserBadges.badge_type == badge_type
+        ).first()
+        if existing:
+            return False  # Já possui
+        badge = UserBadges(
+            user_id=user_id, badge_type=badge_type,
+            badge_name=badge_name, badge_icon=badge_icon
+        )
+        db.add(badge)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao award badge: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def get_db_user_streak(user_id: str):
+    db = SessionLocal()
+    try:
+        streak = db.query(UserStreak).filter(UserStreak.user_id == user_id).first()
+        if not streak:
+            streak = UserStreak(user_id=user_id, current_streak=0, best_streak=0, streak_freezes=2)
+            db.add(streak)
+            db.commit()
+            return {"current_streak": 0, "best_streak": 0, "streak_freezes": 2, "last_active_date": None}
+        return {
+            "current_streak": streak.current_streak,
+            "best_streak": streak.best_streak,
+            "streak_freezes": streak.streak_freezes,
+            "last_active_date": streak.last_active_date.strftime("%Y-%m-%d") if streak.last_active_date else None,
+        }
+    finally:
+        db.close()
+
+
+def update_db_user_streak(user_id: str):
+    """Registra atividade diária e atualiza streak."""
+    db = SessionLocal()
+    try:
+        from datetime import date
+        streak = db.query(UserStreak).filter(UserStreak.user_id == user_id).first()
+        today = date.today()
+        if not streak:
+            streak = UserStreak(user_id=user_id, current_streak=1, best_streak=1,
+                               last_active_date=datetime.combine(today, datetime.min.time()), streak_freezes=2)
+            db.add(streak)
+            db.commit()
+            return {"current_streak": 1, "best_streak": 1, "is_new_day": True}
+        if streak.last_active_date and streak.last_active_date.date() == today:
+            return {"current_streak": streak.current_streak, "best_streak": streak.best_streak, "is_new_day": False}
+        yesterday = datetime.combine(today - __import__("datetime").timedelta(days=1), datetime.min.time())
+        if streak.last_active_date and streak.last_active_date >= yesterday:
+            streak.current_streak += 1
+        else:
+            if streak.streak_freezes > 0:
+                streak.streak_freezes -= 1
+            else:
+                streak.current_streak = 1
+        streak.best_streak = max(streak.best_streak, streak.current_streak)
+        streak.last_active_date = datetime.combine(today, datetime.min.time())
+        db.commit()
+        return {"current_streak": streak.current_streak, "best_streak": streak.best_streak, "is_new_day": True}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao atualizar streak: {e}")
+        return {"current_streak": 0, "best_streak": 0, "is_new_day": False}
+    finally:
+        db.close()
+
+
+def get_db_global_ranking(limit: int = 20):
+    """Ranking global de usuários por total de pontos."""
+    db = SessionLocal()
+    try:
+        rows = db.query(
+            UserPoints.user_id,
+            User.name,
+            User.avatar_url,
+            UserPoints.points
+        ).join(User, UserPoints.user_id == User.id).all()
+        totals = {}
+        for uid, name, avatar, pts in rows:
+            if uid not in totals:
+                totals[uid] = {"user_id": uid, "name": name, "avatar_url": avatar, "total_points": 0}
+            totals[uid]["total_points"] += pts
+        ranked = sorted(totals.values(), key=lambda x: x["total_points"], reverse=True)[:limit]
+        for i, r in enumerate(ranked):
+            r["position"] = i + 1
+        return ranked
+    finally:
+        db.close()
+
+
+def create_db_course_track(course_id: str, user_id: str):
+    db = SessionLocal()
+    try:
+        track = CourseTrack(id=f"trk_{uuid.uuid4().hex[:12]}", course_id=course_id, user_id=user_id)
+        db.add(track)
+        db.commit()
+        return {"id": track.id, "course_id": course_id, "progress_pct": 0.0}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar track: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_course_tracks(user_id: str):
+    db = SessionLocal()
+    try:
+        rows = db.query(CourseTrack).filter(CourseTrack.user_id == user_id).all()
+        return [
+            {"id": r.id, "course_id": r.course_id, "progress_pct": r.progress_pct,
+             "completed": r.completed, "started_at": r.started_at.strftime("%d/%m/%Y") if r.started_at else None}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_db_course_track(course_id: str, user_id: str):
+    db = SessionLocal()
+    try:
+        return db.query(CourseTrack).filter(
+            CourseTrack.course_id == course_id, CourseTrack.user_id == user_id
+        ).first()
+    finally:
+        db.close()
+
+
+def update_db_lesson_progress(track_id: str, lesson_id: str, status: str, score_pct: float = None):
+    db = SessionLocal()
+    try:
+        lp = db.query(LessonProgress).filter(
+            LessonProgress.track_id == track_id, LessonProgress.lesson_id == lesson_id
+        ).first()
+        if not lp:
+            lp = LessonProgress(track_id=track_id, lesson_id=lesson_id, status=status, score_pct=score_pct)
+            db.add(lp)
+        else:
+            lp.status = status
+            if score_pct is not None:
+                lp.score_pct = score_pct
+        if status == "completed":
+            lp.completed_at = datetime.utcnow()
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao atualizar progresso: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def get_db_track_lessons_progress(track_id: str):
+    db = SessionLocal()
+    try:
+        rows = db.query(LessonProgress).filter(LessonProgress.track_id == track_id).all()
+        return [
+            {"lesson_id": r.lesson_id, "status": r.status, "score_pct": r.score_pct,
+             "completed_at": r.completed_at.strftime("%d/%m %H:%M") if r.completed_at else None}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def create_db_combo(name: str, description: str, ebook_id: str, course_id: str,
+                    original_price_cents: int, combo_price_cents: int, slug: str = None):
+    db = SessionLocal()
+    try:
+        combo_id = f"combo_{uuid.uuid4().hex[:12]}"
+        combo = Combo(
+            id=combo_id, name=name, description=description,
+            ebook_id=ebook_id, course_id=course_id,
+            original_price_cents=original_price_cents,
+            combo_price_cents=combo_price_cents,
+            slug=slug or name.lower().replace(" ", "-")[:200]
+        )
+        db.add(combo)
+        db.commit()
+        return {"id": combo_id, "name": name, "slug": combo.slug}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar combo: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_combos(status: str = "active"):
+    db = SessionLocal()
+    try:
+        q = db.query(Combo)
+        if status:
+            q = q.filter(Combo.status == status)
+        rows = q.order_by(Combo.created_at.desc()).all()
+        return [
+            {"id": r.id, "name": r.name, "description": r.description,
+             "ebook_id": r.ebook_id, "course_id": r.course_id,
+             "original_price_cents": r.original_price_cents,
+             "combo_price_cents": r.combo_price_cents,
+             "discount_pct": r.discount_pct, "slug": r.slug,
+             "cover_url": r.cover_url, "status": r.status}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_db_combo_by_id(combo_id: str):
+    db = SessionLocal()
+    try:
+        return db.query(Combo).filter(Combo.id == combo_id).first()
+    finally:
+        db.close()
+
+
+def get_db_combo_by_slug(slug: str):
+    db = SessionLocal()
+    try:
+        return db.query(Combo).filter(Combo.slug == slug).first()
+    finally:
+        db.close()
+
+
+def create_db_combo_purchase(combo_id: str, buyer_email: str, buyer_name: str,
+                             amount_cents: int, payment_method: str = None):
+    db = SessionLocal()
+    try:
+        purchase_id = f"cp_{uuid.uuid4().hex[:12]}"
+        purchase = ComboPurchase(
+            id=purchase_id, combo_id=combo_id, buyer_email=buyer_email,
+            buyer_name=buyer_name, amount_cents=amount_cents,
+            payment_method=payment_method, status="pending"
+        )
+        db.add(purchase)
+        db.commit()
+        return {"id": purchase_id, "status": "pending"}
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao criar compra combo: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_db_combo_purchases(user_email: str = None, combo_id: str = None):
+    db = SessionLocal()
+    try:
+        q = db.query(ComboPurchase)
+        if user_email:
+            q = q.filter(ComboPurchase.buyer_email == user_email)
+        if combo_id:
+            q = q.filter(ComboPurchase.combo_id == combo_id)
+        rows = q.order_by(ComboPurchase.created_at.desc()).all()
+        return [
+            {"id": r.id, "combo_id": r.combo_id, "buyer_email": r.buyer_email,
+             "amount_cents": r.amount_cents, "status": r.status,
+             "created_at": r.created_at.strftime("%d/%m/%Y %H:%M") if r.created_at else None}
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_db_admin_users(limit: int = 50):
+    db = SessionLocal()
+    try:
+        users = db.query(User).order_by(User.created_at.desc()).limit(limit).all()
+        return [
+            {"id": u.id, "email": u.email, "name": u.name, "role": u.role,
+             "is_active": u.is_active, "created_at": u.created_at.strftime("%d/%m/%Y") if u.created_at else None}
+            for u in users
+        ]
+    finally:
+        db.close()
+
+
+def delete_db_combo(combo_id: str):
+    db = SessionLocal()
+    try:
+        combo = db.query(Combo).filter(Combo.id == combo_id).first()
+        if not combo:
+            return False
+        db.delete(combo)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"[Database] Falha ao deletar combo: {e}")
+        return False
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIM DEZAFIRA CLUB — CRUD Functions
+# ═══════════════════════════════════════════════════════════════════════════════
 

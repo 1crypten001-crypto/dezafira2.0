@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <defs>
+    <linearGradient id="cbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="250" rx="12" fill="url(#cbg)"/>
+  <rect x="0" y="0" width="400" height="4" rx="2" fill="#6366f1"/>
+  <!-- Book icon -->
+  <g transform="translate(160, 60)">
+    <rect x="0" y="0" width="80" height="100" rx="4" fill="#6366f1" opacity="0.2"/>
+    <rect x="5" y="5" width="70" height="90" rx="3" fill="#1a1a2e"/>
+    <rect x="10" y="15" width="50" height="3" rx="1.5" fill="#6366f1" opacity="0.5"/>
+    <rect x="10" y="25" width="40" height="3" rx="1.5" fill="#6366f1" opacity="0.3"/>
+    <rect x="10" y="35" width="55" height="3" rx="1.5" fill="#6366f1" opacity="0.3"/>
+    <rect x="10" y="55" width="30" height="20" rx="3" fill="#8b5cf6" opacity="0.3"/>
+  </g>
+  <text x="200" y="200" text-anchor="middle" fill="#e4e4ec" font-family="system-ui" font-size="14" opacity="0.6">Ebook</text>
+</svg>

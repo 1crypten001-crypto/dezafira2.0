@@ -70,6 +70,13 @@ SniperVideoEngine/test_extract*.py
 SniperVideoEngine/start_srv.py
 SniperVideoEngine/start_ui_server.py
 
+# Arquivos de teste e backup
+*_test.py
+*_test.html
+SniperVideoEngine/test_*.py
+SniperVideoEngine/*_test.html
+SniperVideoEngine/_backup_*.json
+
 # Binários pesados e Mídias geradas
 *.mp4
 *.mp3

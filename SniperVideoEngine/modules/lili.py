@@ -32,11 +32,31 @@ BAD_PATTERNS = {
         "message": "Seção sem sentido ('micro biologia') detectada",
         "fix": "Substituir por conclusao coerente com o tema.",
     },
+    # IMPORTANTE: toda palavra listada aqui DEVE ter traducao correspondente em
+    # corrigir_conteudo_automatico (dicionario translations) — manter em lockstep.
     "english_words": {
-        "pattern": r"\b(everything|nothing|someone|something|anyone)\b",
-        "severity": "media",
+        "pattern": r"\b(everything|nothing|someone|something|anyone|everyone|anybody|everybody|always|however|therefore|through|although|though|unless|whether|whatever|wherever|instead|enough|maybe|perhaps|besides|meanwhile|anyway|rather|quite|indeed|beyond|yet|often|almost|shared|relationship|themselves|ourselves|everywhere|sometimes|somehow)\b",
+        "severity": "alta",
         "message": "Palavra em ingles encontrada (deveria estar em portugues)",
         "fix": "Traduzir para o portugues.",
+    },
+    "english_glued": {
+        "pattern": r"\b[a-zà-ú]{2,}(?:often|yet|beyond|always|however|relationship|shared)\b",
+        "severity": "alta",
+        "message": "Palavra portuguesa colada a termo em ingles (ex: statusoften) — garbage do LLM",
+        "fix": "Separar e traduzir a palavra colada.",
+    },
+    "assistant_garbage": {
+        "pattern": r"\bassistant\b(?:\s+\bassistant\b)+",
+        "severity": "alta",
+        "message": "Texto com assistant assistant... repetido (garbage do LLM)",
+        "fix": "Remover a repeticao de assistant.",
+    },
+    "colon_letter_garbage": {
+        "pattern": r"(?:[A-Z]\s+[A-Z][a-z]+:\s*[A-Z]\s*){4,}",
+        "severity": "alta",
+        "message": "Garbage text LLM: sequencia de letra + palavra com dois-pontos (ex: A Es:R A Es:R)",
+        "fix": "Remover o bloco corrompido.",
     },
     "html_garbage": {
         "pattern": r"<[^>]*?[&$#@].*?>",
@@ -558,6 +578,14 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
     )
 
     # 3. Corrigir 'everything' para 'tudo'
+    # 2b. Separar palavras portuguesas coladas a ingles (ex: 'statusoften' -> 'status often')
+    content_html = re.sub(
+        r"\b([a-zà-ú]{2,})(often|yet|beyond|always|however|relationship|shared)\b",
+        r"\1 \2",
+        content_html,
+        flags=re.IGNORECASE,
+    )
+
     translations = {
         r"\beverything\b": "tudo",
         r"\bnothing\b": "nada",
@@ -566,6 +594,38 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         r"\banyone\b": "ninguem",
         r"\banybody\b": "ninguem",
         r"\beverybody\b": "todos",
+        r"\beveryone\b": "todos",
+        r"\balways\b": "sempre",
+        r"\bhowever\b": "no entanto",
+        r"\btherefore\b": "portanto",
+        r"\bthrough\b": "por meio de",
+        r"\balthough\b": "embora",
+        r"\bthough\b": "embora",
+        r"\bunless\b": "a menos que",
+        r"\bwhether\b": "se",
+        r"\bwhatever\b": "o que quer que",
+        r"\bwherever\b": "onde quer que",
+        r"\binstead\b": "em vez disso",
+        r"\benough\b": "suficiente",
+        r"\bmaybe\b": "talvez",
+        r"\bperhaps\b": "talvez",
+        r"\bbesides\b": "alem disso",
+        r"\bmeanwhile\b": "enquanto isso",
+        r"\banyway\b": "de qualquer forma",
+        r"\brather\b": "em vez de",
+        r"\bquite\b": "bastante",
+        r"\bindeed\b": "de fato",
+        r"\bbeyond\b": "alem",
+        r"\byet\b": "ainda",
+        r"\boften\b": "frequentemente",
+        r"\balmost\b": "quase",
+        r"\bshared\b": "compartilhada",
+        r"\brelationship\b": "relacionamento",
+        r"\bthemselves\b": "eles mesmos",
+        r"\bourselves\b": "nos mesmos",
+        r"\beverywhere\b": "em todo lugar",
+        r"\bsometimes\b": "as vezes",
+        r"\bsomehow\b": "de alguma forma",
     }
     for eng_pattern, pt_word in translations.items():
         content_html = re.sub(eng_pattern, pt_word, content_html, flags=re.IGNORECASE)
@@ -607,6 +667,9 @@ def corrigir_conteudo_automatico(content_html: str) -> str:
         content_html,
         flags=re.DOTALL
     )
+
+    # 8b. Remover garbage 'A Es:R A Es:R' (letra + palavra com dois-pontos, 3+ repeticoes)
+    content_html = re.sub(r"(?:[A-Z]\s+[A-Z][a-z]+:\s*[A-Z]\s*){3,}", "", content_html)
 
     # 9. (ANTES de remover backslashes!) Remover secoes INTEIRAS (h2/h3) com garbage
     content_html = re.sub(

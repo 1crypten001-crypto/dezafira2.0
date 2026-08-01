@@ -1,8 +1,9 @@
-# DEZAFIRA — Fábrica de Blogs & Sistemas de Monetização
+# DEZAFIRA — Fábrica de Blogs & Dezafira Club
 
-> **Versão:** 2.1.0  
+> **Versão:** 3.1.0  
 > **Produção:** https://dezafira.com.br  
 > **API:** https://backend-production-f90d.up.railway.app  
+> **Frontend Club:** https://club.dezafira.com.br (Vercel)  
 > **Database:** PostgreSQL (Railway)  
 > **Última atualização:** 01/08/2026
 
@@ -10,8 +11,7 @@
 
 ## 📋 VISÃO GERAL
 
-A Dezafira é uma plataforma SaaS de **criação e gestão automatizada de blogs** com IA.  
-O sistema gera blogs completos do zero — com dezenas de artigos profundos, imagens de destaque, SEO técnico, branding profissional e preparação para monetização via Google AdSense.
+A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Blogs, Ebooks, Cursos e uma área de membros completa com gamificação (**Dezafira Club**).
 
 ### Estado Atual
 
@@ -21,8 +21,12 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 | **Total de Artigos** | 89 |
 | **Palavras Geradas** | ~199.000+ |
 | **Artigos com Imagem** | 100% |
-| **Artigos Publicados** | Em andamento |
 | **Score Monetização** | 88.7% (17/18) — ✅ Pronto AdSense |
+| **Cursos Criados** | 2 (1 via pipeline automática) |
+| **Trilhas de Aprendizado** | 1 (Trilha IA para Iniciantes) |
+| **Fábricas Ativas** | Blog (5 fases) + Ebook (6 fases) + Curso (6 fases) |
+| **Agentes IA** | 15+ especializados |
+| **LLM Cascade** | Gemini → OpenRouter → GitHub → Groq → Anthropic |
 
 ### Blogs Ativos
 
@@ -36,35 +40,40 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 ## 🏗️ ARQUITETURA DO SISTEMA
 
 ```
-┌─────────────────────────────────────────────┐
-│                 FastAPI Server               │
-│  ┌─────────────┐ ┌──────────┐ ┌───────────┐ │
-│  │ REST API    │ │ WebSocket│ │ Static UI │ │
-│  │ (80+ rotas) │ │ (hub)    │ │ index.html│ │
-│  └──────┬──────┘ └──────────┘ └───────────┘ │
-└─────────┼───────────────────────────────────┘
-          │
-┌─────────▼───────────────────────────────────┐
-│           PostgreSQL (Railway)               │
-│  ┌──────────────┐ ┌───────────────┐         │
-│  │ Blog Channels│ │ Blog Posts    │         │
-│  │ Blog Sections│ │ Pipeline Runs │         │
-│  │ Books        │ │ Courses       │         │
-│  │ Knowledge    │ │ Subdomains    │         │
-│  └──────────────┘ └───────────────┘         │
-└─────────────────────────────────────────────┘
-          │
-┌─────────▼───────────────────────────────────┐
-│         Macro Pipeline (Esteira)             │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌──────┐  │
-│  │Fundação│ │Arquitet│ │Produção│ │Refino│  │
-│  │🏗️     │ │📋      │ │📝     │ │🎨   │  │
-│  └────────┘ └────────┘ └────────┘ └──────┘  │
-│             ┌────────┐                       │
-│             │Entrega │                       │
-│             │✅     │                       │
-│             └────────┘                       │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                      FRONTEND (Next.js 14 — Vercel)                  │
+│   Landing  │  Auth  │  Dashboard  │  Admin Panel  │  Combos         │
+│   club.dezafira.com.br/*                                              │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │ API Proxy (/api/* → FastAPI)
+┌──────────────────────────▼───────────────────────────────────────────┐
+│                   FastAPI Backend (Railway) — 130+ endpoints         │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │                    Auth & Member System                          ││
+│  │  Register │ Login │ Google OAuth │ Password Recovery │ JWT      ││
+│  │  Points │ Badges │ Streak │ Ranking │ Course Tracks │ Combos    ││
+│  └──────────────────────────────────────────────────────────────────┘│
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │                    Factories (Pipelines)                         ││
+│  │  📝 Blog Factory (5 phases) │ 📗 Ebook Factory (6 phases)       ││
+│  │  🎓 Course Factory (6 phases, implemented)                        ││
+│  └──────────────────────────────────────────────────────────────────┘│
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │                    LLM Cascade (5+ providers)                    ││
+│  │  Gemini → OpenRouter → GitHub → Groq → Anthropic                 ││
+│  │  LiLi Reviewer (100/100 score, auto-correction)                  ││
+│  └──────────────────────────────────────────────────────────────────┘│
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────────────────────┐
+│                    PostgreSQL (Railway) — 20+ tables                  │
+│  Blog Channels │ Blog Posts │ Books │ Products │ Transactions        │
+│  Users │ User Sessions │ Password Resets │ Points │ Badges │ Streak │
+│  Course Tracks │ Lesson Progress │ Combos │ Combo Purchases          │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -308,6 +317,218 @@ O sistema gera blogs completos do zero — com dezenas de artigos profundos, ima
 
 ---
 
+## 🏠 DEZAFIRA CLUB — Área de Membro
+
+### Visão Geral
+Área de membros completa com autenticação, gamificação, cursos e combos. Frontend Next.js separado, backend integrado no FastAPI existente.
+
+### Tech Stack
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | Next.js 14.2.35 (App Router) + Tailwind CSS |
+| Backend | FastAPI (integrado ao server.py existente) |
+| Auth | JWT (HMAC-SHA256) + bcrypt + Google OAuth |
+| Deploy Frontend | Vercel |
+| Deploy Backend | Railway (mesmo server) |
+
+### Autenticação
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/auth/register` | Registro (email + senha) |
+| POST | `/api/v1/auth/login` | Login (email + senha) |
+| POST | `/api/v1/auth/google` | Login/registro via Google OAuth |
+| POST | `/api/v1/auth/forgot-password` | Enviar email de recuperação |
+| POST | `/api/v1/auth/reset-password` | Redefinir senha com token |
+| GET | `/api/v1/auth/me` | Dados do usuário logado |
+| POST | `/api/v1/auth/logout` | Encerrar sessão |
+
+**Auth Flow:**
+- Senhas: bcrypt com salt (não passlib — compatibilidade com bcrypt 5.0)
+- JWT: HMAC-SHA256, expiração configurável
+- Google OAuth: id_token validado, user criado automaticamente
+- Sessões: armazenadas no banco (user_sessions)
+- Tokens de reset: SHA-256, expiração 1h
+
+### Área de Membro (Dashboard)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/member/dashboard` | Resumo do membro (pontos, badges, cursos) |
+| GET | `/api/v1/member/points` | Histórico de pontos |
+| GET | `/api/v1/member/badges` | Badges conquistadas |
+| GET | `/api/v1/member/streak` | Sequência diária |
+| GET | `/api/v1/member/courses` | Cursos matriculados |
+| POST | `/api/v1/member/courses/{id}/enroll` | Matricular-se no curso |
+| POST | `/api/v1/member/lessons/{id}/complete` | Marcar aula como concluída |
+
+### Gamificação
+
+| Ação | Pontos |
+|------|--------|
+| Login diário | +10 |
+| Completar aula | +25 |
+| Completar módulo | +50 |
+| Completar curso | +200 |
+| Comprar ebook | +30 |
+| Indicar amigo | +100 |
+
+**Badges:**
+- 🎯 Primeiro Passo — Primeira aula completada
+- 🔥 Em Chamas — 7 dias consecutivos
+- 📚 Leitor — 3 ebooks comprados
+- 🎓 Formado — 1 curso completo
+- 🏆 Mestre — 1000 pontos totais
+
+**Ranking Global:**
+- Top 10 do mês
+- Top 10 geral
+
+### Combos (Ebook + Curso)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/combos` | Listar combos disponíveis |
+| GET | `/api/v1/combos/{slug}` | Detalhes do combo |
+| POST | `/api/v1/combos/{id}/purchase` | Iniciar compra do combo |
+| POST | `/api/v1/combos/{id}/confirm` | Confirmar pagamento |
+| POST | `/api/v1/admin/combos` | Criar combo (admin) |
+| DELETE | `/api/v1/admin/combos/{id}` | Deletar combo (admin) |
+
+**Desconto:** 30% ao comprar ebook + curso juntos
+
+### Admin Panel
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/admin/users` | Listar todos os usuários |
+| GET | `/api/v1/admin/stats` | Estatísticas gerais |
+| GET | `/api/v1/ranking` | Ranking global |
+
+### Database Tables (Novas)
+
+#### Users (`users`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (usr_xxxx) |
+| email | VARCHAR(200) UK | Email do usuário |
+| name | VARCHAR(200) | Nome completo |
+| password_hash | VARCHAR(200) | Hash bcrypt da senha |
+| google_id | VARCHAR(100) | ID do Google OAuth |
+| avatar_url | VARCHAR(500) | URL do avatar |
+| role | VARCHAR(20) | user/admin |
+| created_at | DateTime | Data de criação |
+| last_login | DateTime | Último login |
+
+#### User Sessions (`user_sessions`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID da sessão |
+| user_id | VARCHAR(50) FK | Usuário associado |
+| token | VARCHAR(500) UK | JWT token |
+| created_at | DateTime | Criação |
+| expires_at | DateTime | Expiração |
+
+#### Password Resets (`password_resets`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| user_id | VARCHAR(50) FK | Usuário associado |
+| token | VARCHAR(200) UK | Token de reset |
+| expires_at | DateTime | Expiração (1h) |
+| used | BOOLEAN | Já utilizado |
+
+#### User Points (`user_points`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| user_id | VARCHAR(50) FK | Usuário associado |
+| points | INTEGER | Pontos ganhos |
+| action | VARCHAR(50) | Ação realizada |
+| reference_id | VARCHAR(50) | ID referência |
+| created_at | DateTime | Data |
+
+#### User Badges (`user_badges`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| user_id | VARCHAR(50) FK | Usuário associado |
+| badge_name | VARCHAR(100) | Nome da badge |
+| badge_icon | VARCHAR(50) | Emoji/ícone |
+| earned_at | DateTime | Conquistada em |
+
+#### User Streaks (`user_streaks`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| user_id | VARCHAR(50) FK | Usuário associado |
+| streak_count | INTEGER | Dias consecutivos |
+| last_active_date | DATE | Último dia ativo |
+
+#### Course Tracks (`course_tracks`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| user_id | VARCHAR(50) FK | Usuário |
+| course_id | VARCHAR(50) FK | Curso |
+| enrolled_at | DateTime | Matrícula |
+| completed_at | DateTime | Conclusão |
+| progress_pct | INTEGER | Progresso 0-100 |
+
+#### Lesson Progress (`lesson_progress`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| track_id | VARCHAR(50) FK | Course track |
+| lesson_id | VARCHAR(50) FK | Aula |
+| completed | BOOLEAN | Concluída |
+| completed_at | DateTime | Conclusão |
+
+#### Combos (`combos`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| name | VARCHAR(200) | Nome do combo |
+| slug | VARCHAR(200) UK | Slug para URL |
+| description | TEXT | Descrição |
+| book_id | VARCHAR(50) FK | Ebook incluso |
+| course_id | VARCHAR(50) FK | Curso incluso |
+| original_price_cents | INTEGER | Preço original |
+| combo_price_cents | INTEGER | Preço com desconto |
+| discount_pct | INTEGER | Percentual desconto |
+| status | VARCHAR(20) | active/inactive |
+| created_at | DateTime | Criação |
+
+#### Combo Purchases (`combo_purchases`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único |
+| combo_id | VARCHAR(50) FK | Combo comprado |
+| user_id | VARCHAR(50) FK | Comprador |
+| amount_cents | INTEGER | Valor pago |
+| status | VARCHAR(20) | pending/completed |
+| created_at | DateTime | Compra |
+
+### Frontend (Next.js — `club-frontend/`)
+
+| Página | Rota | Descrição |
+|--------|------|-----------|
+| Landing | `/` | Página inicial com hero, combos, ranking |
+| Login | `/auth/login` | Formulário de login |
+| Registro | `/auth/register` | Formulário de registro |
+| Dashboard | `/painel` | Área do membro (tabs: início, cursos, ebooks, ranking) |
+| Admin | `/painel/admin` | Painel administrativo (stats, users, combos) |
+
+**Features UI:**
+- Dark mode (indigo/purple gradient theme)
+- API proxy via Next.js rewrite (`/api/*` → backend)
+- JWT armazenado em localStorage
+- Protected routes (redirect se não logado)
+- Tabs no dashboard (overview, courses, ebooks, ranking)
+- Admin: CRUD de combos, listagem de usuários
+
+---
+
 ## 🗄️ DATABASE MODELS
 
 ### Blog Channels (`blog_channels`)
@@ -427,6 +648,11 @@ Cada blog recebe identidade visual personalizada por nicho:
 | websockets | 13.0+ | WebSocket tempo real |
 | apscheduler | 3.10+ | Agendamento |
 | pydantic | 2.6.4 | Validação de dados |
+| python-jose[cryptography] | 3.3.0 | JWT tokens |
+| passlib[bcrypt] | 1.7.4 | Senhas (backup) |
+| bcrypt | 4.2+ | Hash de senhas (direto) |
+| python-multipart | 0.0.9 | Form data parsing |
+| redis | 5.0.1 | Cache, rate limiting |
 
 ---
 
@@ -481,26 +707,26 @@ Cada blog recebe identidade visual personalizada por nicho:
 
 ## 🚀 PRÓXIMOS PASSOS (PRIORIZADOS)
 
-### 🔴 Imediatos (Monetização)
-1. **Conectar Google Search Console** (peso 7) — Verificar domínio em search.google.com
-2. **Solicitar indexação** dos artigos no Google (peso 8)
-3. **Implementar Google Analytics** para métricas de tráfego
-4. **Criar mais conteúdo** para atingir 50+ artigos no O Reino
+### 🔴 Imediatos (Deploy + Monetização)
+1. **Deploy Railway** — 2 serviços (Python backend + Node frontend)
+2. **Conectar Google Search Console** — Verificar domínio em search.google.com
+3. **Solicitar indexação** dos artigos no Google
+4. **Google Analytics** para métricas de tráfego
 5. **Publicar artigos em massa** via Seu Zé
 
 ### 🟡 Curto Prazo (Qualidade)
 1. **Criar 3º blog** (saúde/bem-estar ou tecnologia) com branding único
 2. **Compressão de imagens** para melhorar PageSpeed
 3. **Otimizar Core Web Vitals** (LCP, FID, CLS)
-4. **Adicionar schema.org Article** + FAQ + Breadcrumb em JSON-LD
-5. **Gerar backlinks** para autoridade de domínio
+4. **Schema.org** Article + FAQ + Breadcrumb em JSON-LD
+5. **Email de confirmação** (SMTP/Resend) para novos registros
 
 ### 🟢 Médio Prazo (Monetização Avançada)
 1. **Aplicar para Google AdSense** quando score > 80%
 2. **Implementar afiliados** (Amazon, Hotmart, Eduzz)
-3. **Criar produtos digitais** (Ebooks, Cursos) via sistema existente
-4. **Newsletter por e-mail** (capturar leads)
-5. **Anúncios nativos** (Taboola, Outbrain)
+3. **Newsletter por e-mail** (capturar leads)
+4. **Mais trilhas de aprendizado** (criar trilhas por nicho)
+5. **Certificados de conclusão** para cursos
 
 ### 🔵 Longo Prazo (Escala)
 1. **Automatizar criação de 10+ blogs** em nichos variados
@@ -517,9 +743,11 @@ Cada blog recebe identidade visual personalizada por nicho:
 |---------|-------|-------------|--------------|
 | Blogs ativos | 2 | 5 | 15 |
 | Artigos totais | 89 | 300 | 1.500 |
+| Cursos criados | 2 | 10 | 30 |
+| Trilhas ativas | 1 | 3 | 10 |
 | Score AdSense | 88.7% | 95% | 98% |
 | Visitantes/mês | 0 | 1.000 | 50.000 |
-| Receita/mês | R$ 0 | R$ 200 | R$ 5.000 |
+| Receita/mês | R$ 34 | R$ 200 | R$ 5.000 |
 
 ---
 
@@ -672,20 +900,163 @@ token = sha256(book_id + ":" + buyer_email + ":" + SECRET_KEY)[:48]
 
 ---
 
-## 🔐 VARIÁVEIS DE AMBIENTE
+## 🎓 FÁBRICA DE CURSOS (Nova)
+
+### Visão Geral
+Pipeline automatizado de criação de cursos online com 6 fases e 5 agentes especializados. Gera cursos completos com módulos, aulas, materiais de apoio e quiz — prontos para venda na Dezafira Club.
+
+### Pipeline de 6 Fases
+
+| Fase | Nome | Agentes | Descrição |
+|------|------|---------|-----------|
+| 1 | **Fundação** | Professor + Pedagogo | Define tema, público-alvo, objetivos de aprendizagem, estrutura curricular |
+| 2 | **Pesquisa** | Professor | Conteúdo técnico, referências, fontes, normatizações do nicho |
+| 3 | **Estrutura** | Pedagogo | Módulos, aulas, sequência didática, mapas conceituais |
+| 4 | **Produção** | Professor + Lili Cursos | Conteúdo das aulas (texto, exercícios, materiais) com revisão de qualidade |
+| 5 | **Refino** | Quiz Master + Capa | Quiz por aula, avaliação final, capa visual do curso |
+| 6 | **Entrega** | Capa | Thumbnails, pré-visualização, publicação na plataforma |
+
+### Agentes Especializados
+
+| Agente | Arquivo | Responsabilidades |
+|--------|---------|-------------------|
+| 🧑‍🏫 **Professor** | `modules/course_professor.py` | Conteúdo técnico, script de aulas, referências bibliográficas |
+| 📐 **Pedagogo** | `modules/course_pedagogue.py` | Estrutura curricular, taxonomia de Bloom, sequência didática |
+| 🌸 **Lili Cursos** | `modules/lili_cursos.py` | Revisão pedagógica e técnica (derivado da LiLi original) |
+| ❓ **Quiz Master** | `modules/quiz_master.py` | Gera quiz por aula, avaliação final, gabarito, métricas |
+| 🎨 **Capa** | `modules/course_cover.py` | Capa visual, thumbnails, identidade do curso |
+
+### Endpoints da Pipeline
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/pipeline/run-course-factory` | Inicia pipeline de curso |
+| GET | `/api/v1/pipeline/course-factory/status/{task_id}` | Polling de status |
+| GET | `/api/v1/pipeline/course-factory/history` | Histórico de execuções |
+
+### Endpoints Admin CRUD (Cursos)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/courses` | Listar todos os cursos |
+| POST | `/api/v1/courses` | Criar curso |
+| GET | `/api/v1/courses/{course_id}` | Detalhes do curso |
+| PUT | `/api/v1/courses/{course_id}` | Atualizar curso |
+| DELETE | `/api/v1/courses/{course_id}` | Deletar curso |
+| POST | `/api/v1/courses/{course_id}/publish` | Publicar curso |
+| POST | `/api/v1/courses/{course_id}/unpublish` | Despublicar curso |
+
+### Endpoints Learning Paths
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/learning-paths` | Listar learning paths |
+| POST | `/api/v1/learning-paths` | Criar learning path |
+| GET | `/api/v1/learning-paths/{path_id}` | Detalhes do learning path |
+| PUT | `/api/v1/learning-paths/{path_id}` | Atualizar learning path |
+| DELETE | `/api/v1/learning-paths/{path_id}` | Deletar learning path |
+| POST | `/api/v1/learning-paths/{path_id}/courses` | Adicionar curso ao path |
+| DELETE | `/api/v1/learning-paths/{path_id}/courses/{course_id}` | Remover curso do path |
+
+### Endpoints Analytics
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/courses/analytics/overview` | Métricas gerais de cursos |
+| GET | `/api/v1/courses/{course_id}/analytics` | Métricas do curso específico |
+| GET | `/api/v1/courses/{course_id}/enrollments` | Matrículas do curso |
+
+### Estrutura do Curso
 
 ```
-DATABASE_URL=postgresql://...
-NVIDIA_API_KEY=nvapi-...
-PEXELS_API_KEY=...
-UNSPLASH_ACCESS_KEY=...
-TELEGRAM_BOT_TOKEN=...
+Course
+├── CourseModule (1..N)
+│   ├── CourseLesson (1..N)
+│   │   ├── CourseMaterial (0..N)   — PDFs, links, anexos
+│   │   └── CourseQuiz (0..1)       — Quiz da aula
+│   └── ...
+├── CourseQuiz (final)              — Avaliação final
+└── CourseCover                     — Capa visual
+```
+
+### Database Tables (Novas)
+
+#### CoursePipelineRun (`course_pipeline_runs`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (cpip_xxxx) |
+| course_id | VARCHAR(50) FK | Curso associado |
+| phase | INTEGER | Fase atual (1-6) |
+| status | VARCHAR(20) | running/completed/failed |
+| agent_log | JSONB | Log detalhado por agente |
+| started_at | DateTime | Início da execução |
+| completed_at | DateTime | Conclusão |
+
+#### LearningPath (`learning_paths`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (lp_xxxx) |
+| name | VARCHAR(200) | Nome do trilha |
+| description | TEXT | Descrição |
+| slug | VARCHAR(200) UK | Slug para URL |
+| cover_url | VARCHAR(500) | URL da capa |
+| status | VARCHAR(20) | active/inactive |
+| created_at | DateTime | Criação |
+
+#### LearningPathCourse (`learning_path_courses`)
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (lpc_xxxx) |
+| path_id | VARCHAR(50) FK | Learning path |
+| course_id | VARCHAR(50) FK | Curso |
+| order_index | INTEGER | Ordem no path |
+
+### Fluxo do Pipeline
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Fase 1      │    │  Fase 2      │    │  Fase 3      │
+│  Fundação    │───▶│  Pesquisa    │───▶│  Estrutura   │
+│  Prof + Ped  │    │  Professor   │    │  Pedagogo    │
+└─────────────┘    └─────────────┘    └─────────────┘
+                                              │
+                                              ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Fase 6      │    │  Fase 5      │    │  Fase 4      │
+│  Entrega     │◀───│  Refino      │◀───│  Produção    │
+│  Capa        │    │  Quiz + Capa │    │  Prof + Lili │
+└─────────────┘    └─────────────┘    └─────────────┘
 ```
 
 ---
 
-## 🐳 DEPLOY (Railway)
+## 🔐 VARIÁVEIS DE AMBIENTE
 
+```
+# LLM Cascade
+GEMINI_API_KEY=AI...
+OPENROUTER_API_KEY=sk-or-...
+GITHUB_TOKEN=...
+GROQ_API_KEY=gsk_...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Banco
+DATABASE_URL=postgresql://...
+
+# Auth
+SECRET_KEY=sua-chave-secreta-aqui
+GOOGLE_CLIENT_ID=...
+
+# Imagens
+PEXELS_API_KEY=...
+UNSPLASH_ACCESS_KEY=...
+```
+
+---
+
+## 🐳 DEPLOY
+
+### Backend (Railway)
 **Root Directory:** `/SniperVideoEngine`  
 **Builder:** Dockerfile  
 **Dockerfile Path:** `/SniperVideoEngine/Dockerfile`  
@@ -693,6 +1064,14 @@ TELEGRAM_BOT_TOKEN=...
 **Port:** 8080  
 **Domínio:** dezafira.com.br (aponta para backend)
 
+### Frontend Club (Vercel)
+**Directory:** `/club-frontend`  
+**Framework:** Next.js  
+**Build Command:** `npm run build`  
+**Output:** `.next`  
+**Env Vars:** `NEXT_PUBLIC_API_URL=` (vazio — usa proxy rewrite)  
+**Domínio:** club.dezafira.com.br
+
 ---
 
-*Documentação gerada em 31/07/2026 — Dezafira Fábrica de Blogs™*
+*Documentação gerada em 01/08/2026 — Dezafira Club v3.1*

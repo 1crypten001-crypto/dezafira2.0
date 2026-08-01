@@ -1,58 +1,46 @@
-# DEZAFIRA — Ecossistema de Fábricas de Conteúdo
+# DEZAFIRA — Ecossistema de Fábricas de Conteúdo & Dezafira Club
 
 > **Automação de Conteúdo Digital com IA — 100% CPU, sem GPU**
 > 
 > **Produção:** https://dezafira.com.br
+> **Club:** https://club.dezafira.com.br (Next.js + Vercel)
 > 
-> **Status atual:** 77 artigos publicados em 2 blogs, 100% com imagem, score LiLi médio 99.1/100
+> **Status atual:** 89 artigos publicados em 2 blogs, 100% com imagem, score LiLi médio 99.1/100
 
-Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Ebooks, Cursos, Imagens** — tudo orquestrado por agentes inteligentes com nomes brasileiros e monitorado pelo **Seu Pereira**, o analista de monetização.
+Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blogs, Ebooks, Cursos** — tudo orquestrado por agentes inteligentes com nomes brasileiros, monitorado pelo **Seu Pereira**, e uma área de membros completa com gamificação: **Dezafira Club**.
 
 ---
 
 ## 🏗️ Arquitetura do Sistema
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     FRONTEND (HTML + JS SPA)                      │
-│   Dashboard  │  Pipeline  │  Blogs  │  Livros  │  Cursos        │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │ API REST
-┌──────────────────────────▼───────────────────────────────────────┐
-│                     BACKEND (FastAPI) — 100+ endpoints            │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │                 🏭 Macro-Pipeline                            ││
-│  │  Esteira única com 5 estágios animados + 9 agentes          ││
-│  └──┬───────────┬───────────┬───────────┬───────────┬──────────┘│
-│     ▼           ▼           ▼           ▼           ▼            │
-│  🏗️Fundação  📋Arquitetura 📝Produção   🎨Refino    ✅Entrega   │
-│  ──────────  ────────────  ──────────  ──────────  ──────────   │
-│  Seu Hermes  Joaquim      Carlão       Tatiana     Seu Francisco │
-│  Dona Célia               Dona Rosa    Seu Zé                   │
-│                                                    Ricardo      │
-│                                                    LiLi         │
-│                                                                   │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
-│  │ 📝 Fábrica   │ │ 📗 Fábrica   │ │ 🎓 Fábrica   │              │
-│  │ de Blogs     │ │ de Livros    │ │ de Cursos    │              │
-│  │  2 blogs     │ │              │ │              │              │
-│  │  77 artigos  │ │              │ │              │              │
-│  └──────────────┘ └──────────────┘ └──────────────┘              │
-│                                                                   │
-│  ┌──────────────┐ ┌──────────────┐                               │
-│  │ 🎨 Image     │ │ 👴 Seu       │                               │
-│  │ Factory      │ │ Pereira      │                               │
-│  │ Pexels + SVG │ │ 19 critérios │                               │
-│  │ fallback     │ │ 6 categorias │                               │
-│  └──────────────┘ └──────────────┘                               │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │              LLM Cascade (5 provedores)                      ││
-│  │  OpenRouter → Gemini → NVIDIA → HuggingFace → DeepSeek       ││
-│  │  Database PostgreSQL + SQLAlchemy ORM                         ││
-│  └──────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                 FRONTEND — Dezafira Club (Next.js 14)                │
+│  Landing │ Auth │ Dashboard │ Admin Panel │ Combos │ Ranking        │
+│  club.dezafira.com.br                                               │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │ API Proxy (/api/* → FastAPI)
+┌──────────────────────────▼───────────────────────────────────────────┐
+│                 BACKEND (FastAPI) — 130+ endpoints                   │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │              🔐 Auth & Member System                             ││
+│  │  Register │ Login │ Google OAuth │ Password Recovery │ JWT      ││
+│  │  Points │ Badges │ Streak │ Ranking │ Course Tracks │ Combos    ││
+│  └──────────────────────────────────────────────────────────────────┘│
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │              🏭 Factories (Pipelines)                            ││
+│  │  📝 Blog Factory (5 phases)  │  📗 Ebook Factory (6 phases)    ││
+│  │  🎓 Course Factory (planned) │  📸 Image Factory (Pexels+SVG)  ││
+│  └──────────────────────────────────────────────────────────────────┘│
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────────┐│
+│  │              LLM Cascade (5 provedores)                          ││
+│  │  Gemini → OpenRouter → GitHub → Groq → Anthropic                 ││
+│  │  Database PostgreSQL + SQLAlchemy ORM                            ││
+│  └──────────────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -86,6 +74,119 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 ```
 Página de Vendas → Checkout → Confirmação → Token Gerado → Leitor HTML
 ```
+
+---
+
+## 🏠 Dezafira Club — Área de Membro
+
+### Visão Geral
+Área de membros completa com autenticação, gamificação, cursos e combos. Frontend Next.js 14 (Vercel), backend integrado no FastAPI existente.
+
+### Funcionalidades
+
+| Feature | Descrição |
+|---------|-----------|
+| **Auth** | Email/senha + Google OAuth + Recuperação de senha |
+| **Gamificação** | Pontos por ações, badges, streak diário, ranking global |
+| **Cursos** | Estrutura Course > Track > Module > Lesson com progresso |
+| **Combos** | Bundle ebook + curso com 30% desconto |
+| **Admin** | Stats, gestão de usuários, CRUD de combos |
+
+### Frontend (Next.js 14)
+
+```
+club-frontend/
+├── app/
+│   ├── page.tsx              # Landing page (hero, combos, ranking)
+│   ├── auth/login/page.tsx   # Login
+│   ├── auth/register/page.tsx # Registro
+│   ├── painel/page.tsx       # Dashboard do membro
+│   └── admin/page.tsx        # Painel admin
+├── lib/
+│   ├── api.ts                # Cliente API com todas as endpoints
+│   └── auth-context.tsx      # React AuthProvider + useAuth
+├── public/images/            # Imagens placeholder
+├── next.config.js            # API proxy (/api/* → backend)
+└── tailwind.config.js        # Dark mode, indigo/purple theme
+```
+
+### API Endpoints (Novas)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/auth/register` | Registro |
+| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/auth/google` | Google OAuth |
+| POST | `/api/v1/auth/forgot-password` | Recuperação |
+| GET | `/api/v1/auth/me` | Dados do usuário |
+| GET | `/api/v1/member/dashboard` | Dashboard |
+| GET | `/api/v1/member/points` | Pontos |
+| GET | `/api/v1/member/badges` | Badges |
+| GET | `/api/v1/member/streak` | Streak |
+| GET | `/api/v1/member/courses` | Cursos |
+| GET | `/api/v1/combos` | Combos |
+| GET | `/api/v1/ranking` | Ranking |
+
+---
+
+## 🎓 Fábrica de Cursos
+
+### Pipeline de 6 Fases
+
+```
+📋 Fundação → 🧠 Pesquisa → 📝 Roteiro → 🎬 Produção → 🎨 Refino → 🚀 Entrega
+```
+
+| Fase | Agentes | Descrição |
+|------|---------|-----------|
+| **Fundação** | Hermes + Dona Célia | Cria curso no banco, define tema, branding |
+| **Pesquisa** | Minerador de Dores + Obscura | Análise de mercado, concorrentes, público-alvo |
+| **Roteiro** | Roteirista | Estrutura módulos, aulas, objetivos de aprendizagem |
+| **Produção** | Carlão + LiLi | Geração de conteúdo textual aula a aula |
+| **Refino** | Formatter + Tatiana | Formatação HTML, assets visuais, slides |
+| **Entrega** | Seu Francisco | Curso publicado, token de acesso gerado |
+
+### Agentes Especializados
+
+| Agente | Nome | Responsabilidade |
+|--------|------|------------------|
+| Orquestrador | **Seu Hermes** | Coordena pipeline e define estratégia |
+| Roteirista | **Roteirista** | Cria estrutura de módulos e aulas |
+| Redator | **Carlão** | Escreve conteúdo das aulas via LLM |
+| Revisora | **LiLi** | Revisa qualidade e corrige erros |
+| Entregador | **Seu Francisco** | Publica curso e gera tokens de acesso |
+
+### Trilhas de Aprendizagem (Learning Paths)
+
+Trilhas são sequências ordenadas de cursos que guiam o aluno de um tópico básico ao avançado:
+
+- **Composição por ordem**: Cada trilha define a ordem dos cursos
+- **Progressão automática**: Aluno avança ao completar curso anterior
+- **Recomendação**: Sistema sugere trilhas com base no perfil e interesses
+- **Certificado final**: Aluno recebe certificado ao completar toda a trilha
+
+### Painel Admin para Cursos
+
+- CRUD completo de cursos (criar, editar, arquivar)
+- Gestão de módulos e aulas com drag-and-drop
+- Upload e vinculação de materiais complementares (PDF, links)
+- Dashboard com métricas: alunos inscritos, taxa de conclusão, avalição média
+- Publicação e agendamento de lançamentos
+
+### API Endpoints (Cursos)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/courses` | Listar cursos |
+| POST | `/api/v1/courses` | Criar curso (admin) |
+| GET | `/api/v1/courses/{id}` | Detalhes do curso |
+| PUT | `/api/v1/courses/{id}` | Atualizar curso (admin) |
+| GET | `/api/v1/courses/{id}/modules` | Listar módulos |
+| POST | `/api/v1/courses/{id}/modules` | Criar módulo (admin) |
+| GET | `/api/v1/learning-paths` | Listar trilhas |
+| POST | `/api/v1/learning-paths` | Criar trilha (admin) |
+| POST | `/api/v1/courses/{id}/enroll` | Inscrever-se no curso |
+| GET | `/api/v1/courses/{id}/progress` | Progresso do aluno |
 
 ---
 
@@ -162,10 +263,13 @@ Agente especialista que avalia se cada blog está no caminho certo para o **Goog
 |--------|-------------|
 | **Backend** | FastAPI (Python 3.11+), Uvicorn |
 | **ORM** | SQLAlchemy + PostgreSQL (prod) / SQLite (dev) |
-| **LLM Cascade** | OpenRouter → Gemini → NVIDIA → HuggingFace → DeepSeek |
+| **LLM Cascade** | Gemini → OpenRouter → GitHub → Groq → Anthropic |
 | **Imagens** | Pexels API (primário) + SVG placeholder (fallback absoluto) |
-| **Frontend** | HTML + CSS + JavaScript SPA (vanilla) |
-| **Infraestrutura** | Railway (Docker), CPU-only |
+| **Frontend Club** | Next.js 14 (App Router) + Tailwind CSS + React |
+| **Auth** | JWT (HMAC-SHA256) + bcrypt + Google OAuth |
+| **Frontend Blog** | HTML + CSS + JavaScript SPA (vanilla) |
+| **Cache** | Redis (sessões, filas, cache de respostas) |
+| **Infraestrutura** | Railway (backend), Vercel (frontend), CPU-only |
 
 ---
 
@@ -190,17 +294,21 @@ Abra **http://localhost:8000** no navegador
 
 ```bash
 # ─── LLM Cascade (pelo menos 1 obrigatório) ───
-OPENROUTER_API_KEY=sk-or-...          # Tenta primeiro (gratuito)
-GEMINI_API_KEY=AI...                  # Fallback 2 (gratuito)
-NVIDIA_API_KEY=nvapi-...              # Fallback 3
-HUGGINGFACE_TOKEN=hf_...              # Fallback 4 (gratuito)
-DEEPSEEK_API_KEY=sk-...               # Fallback 5 (pago, nunca falha)
+GEMINI_API_KEY=AI...                  # Tenta primeiro (gratuito)
+OPENROUTER_API_KEY=sk-or-...          # Fallback 2 (gratuito)
+GITHUB_TOKEN=...                      # Fallback 3
+GROQ_API_KEY=gsk_...                  # Fallback 4
+ANTHROPIC_API_KEY=sk-ant-...          # Fallback 5
 
 # ─── Imagens (recomendado) ───
 PEXELS_API_KEY=...                    # Pexels (stock photos, gratuita)
 
 # ─── Banco ───
 DATABASE_URL=postgresql://...         # PostgreSQL (produção)
+
+# ─── Auth (Dezafira Club) ───
+SECRET_KEY=sua-chave-secreta-aqui     # JWT signing
+GOOGLE_CLIENT_ID=...                  # Google OAuth (opcional)
 ```
 
 ---
@@ -210,11 +318,12 @@ DATABASE_URL=postgresql://...         # PostgreSQL (produção)
 ```
 dezafira/
 ├── SniperVideoEngine/
-│   ├── server.py                  # API principal (100+ endpoints)
+│   ├── server.py                  # API principal (130+ endpoints)
 │   ├── modules/
-│   │   ├── database.py            # SQLAlchemy ORM
-│   │   ├── blog_writer.py         # Geração de artigos via LLM multiparte
+│   │   ├── database.py            # SQLAlchemy ORM (20+ tables)
+│   │   ├── blog_writer.py         # Geração de artigos via LLM
 │   │   ├── blog_pipeline.py       # Macro-esteira com 5 estágios
+│   │   ├── ebook_pipeline.py      # Pipeline de ebooks 6 fases
 │   │   ├── blog_viewer.py         # Blog viewer público dinâmico
 │   │   ├── brand_themes.py        # Temas visuais por nicho
 │   │   ├── image_factory.py       # Geração de imagens (Pexels + SVG)
@@ -222,7 +331,18 @@ dezafira/
 │   │   ├── seu_pereira.py         # Analista de monetização
 │   │   └── seu_ze.py              # Agendador de produção
 │   ├── static/
-│   │   └── index.html             # UI Dashboard SPA
+│   │   └── index.html             # UI Dashboard SPA (blog admin)
+│   ├── club-frontend/             # Next.js 14 frontend
+│   │   ├── app/
+│   │   │   ├── page.tsx           # Landing page
+│   │   │   ├── auth/              # Login/Register
+│   │   │   ├── painel/            # Member dashboard
+│   │   │   └── admin/             # Admin panel
+│   │   ├── lib/
+│   │   │   ├── api.ts             # API client
+│   │   │   └── auth-context.tsx   # Auth provider
+│   │   ├── Dockerfile             # Container build
+│   │   └── next.config.js         # API proxy
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── railway.toml
@@ -265,16 +385,17 @@ bab06f4 fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] Deploy Railway com domínio próprio (dezafira.com.br)
 - [x] Banco PostgreSQL em produção
 - [x] **Fábrica de Ebooks** — Pipeline de 6 fases + Checkout + Área de Membro
+- [x] **Dezafira Club** — Auth, Gamificação, Cursos, Combos (Next.js 14 + FastAPI)
 
 ### 🔜 Próximos Passos
 - [ ] Google Search Console — Verificação e monitoramento
 - [ ] Indexação Google — Solicitar indexação dos artigos
 - [ ] Google AdSense — Solicitar aprovação
-- [ ] Fábrica de Cursos — Integrar na UI principal
-- [ ] Página de Vendas 1Convite — Mini App com checkout
-- [ ] Blog to Podcast — Artigos → Áudio
+- [ ] Fábrica de Cursos — Pipeline completo 6 fases
 - [ ] Email de confirmação com link de acesso (SMTP/Resend)
+- [ ] Deploy Vercel para club-frontend
+- [ ] Produção: migrar SQLite → PostgreSQL no Railway
 
 ---
 
-*Dezafira — Ecossistema de Fábricas de Conteúdo v2.2*
+*Dezafira — Ecossistema de Fábricas de Conteúdo v3.1*

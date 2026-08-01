@@ -352,6 +352,7 @@ class MacroState:
         self.pipeline_run_id = None  # Set after Phase 1
         self.sections = []           # Set after Phase 2
         self.articles_generated = 0
+        self._consecutive_rejections = 0  # FIX 4: reprovacoes consecutivas da LiLi
         self.articles = []           # All generated articles
 
         self.status = "idle"
@@ -570,6 +571,20 @@ class BlogMacroPipeline:
             self.state.completed_at = datetime.utcnow()
             print(f"[Pipeline] PIPELINE_FAILED: {e}")
             traceback.print_exc()
+            # FIX 1: persistir failed no banco (evita run zumbi 'running')
+            try:
+                from modules.database import update_db_blog_pipeline_run
+                if self.state.pipeline_run_id:
+                    update_db_blog_pipeline_run(
+                        self.state.pipeline_run_id,
+                        status="failed",
+                        phase=self.state.current_macro_stage or "producao",
+                        error=str(e)[:500],
+                        completed_at=datetime.utcnow(),
+                    )
+                    print("[Pipeline] Run persistida como failed no banco (except geral).")
+            except Exception as e_persist:
+                print(f"[Pipeline] Erro ao persistir failed no except: {e_persist}")
             self._emit("pipeline_failed", {
                 **self.state.to_dict(),
                 "error_detail": traceback.format_exc(),
@@ -1066,6 +1081,8 @@ class BlogMacroPipeline:
                                 title_preview = (article_result.get("title") or "")[:40]
 
                                 if lili_approved:
+                                    # FIX 4: reset contador de rejeicoes consecutivas
+                                    self.state._consecutive_rejections = 0
                                     self._update_macro(
                                         sid, "active", overall_progress,
                                         f"🌸 LiLi aprovou: score {lili_score}/100",
@@ -1089,6 +1106,26 @@ class BlogMacroPipeline:
                                     delete_db_blog_post(post_id)
                                     article_result["success"] = False
                                     print(f"[Pipeline] BLOQUEADO: LiLi reprovou artigo {post_id[:12]}... (score {lili_score}/100). Artigo deletado.")
+                                    # FIX 4: limite inteligente — 4 rejeicoes consecutivas = problema sistemico
+                                    self.state._consecutive_rejections = getattr(self.state, '_consecutive_rejections', 0) + 1
+                                    print(f"[Pipeline] LiLi reprovou {self.state._consecutive_rejections}x consecutivas.")
+                                    if self.state._consecutive_rejections >= 4:
+                                        _warn_rej = f"🚫 Produção interrompida: LiLi reprovou {self.state._consecutive_rejections} artigos seguidos (último score {lili_score}/100). Qualidade do LLM/prompt comprometida."
+                                        self._update_macro(sid, "failed", overall_progress, _warn_rej)
+                                        print(f"[Pipeline] {_warn_rej}")
+                                        self.state.status = "failed"
+                                        try:
+                                            from modules.database import update_db_blog_pipeline_run
+                                            if self.state.pipeline_run_id:
+                                                update_db_blog_pipeline_run(
+                                                    self.state.pipeline_run_id,
+                                                    status="failed", phase="producao",
+                                                    error=_warn_rej[:500],
+                                                    completed_at=datetime.utcnow(),
+                                                )
+                                        except Exception as e_persist:
+                                            print(f"[Pipeline] Erro ao persistir failed (rejeicoes): {e_persist}")
+                                        return
                                     continue
                             await asyncio.sleep(0.1)
                         except ImportError:
@@ -1120,6 +1157,20 @@ class BlogMacroPipeline:
             if not partial:
                 self.state.status = "failed"
                 print("[Pipeline] Produção zerada. Esteira interrompida (nada para refinar/entregar).")
+                # FIX 1: persistir failed no banco para a UI nao ficar 'running' para sempre
+                try:
+                    from modules.database import update_db_blog_pipeline_run
+                    if self.state.pipeline_run_id:
+                        update_db_blog_pipeline_run(
+                            self.state.pipeline_run_id,
+                            status="failed",
+                            phase="producao",
+                            error=_warn[:500],
+                            completed_at=datetime.utcnow(),
+                        )
+                        print("[Pipeline] Run persistida como failed no banco (produção zerada).")
+                except Exception as e_persist:
+                    print(f"[Pipeline] Erro ao persistir failed (produção zerada): {e_persist}")
             return
         self._update_macro(sid, "completed", 100,
             f"✅ Produção concluída! {total_articles} artigos gerados, ~{total_words} palavras", {

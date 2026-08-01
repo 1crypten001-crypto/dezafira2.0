@@ -6,12 +6,14 @@ import html as html_mod
 import httpx
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
-from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+import hashlib
+import secrets
 
 def esc(text):
     """Escape HTML para injecao segura."""
@@ -26,6 +28,20 @@ _hermes_orchestrator = HermesOrchestrator(_ws_hub)
 
 from manager import SniperDirector
 from modules.uploader import YouTubeUploader
+
+# ─── Redis (cache + rate limiting) ──────────────────────────────────
+try:
+    import redis.asyncio as aioredis
+    REDIS_URL = os.getenv("REDIS_URL", "")
+    redis_client = aioredis.from_url(REDIS_URL, decode_responses=True) if REDIS_URL else None
+    if redis_client:
+        print("[Redis] Conectado:", REDIS_URL[:30] + "...")
+except ImportError:
+    redis_client = None
+    print("[Redis] Modulo redis nao instalado — cache desabilitado")
+except Exception as e:
+    redis_client = None
+    print(f"[Redis] Erro ao conectar: {e}")
 from research.spiders.youtube_search import YouTubeSearchSpider
 from modules.database import (
     get_db_channels, 
@@ -39,7 +55,12 @@ from modules.database import (
     SessionLocal,
     get_db_ai_created_channels,
     create_db_ai_created_channel,
-    delete_db_ai_created_channel
+    delete_db_ai_created_channel,
+    get_db_ebook_access_by_email,
+    get_db_book,
+    get_db_course,
+    get_db_books,
+    get_db_courses,
 )
 
 try:
@@ -1498,6 +1519,301 @@ async def ebook_factory_history():
     from modules.database import get_db_ebook_pipeline_runs
     runs = get_db_ebook_pipeline_runs()
     return {"runs": runs}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FABRICA DE CURSOS — Pipeline + Admin CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_course_macro_results = {}
+
+
+@app.post("/api/v1/pipeline/run-course-factory")
+async def run_course_factory(payload: dict):
+    """Inicia a macro-pipeline de criacao de curso."""
+    import asyncio
+    topic = payload.get("topic", "")
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topico e obrigatorio")
+
+    course_title = payload.get("course_title", "")
+    difficulty = payload.get("difficulty", "iniciante")
+    price_cents = payload.get("price_cents", 0)
+    target_modules = payload.get("target_modules", 4)
+    lessons_per_module = payload.get("lessons_per_module", 4)
+
+    task_id = f"crpipe_{uuid.uuid4().hex[:8]}"
+    _course_macro_results[task_id] = {"status": "starting"}
+
+    def _progress_callback(tid, *args, **kwargs):
+        event_type = args[2] if len(args) > 2 else "progress"
+        data = args[3] if len(args) > 3 else {}
+        if isinstance(data, dict):
+            _course_macro_results[tid] = data
+
+    async def _run_and_report():
+        try:
+            from modules.course_pipeline import run_course_macro_pipeline
+            result = await run_course_macro_pipeline(
+                topic=topic, course_title=course_title,
+                difficulty=difficulty, price_cents=price_cents,
+                target_modules=target_modules,
+                lessons_per_module=lessons_per_module,
+                task_id=task_id, on_progress=_progress_callback,
+            )
+            _course_macro_results[task_id] = result
+        except Exception as e:
+            _course_macro_results[task_id] = {"status": "failed", "error": str(e)}
+
+    asyncio.create_task(_run_and_report())
+    return {"task_id": task_id, "status": "starting"}
+
+
+@app.get("/api/v1/pipeline/course-factory/status/{task_id}")
+async def course_factory_status(task_id: str):
+    """Polling do status da macro-pipeline de cursos."""
+    data = _course_macro_results.get(task_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Task nao encontrada")
+    return data
+
+
+@app.get("/api/v1/pipeline/course-factory/history")
+async def course_factory_history():
+    """Historico de execucoes da fabrica de cursos."""
+    from modules.database import get_db_course_pipeline_runs
+    runs = get_db_course_pipeline_runs()
+    return {"runs": runs}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN — CRUD Cursos
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/admin/courses")
+async def admin_list_courses():
+    """Lista todos os cursos (admin)."""
+    from modules.database import get_db_courses
+    return {"courses": get_db_courses()}
+
+
+@app.post("/api/v1/admin/courses")
+async def admin_create_course(payload: dict):
+    """Cria um curso manualmente (admin)."""
+    from modules.database import create_db_course
+    title = payload.get("title", "")
+    if not title:
+        raise HTTPException(status_code=400, detail="Titulo e obrigatorio")
+    course = create_db_course(
+        title=title,
+        topic=payload.get("topic", ""),
+        description=payload.get("description", ""),
+        difficulty=payload.get("difficulty", "iniciante"),
+        price_cents=payload.get("price_cents", 0),
+    )
+    return {"course": course}
+
+
+@app.get("/api/v1/admin/courses/{course_id}")
+async def admin_get_course(course_id: str):
+    """Detalhes do curso (admin)."""
+    from modules.database import get_db_course
+    course = get_db_course(course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado")
+    return {"course": course}
+
+
+@app.put("/api/v1/admin/courses/{course_id}")
+async def admin_update_course(course_id: str, payload: dict):
+    """Atualiza um curso (admin)."""
+    from modules.database import update_db_course
+    ok = update_db_course(course_id, **payload)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado")
+    return {"ok": True}
+
+
+@app.delete("/api/v1/admin/courses/{course_id}")
+async def admin_delete_course(course_id: str):
+    """Deleta um curso (admin)."""
+    from modules.database import delete_db_course
+    ok = delete_db_course(course_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado")
+    return {"ok": True}
+
+
+@app.post("/api/v1/admin/courses/{course_id}/publish")
+async def admin_publish_course(course_id: str):
+    """Publica um curso (admin)."""
+    from modules.database import update_db_course
+    from datetime import datetime
+    ok = update_db_course(course_id, status="published", published_at=datetime.utcnow())
+    if not ok:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado")
+    return {"ok": True}
+
+
+@app.post("/api/v1/admin/courses/{course_id}/unpublish")
+async def admin_unpublish_course(course_id: str):
+    """Despublica um curso (admin)."""
+    from modules.database import update_db_course
+    ok = update_db_course(course_id, status="draft")
+    if not ok:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado")
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN — Learning Paths (Trilhas)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/admin/learning-paths")
+async def admin_list_learning_paths():
+    """Lista trilhas de aprendizado (admin)."""
+    from modules.database import get_db_learning_paths
+    return {"paths": get_db_learning_paths()}
+
+
+@app.post("/api/v1/admin/learning-paths")
+async def admin_create_learning_path(payload: dict):
+    """Cria uma trilha de aprendizado (admin)."""
+    from modules.database import create_db_learning_path
+    title = payload.get("title", "")
+    slug = payload.get("slug", "")
+    if not title or not slug:
+        raise HTTPException(status_code=400, detail="Titulo e slug sao obrigatorios")
+    path = create_db_learning_path(title, slug, payload.get("description", ""))
+    return {"path": path}
+
+
+@app.get("/api/v1/admin/learning-paths/{path_id}")
+async def admin_get_learning_path(path_id: str):
+    """Detalhes da trilha (admin)."""
+    from modules.database import get_db_learning_path
+    path = get_db_learning_path(path_id=path_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="Trilha nao encontrada")
+    return {"path": path}
+
+
+@app.put("/api/v1/admin/learning-paths/{path_id}")
+async def admin_update_learning_path(path_id: str, payload: dict):
+    """Atualiza uma trilha (admin)."""
+    from modules.database import update_db_learning_path
+    ok = update_db_learning_path(path_id, **payload)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trilha nao encontrada")
+    return {"ok": True}
+
+
+@app.delete("/api/v1/admin/learning-paths/{path_id}")
+async def admin_delete_learning_path(path_id: str):
+    """Deleta uma trilha (admin)."""
+    from modules.database import delete_db_learning_path
+    ok = delete_db_learning_path(path_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trilha nao encontrada")
+    return {"ok": True}
+
+
+@app.post("/api/v1/admin/learning-paths/{path_id}/courses")
+async def admin_add_course_to_path(path_id: str, payload: dict):
+    """Adiciona curso a uma trilha (admin)."""
+    from modules.database import add_course_to_learning_path
+    course_id = payload.get("course_id", "")
+    order = payload.get("order", 1)
+    if not course_id:
+        raise HTTPException(status_code=400, detail="course_id e obrigatorio")
+    result = add_course_to_learning_path(path_id, course_id, order)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.delete("/api/v1/admin/learning-paths/{path_id}/courses/{course_id}")
+async def admin_remove_course_from_path(path_id: str, course_id: str):
+    """Remove curso de uma trilha (admin)."""
+    from modules.database import remove_course_from_learning_path
+    ok = remove_course_from_learning_path(path_id, course_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Curso nao encontrado na trilha")
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN — Usuarios e Analytics
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/admin/analytics/overview")
+async def admin_analytics_overview():
+    """Metricas gerais do sistema (admin)."""
+    from modules.database import (
+        SessionLocal, User, Course, Book, Transaction, ComboPurchase,
+        BlogChannel, BlogPost
+    )
+    db = SessionLocal()
+    try:
+        users_total = db.query(User).count()
+        users_admin = db.query(User).filter(User.role == "admin").count()
+        courses_total = db.query(Course).count()
+        courses_published = db.query(Course).filter(Course.status == "published").count()
+        books_total = db.query(Book).count()
+        blogs_total = db.query(BlogChannel).count()
+        posts_total = db.query(BlogPost).count()
+        revenue = db.query(Transaction).filter(
+            Transaction.status == "completed"
+        ).with_entities(Transaction.amount_cents).all()
+        total_revenue = sum(r[0] for r in revenue) if revenue else 0
+        combos = db.query(ComboPurchase).count()
+        return {
+            "users": {"total": users_total, "admins": users_admin},
+            "courses": {"total": courses_total, "published": courses_published},
+            "books": {"total": books_total},
+            "blogs": {"total": blogs_total, "posts": posts_total},
+            "revenue": {"total_cents": total_revenue, "total_brl": total_revenue / 100},
+            "combos": {"total": combos},
+        }
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/admin/analytics/courses")
+async def admin_analytics_courses():
+    """Metricas por curso (admin)."""
+    from modules.database import get_db_courses
+    courses = get_db_courses()
+    return {"courses": courses}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLICO — Learning Paths
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/learning-paths")
+async def list_learning_paths():
+    """Lista trilhas publicadas."""
+    from modules.database import SessionLocal, LearningPath
+    db = SessionLocal()
+    try:
+        paths = db.query(LearningPath).filter(
+            LearningPath.status == "published"
+        ).order_by(LearningPath.created_at.desc()).all()
+        return {"paths": [{"id": p.id, "title": p.title, "slug": p.slug,
+                "description": p.description, "cover_url": p.cover_url} for p in paths]}
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/learning-paths/{slug}")
+async def get_learning_path(slug: str):
+    """Detalhes da trilha por slug."""
+    from modules.database import get_db_learning_path
+    path = get_db_learning_path(slug=slug)
+    if not path:
+        raise HTTPException(status_code=404, detail="Trilha nao encontrada")
+    return {"path": path}
 
 
 @app.get("/api/v1/ebooks")
@@ -4806,6 +5122,457 @@ async def get_macro_result(task_id: str):
         else:
             text = (
                 "Orquestrador Hermes Online.\n"
-                "Aguardando seus comandos para orquestrar as 5 fábricas:\n📝 Blogs | 📗 Livros | 🎓 Cursos | 🎨 Imagens | 🔍 RAG\n\nDigite 'ajuda' para ver os comandos disponíveis."
+                "Aguardando seus comandos para orquestrar as 5 fábricas:\n📝 Blogs | 📗 Livros | 🎓 Cursos | 🎨 Imagens | 🔍 RAG\n\nDigite 'ajuda' para ver todos os comandos disponíveis."
             )
         return (text, None, None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEZAFIRA CLUB — Auth & Member Area Endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from modules.database import (
+    create_db_user, get_db_user_by_email, get_db_user_by_id, get_db_user_by_google_id,
+    update_db_user, create_db_user_session, get_db_user_session, delete_db_user_sessions,
+    create_db_password_reset, get_db_password_reset, use_db_password_reset,
+    add_db_user_points, get_db_user_total_points, get_db_user_points_history,
+    get_db_user_badges, award_db_user_badge, get_db_user_streak, update_db_user_streak,
+    get_db_global_ranking, get_db_admin_users, get_db_course_tracks, get_db_course_track,
+    create_db_course_track, update_db_lesson_progress, get_db_track_lessons_progress,
+    create_db_combo, get_db_combos, get_db_combo_by_id, get_db_combo_by_slug,
+    create_db_combo_purchase, get_db_combo_purchases, delete_db_combo,
+    get_db_books, get_db_courses, get_db_book, get_db_course,
+)
+import bcrypt as _bcrypt_mod
+from datetime import datetime, timedelta
+
+def _hash_password(password: str) -> str:
+    return _bcrypt_mod.hashpw(password.encode("utf-8"), _bcrypt_mod.gensalt()).decode("utf-8")
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return _bcrypt_mod.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+AUTH_SECRET = os.getenv("AUTH_SECRET", os.getenv("SECRET_KEY", "dezafira-club-secret-change-me"))
+JWT_EXPIRE_HOURS = 24 * 7  # 7 dias
+
+def _generate_jwt_token(user_id: str) -> str:
+    """Gera um token simples (HMAC-SHA256). Para JWT real, usar python-jose."""
+    payload = f"{user_id}:{int(datetime.utcnow().timestamp()) + JWT_EXPIRE_HOURS * 3600}"
+    sig = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
+    return f"{payload}:{sig}"
+
+def _verify_jwt_token(token: str) -> str | None:
+    """Retorna user_id se token válido, senão None."""
+    try:
+        parts = token.split(":")
+        if len(parts) != 3:
+            return None
+        user_id, exp_ts, sig = parts
+        payload = f"{user_id}:{exp_ts}"
+        expected = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
+        if sig != expected:
+            return None
+        if int(exp_ts) < int(datetime.utcnow().timestamp()):
+            return None
+        return user_id
+    except Exception:
+        return None
+
+async def get_current_user(authorization: str = Header(None)):
+    """Dependency: extrai user do header Authorization: Bearer <token>."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Token ausente")
+    token = authorization.replace("Bearer ", "")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+
+async def get_optional_user(authorization: str = Header(None)):
+    """Dependency: retorna user ou None (sem erro 401)."""
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        return None
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        return None
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+
+async def require_admin(user=Depends(get_current_user)):
+    """Dependency: exige role admin."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
+
+
+# ─── AUTH ─────────────────────────────────────────────────────────────
+
+@app.post("/api/v1/auth/register")
+async def auth_register(payload: dict):
+    email = payload.get("email", "").strip().lower()
+    name = payload.get("name", "").strip()
+    password = payload.get("password", "")
+    if not email or not name or not password:
+        raise HTTPException(status_code=400, detail="email, name e password são obrigatórios")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password deve ter no mínimo 6 caracteres")
+    existing = get_db_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=409, detail="Email já cadastrado")
+    pw_hash = _hash_password(password)
+    result = create_db_user(email=email, name=name, password_hash=pw_hash)
+    if not result:
+        raise HTTPException(status_code=500, detail="Erro ao criar usuário")
+    token = _generate_jwt_token(result["id"])
+    expires = datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
+    create_db_user_session(result["id"], token, expires)
+    add_db_user_points(result["id"], 10, "welcome_bonus")
+    award_db_user_badge(result["id"], "first_login", "Primeiro Acesso", "🎉")
+    update_db_user_streak(result["id"])
+    return {"token": token, "user": result}
+
+
+@app.post("/api/v1/auth/login")
+async def auth_login(payload: dict):
+    email = payload.get("email", "").strip().lower()
+    password = payload.get("password", "")
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="email e password são obrigatórios")
+    user = get_db_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    if not user.password_hash:
+        raise HTTPException(status_code=401, detail="Conta usa login social. Use Google.")
+    if not _verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    token = _generate_jwt_token(user.id)
+    expires = datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
+    create_db_user_session(user.id, token, expires)
+    add_db_user_points(user.id, 5, "daily_login")
+    update_db_user_streak(user.id)
+    return {
+        "token": token,
+        "user": {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+    }
+
+
+@app.post("/api/v1/auth/google")
+async def auth_google(payload: dict):
+    """Login/cadastro via Google OAuth (token do frontend via NextAuth.js)."""
+    google_id = payload.get("google_id")
+    email = payload.get("email", "").strip().lower()
+    name = payload.get("name", "")
+    avatar_url = payload.get("avatar_url")
+    if not google_id or not email:
+        raise HTTPException(status_code=400, detail="google_id e email são obrigatórios")
+    user = get_db_user_by_google_id(google_id)
+    if not user:
+        existing = get_db_user_by_email(email)
+        if existing:
+            update_db_user(existing.id, google_id=google_id, avatar_url=avatar_url or existing.avatar_url)
+            user = get_db_user_by_id(existing.id)
+        else:
+            result = create_db_user(email=email, name=name, google_id=google_id, avatar_url=avatar_url)
+            if not result:
+                raise HTTPException(status_code=500, detail="Erro ao criar usuário")
+            user = get_db_user_by_id(result["id"])
+            add_db_user_points(result["id"], 10, "welcome_bonus")
+            award_db_user_badge(result["id"], "first_login", "Primeiro Acesso", "🎉")
+    token = _generate_jwt_token(user.id)
+    expires = datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
+    create_db_user_session(user.id, token, expires)
+    update_db_user_streak(user.id)
+    return {
+        "token": token,
+        "user": {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+    }
+
+
+@app.post("/api/v1/auth/forgot-password")
+async def auth_forgot_password(payload: dict):
+    email = payload.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email é obrigatório")
+    user = get_db_user_by_email(email)
+    if not user:
+        # Por segurança, sempre retorna OK
+        return {"message": "Se o email existir, um link de recuperação foi enviado."}
+    token = secrets.token_urlsafe(32)
+    expires = datetime.utcnow() + timedelta(hours=1)
+    create_db_password_reset(user.id, token, expires)
+    # TODO: Enviar email com link. Por agora retorna o token diretamente.
+    print(f"[Auth] Password reset para {email}: token={token}")
+    return {"message": "Se o email existir, um link de recuperação foi enviado.", "debug_token": token}
+
+
+@app.post("/api/v1/auth/reset-password")
+async def auth_reset_password(payload: dict):
+    token = payload.get("token", "")
+    new_password = payload.get("new_password", "")
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="token e new_password são obrigatórios")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password deve ter no mínimo 6 caracteres")
+    pr = get_db_password_reset(token)
+    if not pr:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+    pw_hash = _hash_password(new_password)
+    update_db_user(pr.user_id, password_hash=pw_hash)
+    use_db_password_reset(token)
+    return {"message": "Senha redefinida com sucesso"}
+
+
+@app.get("/api/v1/auth/me")
+async def auth_me(user=Depends(get_current_user)):
+    total_points = get_db_user_total_points(user["id"])
+    badges = get_db_user_badges(user["id"])
+    streak = get_db_user_streak(user["id"])
+    return {**user, "total_points": total_points, "badges": badges, "streak": streak}
+
+
+@app.post("/api/v1/auth/logout")
+async def auth_logout(user=Depends(get_current_user)):
+    delete_db_user_sessions(user["id"])
+    return {"message": "Logout realizado"}
+
+
+# ─── MEMBER AREA ──────────────────────────────────────────────────────
+
+@app.get("/api/v1/member/dashboard")
+async def member_dashboard(user=Depends(get_current_user)):
+    total_points = get_db_user_total_points(user["id"])
+    badges = get_db_user_badges(user["id"])
+    streak = get_db_user_streak(user["id"])
+    tracks = get_db_course_tracks(user["id"])
+    from modules.database import get_db_ebook_access_by_email
+    ebooks = get_db_ebook_access_by_email(user["email"])
+    ranking = get_db_global_ranking(limit=20)
+    user_position = next((r["position"] for r in ranking if r["user_id"] == user["id"]), None)
+    return {
+        "user": user,
+        "total_points": total_points,
+        "badges": badges,
+        "streak": streak,
+        "courses_in_progress": len([t for t in tracks if not t.get("completed")]),
+        "courses_completed": len([t for t in tracks if t.get("completed")]),
+        "ebooks_owned": len(ebooks),
+        "ranking_position": user_position,
+        "ranking": ranking,
+    }
+
+
+@app.get("/api/v1/member/points")
+async def member_points(user=Depends(get_current_user)):
+    total = get_db_user_total_points(user["id"])
+    history = get_db_user_points_history(user["id"])
+    return {"total_points": total, "history": history}
+
+
+@app.get("/api/v1/member/badges")
+async def member_badges(user=Depends(get_current_user)):
+    return {"badges": get_db_user_badges(user["id"])}
+
+
+@app.get("/api/v1/member/streak")
+async def member_streak(user=Depends(get_current_user)):
+    return get_db_user_streak(user["id"])
+
+
+@app.get("/api/v1/member/courses")
+async def member_courses(user=Depends(get_current_user)):
+    tracks = get_db_course_tracks(user["id"])
+    result = []
+    for t in tracks:
+        course = get_db_course(t["course_id"])
+        if course:
+            result.append({**t, "course_title": course.get("title", ""), "course_cover": course.get("cover_url", "")})
+    return {"courses": result}
+
+
+@app.post("/api/v1/member/courses/{course_id}/enroll")
+async def member_enroll_course(course_id: str, user=Depends(get_current_user)):
+    existing = get_db_course_track(course_id, user["id"])
+    if existing:
+        return {"message": "Já inscrito", "track_id": existing.id}
+    track = create_db_course_track(course_id, user["id"])
+    if not track:
+        raise HTTPException(status_code=500, detail="Erro ao inscrever")
+    add_db_user_points(user["id"], 20, "course_enrolled", course_id)
+    return {"message": "Inscrito com sucesso", "track_id": track["id"]}
+
+
+@app.post("/api/v1/member/lessons/{lesson_id}/complete")
+async def member_complete_lesson(lesson_id: str, payload: dict = {}, user=Depends(get_current_user)):
+    track_id = payload.get("track_id", "")
+    if not track_id:
+        raise HTTPException(status_code=400, detail="track_id é obrigatório")
+    score = payload.get("score_pct")
+    update_db_lesson_progress(track_id, lesson_id, "completed", score)
+    add_db_user_points(user["id"], 15, "lesson_completed", lesson_id)
+    award_db_user_badge(user["id"], "first_lesson", "Primeira Aula", "📚")
+    update_db_user_streak(user.id if isinstance(user, dict) else user["id"])
+    return {"message": "Aula concluída"}
+
+
+@app.get("/api/v1/ranking")
+async def global_ranking():
+    return {"ranking": get_db_global_ranking()}
+
+
+@app.get("/api/v1/ebooks/{book_id}/chapters")
+async def ebook_chapters_api(book_id: str):
+    book = get_db_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Livro não encontrado")
+    from modules.database import get_db_book_chapters_for_reader
+    chapters = get_db_book_chapters_for_reader(book_id)
+    return {"book": book, "chapters": chapters}
+
+
+# ─── COMBOS ───────────────────────────────────────────────────────────
+
+@app.get("/api/v1/combos")
+async def list_combos():
+    return {"combos": get_db_combos()}
+
+
+@app.get("/api/v1/combos/{slug}")
+async def get_combo_by_slug(slug: str):
+    combo = get_db_combo_by_slug(slug)
+    if not combo:
+        raise HTTPException(status_code=404, detail="Combo não encontrado")
+    ebook = get_db_book(combo["ebook_id"]) if combo.get("ebook_id") else None
+    course = get_db_course(combo["course_id"]) if combo.get("course_id") else None
+    return {**combo, "ebook": ebook, "course": course}
+
+
+@app.post("/api/v1/combos")
+async def create_combo_endpoint(payload: dict, user=Depends(require_admin)):
+    name = payload.get("name", "")
+    if not name:
+        raise HTTPException(status_code=400, detail="name é obrigatório")
+    combo = create_db_combo(
+        name=name, description=payload.get("description", ""),
+        ebook_id=payload.get("ebook_id"), course_id=payload.get("course_id"),
+        original_price_cents=payload.get("original_price_cents", 0),
+        combo_price_cents=payload.get("combo_price_cents", 0),
+        slug=payload.get("slug")
+    )
+    if not combo:
+        raise HTTPException(status_code=500, detail="Erro ao criar combo")
+    return combo
+
+
+@app.post("/api/v1/combos/{combo_id}/purchase")
+async def purchase_combo(combo_id: str, payload: dict):
+    combo = get_db_combo_by_id(combo_id)
+    if not combo:
+        raise HTTPException(status_code=404, detail="Combo não encontrado")
+    buyer_email = payload.get("buyer_email", "")
+    buyer_name = payload.get("buyer_name", "")
+    payment_method = payload.get("payment_method", "manual")
+    if not buyer_email:
+        raise HTTPException(status_code=400, detail="buyer_email é obrigatório")
+    purchase = create_db_combo_purchase(
+        combo_id=combo_id, buyer_email=buyer_email, buyer_name=buyer_name,
+        amount_cents=combo["combo_price_cents"], payment_method=payment_method
+    )
+    if not purchase:
+        raise HTTPException(status_code=500, detail="Erro ao processar compra")
+    return {**purchase, "combo_name": combo["name"], "amount_cents": combo["combo_price_cents"]}
+
+
+@app.post("/api/v1/combos/{combo_id}/confirm")
+async def confirm_combo_purchase(combo_id: str, payload: dict):
+    """Confirma pagamento do combo e gera access tokens para ebook + curso."""
+    combo = get_db_combo_by_id(combo_id)
+    if not combo:
+        raise HTTPException(status_code=404, detail="Combo não encontrado")
+    buyer_email = payload.get("buyer_email", "")
+    if not buyer_email:
+        raise HTTPException(status_code=400, detail="buyer_email é obrigatório")
+    ebook_token = None
+    course_token = f"ctk_{uuid.uuid4().hex[:16]}"
+    if combo.get("ebook_id"):
+        from modules.database import _generate_ebook_token
+        ebook_token = _generate_ebook_token(combo["ebook_id"], buyer_email)
+    purchases = get_db_combo_purchases(user_email=buyer_email, combo_id=combo_id)
+    if purchases:
+        from modules.database import SessionLocal as _SL
+        from modules.database import ComboPurchase as _CP
+        _db = _SL()
+        try:
+            p = _db.query(_CP).filter(_CP.id == purchases[0]["id"]).first()
+            if p:
+                p.status = "confirmed"
+                p.ebook_access_token = ebook_token
+                p.course_access_token = course_token
+                _db.commit()
+        except Exception:
+            _db.rollback()
+        finally:
+            _db.close()
+    return {
+        "status": "confirmed",
+        "ebook_token": ebook_token,
+        "course_token": course_token,
+        "combo_name": combo["name"],
+    }
+
+
+@app.get("/api/v1/admin/users")
+async def admin_list_users(user=Depends(require_admin)):
+    return {"users": get_db_admin_users()}
+
+
+@app.get("/api/v1/admin/stats")
+async def admin_stats(user=Depends(require_admin)):
+    from modules.database import SessionLocal as _SL
+    from modules.database import User, UserPoints, BlogPost, Book, Course, Combo, ComboPurchase
+    _db = _SL()
+    try:
+        total_users = _db.query(User).count()
+        total_points = _db.query(UserPoints).count()
+        total_blogs = _db.query(BlogPost).count()
+        total_books = _db.query(Book).count()
+        total_courses = _db.query(Course).count()
+        total_combos = _db.query(Combo).count()
+        total_combo_sales = _db.query(ComboPurchase).filter(ComboPurchase.status == "confirmed").count()
+        return {
+            "total_users": total_users,
+            "total_points_records": total_points,
+            "total_blogs": total_blogs,
+            "total_books": total_books,
+            "total_courses": total_courses,
+            "total_combos": total_combos,
+            "total_combo_sales": total_combo_sales,
+        }
+    finally:
+        _db.close()
+
+
+@app.post("/api/v1/admin/combos")
+async def admin_create_combo(payload: dict, user=Depends(require_admin)):
+    combo = create_db_combo(
+        name=payload.get("name", ""), description=payload.get("description", ""),
+        ebook_id=payload.get("ebook_id"), course_id=payload.get("course_id"),
+        original_price_cents=payload.get("original_price_cents", 0),
+        combo_price_cents=payload.get("combo_price_cents", 0),
+        slug=payload.get("slug")
+    )
+    if not combo:
+        raise HTTPException(status_code=500, detail="Erro ao criar combo")
+    return combo
+
+
+@app.delete("/api/v1/admin/combos/{combo_id}")
+async def admin_delete_combo(combo_id: str, user=Depends(require_admin)):
+    ok = delete_db_combo(combo_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Combo não encontrado")
+    return {"message": "Combo removido"}
