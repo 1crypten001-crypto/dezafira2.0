@@ -210,8 +210,21 @@ img{max-width:100%;height:auto}
 .posts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
 .post-card{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:12px;overflow:hidden;transition:all .2s ease;display:flex;flex-direction:column}
 .post-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08)}
-.card-image{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;object-position:center;background:var(--primary-light,#e0e7ff)}
-.card-image-placeholder{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-light,#e0e7ff),var(--primary,#6366f1));color:#fff;font-size:48px}
+.card-image{width:100%;height:180px;object-fit:cover;object-position:center;background:var(--primary-light,#e0e7ff)}
+body.mode-discover .card-image{height:auto;aspect-ratio:16/9}
+body.mode-discover .card-image-placeholder{aspect-ratio:16/9;height:auto}
+body.mode-discover .featured-image{aspect-ratio:16/9;max-height:none}
+/* Badges de qualidade (score LiLi + status) */
+.quality-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.qb{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;line-height:1.4}
+.qb-score{background:rgba(var(--primary-rgb,99,102,241),.12);color:var(--primary,#6366f1)}
+.qb-score.good{background:rgba(34,197,94,.14);color:#16a34a}
+.qb-score.mid{background:rgba(245,158,11,.14);color:#d97706}
+.qb-score.bad{background:rgba(239,68,68,.14);color:#dc2626}
+.qb-status{background:rgba(255,255,255,.06);color:rgba(255,255,255,.6)}
+.qb-status.published{background:rgba(34,197,94,.14);color:#22c55e}
+.qb-status.draft{background:rgba(148,163,184,.14);color:#94a3b8}
+.card-image-placeholder{width:100%;height:180px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-light,#e0e7ff),var(--primary,#6366f1));color:#fff;font-size:48px}
 .card-body{padding:16px;flex:1;display:flex;flex-direction:column}
 .post-title{font-size:15px;font-weight:600;color:var(--text,#1e293b);margin-bottom:8px;line-height:1.4}
 .post-excerpt{font-size:13px;color:var(--text-light,#64748b);line-height:1.5;flex:1;margin-bottom:12px}
@@ -224,7 +237,7 @@ img{max-width:100%;height:auto}
 .post-viewer{max-width:740px;margin:0 auto}
 .back-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);font-size:13px;font-weight:500;color:var(--text,#1e293b);margin-bottom:24px;transition:all .15s ease}
 .back-link:hover{background:var(--tag-bg,#f1f5f9)}
-.featured-image{width:100%;border-radius:12px;margin-bottom:24px;aspect-ratio:16/9;object-fit:cover;object-position:center;background:var(--primary-light,#e0e7ff)}
+.featured-image{width:100%;border-radius:12px;margin-bottom:24px;max-height:420px;object-fit:cover;object-position:center;background:var(--primary-light,#e0e7ff)}
 .post-viewer h1{font-size:28px;font-weight:700;margin-bottom:12px;line-height:1.3}
 .post-meta-bar{display:flex;flex-wrap:wrap;gap:12px 16px;font-size:13px;color:var(--text-light,#94a3b8);margin-bottom:16px}
 .post-meta-bar .meta-item{display:inline-flex;align-items:center;gap:4px}
@@ -351,7 +364,8 @@ def _get_categories(nicho: str) -> list:
 def _page_frame(title: str, body_html: str, theme_css: str = "",
                description: str = "", image_url: str = "",
                canonical_url: str = "", schema_json: str = "",
-               theme: dict = None, slug: str = "", brand_config: dict = None) -> str:
+               theme: dict = None, slug: str = "", brand_config: dict = None,
+               body_class: str = "") -> str:
     """Gera pagina HTML completa com SEO, dark mode, e branding profissional.
     slug: usado para link dinamico no cookie banner.
     """
@@ -434,7 +448,7 @@ def _page_frame(title: str, body_html: str, theme_css: str = "",
 {_DARK_MODE_JS}
 <style>{_BASE_CSS}{theme_css}</style>
 </head>
-<body>
+<body class="{body_class}">
 {body_html}
 {_cookie_banner_html(slug)}
 </body>
@@ -603,6 +617,16 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
         pid = esc(p["id"])
         tit = esc(p["title"])
 
+        # Badges de qualidade (score LiLi + status)
+        _lsc = p.get("lili_score")
+        _st = (p.get("status") or "draft")
+        _badges_html = ""
+        if _lsc is not None:
+            _bcls = "good" if _lsc >= 80 else ("mid" if _lsc >= 50 else "bad")
+            _badges_html += f'<span class="qb qb-score {_bcls}">🌸 {_lsc}/100</span>'
+        _badges_html += f'<span class="qb qb-status {"published" if _st == "published" else "draft"}">{"✓ Publicado" if _st == "published" else "⏳ Rascunho"}</span>'
+        badges = f'<div class="quality-badges">{_badges_html}</div>'
+
         # Delay nos primeiros cards para efeito cascata
         delay = min(i * 0.1, 1.0)
         cards_html += f"""
@@ -616,6 +640,7 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
               <span>&#128196; {wc} palavras</span>
               <span>&#9201; {rt} min</span>
             </div>
+            {badges}
             {f'<div class="post-tags">{tags}</div>' if tags else ''}
             <span class="read-more">Ler artigo &rarr;</span>
           </div>
@@ -638,7 +663,9 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
 {_SCROLL_OBSERVER_JS}"""
 
     title = f"{blog_name} &mdash; Blog sobre {blog_niche}" if blog_niche else blog_name
-    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme, slug=slug, brand_config=brand_config)
+    _discover = blog_info.get("is_discover", False)
+    return _page_frame(title, body, theme_css, description=desc, canonical_url=canonical, theme=theme, slug=slug, brand_config=brand_config,
+                       body_class="mode-discover" if _discover else "")
 
 
 def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts: list = None) -> str:
@@ -657,6 +684,12 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     keywords = post.get("keywords", "")
     tags = "".join(f'<span class="tag">{esc(k.strip())}</span>' for k in keywords.split(",") if k.strip())
     author_name = esc(post.get("author") or blog_info.get("name", "Equipe"))
+    _lsc_art = post.get("lili_score")
+    if _lsc_art is not None:
+        _bcls_art = "good" if _lsc_art >= 80 else ("mid" if _lsc_art >= 50 else "bad")
+        score_chip = f'<span class="meta-item qb qb-score {_bcls_art}">🌸 {_lsc_art}/100</span>'
+    else:
+        score_chip = ""
 
     theme = detect_theme(blog_info.get("nicho", ""))
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
@@ -858,7 +891,11 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
       </div>
     </section>"""
 
-    # Schema.org
+    canonical = f"https://dezafira.com.br/blog/{slug}?post={esc(post['id'])}"
+    excerpt_clean = (post.get("excerpt") or "")[:200]
+    img_url = img or ""
+
+    # Schema.org Article enriquecido (E-E-A-T)
     schema_obj = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
@@ -866,13 +903,16 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
         "description": (post.get("excerpt") or "")[:500],
         "wordCount": wc,
         "datePublished": post.get("created_at", ""),
-        "author": {"@type": "Person", "name": real_author_name}
+        "dateModified": post.get("published_at") or post.get("created_at", ""),
+        "inLanguage": blog_info.get("lang", "pt-BR"),
+        "mainEntityOfPage": canonical,
+        "articleSection": ((post.get("keywords") or "").split(",")[0].strip() if post.get("keywords") else blog_niche),
+        "author": {"@type": "Person", "name": real_author_name},
+        "publisher": {"@type": "Organization", "name": blog_name}
     }
+    if img_url:
+        schema_obj["image"] = img_url
     schema = json.dumps(schema_obj, ensure_ascii=False, indent=2)
-
-    canonical = f"https://dezafira.com.br/blog/{slug}?post={esc(post['id'])}"
-    excerpt_clean = (post.get("excerpt") or "")[:200]
-    img_url = img or ""
 
     body = f"""{_get_header_html(slug, blog_info["name"], blog_info.get("nicho", ""), brand_config=brand_config)}
 <div class="reading-progress"><div class="reading-progress-bar" id="readingProgress"></div></div>
@@ -883,6 +923,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     <h1>{title}</h1>
     <div class="post-meta-bar">
       {author_html}
+      {score_chip}
       <span class="meta-item">&#128197; {dt_str}</span>
       <span class="meta-item">&#128196; {wc} palavras</span>
       <span class="meta-item">&#9201; {rt} min de leitura</span>
@@ -902,9 +943,11 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
 {_READING_PROGRESS_JS}
 {_SCROLL_OBSERVER_JS}"""
 
+    _discover = blog_info.get("is_discover", False)
     return _page_frame(f"{title} &mdash; {blog_name}", body, theme_css,
                        description=excerpt_clean, image_url=img_url,
-                       canonical_url=canonical, schema_json=schema, theme=theme, slug=slug, brand_config=brand_config)
+                       canonical_url=canonical, schema_json=schema, theme=theme, slug=slug, brand_config=brand_config,
+                       body_class="mode-discover" if _discover else "")
 
 
 # ─── STATIC PAGES ────────────────────────────────────────────────────

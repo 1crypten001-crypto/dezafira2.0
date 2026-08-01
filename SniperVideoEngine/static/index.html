@@ -137,6 +137,18 @@
   .cs-name{font-size:11px}
 }
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* Busca global (Ctrl+K) */
+  .search-modal{position:fixed;inset:0;background:rgba(7,8,11,.82);backdrop-filter:blur(6px);z-index:400;display:none;align-items:flex-start;justify-content:center;padding:80px 16px 16px}
+  .search-box{width:100%;max-width:640px;background:#0b0c12;border:1px solid #1e2030;border-radius:14px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+  .search-box input{width:100%;padding:16px 18px;background:#07080b;border:none;border-bottom:1px solid #14161f;color:#e8edf2;font-size:15px;font-family:inherit;outline:none}
+  .search-box input:focus{border-bottom-color:#6366f1}
+  .search-results{max-height:55vh;overflow-y:auto;padding:6px}
+  .search-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:#8a91a5;text-decoration:none;transition:all .15s ease;font-size:13px}
+  .search-item:hover{background:#12141e;color:#e8edf2}
+  .search-item .si-title{font-weight:600;color:#e8edf2;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .search-item .si-blog{font-size:11px;color:#5c6370;flex-shrink:0}
+  .search-empty{padding:28px;text-align:center;color:#5c6370;font-size:13px}
+  .search-kbd{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:10px;color:#3b4050;border:1px solid #1e2030;border-radius:4px;padding:2px 6px}
   .toast{position:fixed;bottom:24px;right:24px;background:#0b0c12;border:1px solid #1e2030;padding:12px 20px;border-radius:10px;font-size:13px;color:#e8edf2;transform:translateY(100px);opacity:0;transition:all .3s ease;z-index:300}
   .toast.show{transform:translateY(0);opacity:1}
   .pipeline-input-area{background:#0b0c12;border:1px solid #14161f;border-radius:14px;padding:20px 24px;margin-bottom:24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
@@ -257,8 +269,8 @@
       <a class="nav-item active" data-page="dashboard" title="Dashboard" href="#dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="nav-label">Dashboard</span></a>
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
       <a class="nav-item" data-page="blogs" title="Blogs & Pipeline" href="#blogs" onclick="navigate('blogs')"><span class="icon">📝</span><span class="nav-label">Blogs & Pipeline</span> <span class="badge" id="blogCount">-</span></a>
+      <a class="nav-item" data-page="books" title="Fabrica de Ebooks" href="#books" onclick="navigate('books')"><span class="icon">📚</span><span class="nav-label">Fabrica de Ebooks</span> <span class="badge" id="bookCount">-</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
-      <a class="nav-item" data-page="books" title="Livros" href="#books" onclick="navigate('books')"><span class="icon">📚</span><span class="nav-label">Livros</span> <span class="badge" id="bookCount">-</span></a>
       <a class="nav-item" data-page="courses" title="Cursos" href="#courses" onclick="navigate('courses')"><span class="icon">🎓</span><span class="nav-label">Cursos</span> <span class="badge" id="courseCount">-</span></a>
       <a class="nav-item" data-page="images" title="Imagens" href="#images" onclick="navigate('images')"><span class="icon">🖼️</span><span class="nav-label">Imagens</span></a>
       <div class="nav-section" style="margin-top:8px">Inteligencia</div>
@@ -277,6 +289,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="status"><span class="dot"></span>Online</div>
+        <button class="btn btn-sm" onclick="openSearch()" title="Buscar artigos (Ctrl+K)">🔍 Buscar</button>
         <button class="btn btn-sm" onclick="location.reload()">🔄 Atualizar</button>
       </div>
     </div>
@@ -358,11 +371,41 @@
     </div>
 
     <div class="page" id="page-books">
-      <div class="page-header"><h2>📚 Livros</h2><p>Gerencie livros gerados pela Fabrica de Livros</p></div>
+      <div class="page-header"><h2>📚 Fábrica de Ebooks</h2><p>Crie ebooks profissionais com IA — pesquisa de dores, conteúdo e página de vendas</p></div>
       <div class="stats-grid" id="bookStats"></div>
+      <!-- Pipeline Visual -->
+      <div class="section" id="ebookPipelineSection" style="display:none">
+        <div class="section-header"><h3>🏭 Pipeline Ativa</h3><span class="tag tag-blue" id="ebookPipelineStatus">-</span></div>
+        <div class="conveyor" id="ebookConveyor">
+          <div class="stage" id="eb-fundacao"><div class="stage-icon">🔍</div><div class="stage-label">Fundação</div><div class="agents"><span class="agent-tag">Hermes</span><span class="agent-tag">Dona Célia</span></div><div class="progress-bar"><div class="progress-fill" id="eb-fundacao-bar"></div></div><div class="stage-msg" id="eb-fundacao-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="eb-pesquisa"><div class="stage-icon">🧠</div><div class="stage-label">Pesquisa</div><div class="agents"><span class="agent-tag">Minerador</span><span class="agent-tag">Obscura</span></div><div class="progress-bar"><div class="progress-fill" id="eb-pesquisa-bar"></div></div><div class="stage-msg" id="eb-pesquisa-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="eb-oferta"><div class="stage-icon">📋</div><div class="stage-label">Oferta</div><div class="agents"><span class="agent-tag">Copywriter</span></div><div class="progress-bar"><div class="progress-fill" id="eb-oferta-bar"></div></div><div class="stage-msg" id="eb-oferta-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="eb-producao"><div class="stage-icon">📝</div><div class="stage-label">Produção</div><div class="agents"><span class="agent-tag">Carlão</span><span class="agent-tag">LiLi</span></div><div class="progress-bar"><div class="progress-fill" id="eb-producao-bar"></div></div><div class="stage-msg" id="eb-producao-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="eb-refino"><div class="stage-icon">🎨</div><div class="stage-label">Refino</div><div class="agents"><span class="agent-tag">Formatter</span></div><div class="progress-bar"><div class="progress-fill" id="eb-refino-bar"></div></div><div class="stage-msg" id="eb-refino-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="eb-entrega"><div class="stage-icon">🚀</div><div class="stage-label">Entrega</div><div class="agents"><span class="agent-tag">Francisco</span></div><div class="progress-bar"><div class="progress-fill" id="eb-entrega-bar"></div></div><div class="stage-msg" id="eb-entrega-msg"></div></div>
+        </div>
+      </div>
+      <!-- Criar Novo Ebook -->
       <div class="section">
-        <div class="section-header"><h3>📚 Biblioteca</h3></div>
-        <div class="card-table" id="bookList"><div class="empty">Nenhum livro cadastrado</div></div>
+        <div class="section-header"><h3>✨ Criar Novo Ebook</h3></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;padding:16px">
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Nicho *</label><input id="ebNiche" type="text" placeholder="ex: finanças pessoais, saúde, cristão" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Título (opcional)</label><input id="ebTitle" type="text" placeholder="Deixe vazio para IA sugerir" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Estilo Visual</label><select id="ebStyle" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"><option value="minimalista">Minimalista Premium</option><option value="feminino">Feminino Acolhedor</option><option value="moderno">Moderno e Estratégico</option><option value="editorial">Editorial de Revista</option><option value="didatico">Didático e Prático</option></select></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Preço (R$)</label><input id="ebPrice" type="number" min="17" max="97" value="17" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Capítulos</label><input id="ebChapters" type="number" min="5" max="15" value="8" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="startEbookPipeline()" id="ebStartBtn" style="width:100%">🏭 Iniciar Fábrica de Ebooks</button></div>
+        </div>
+      </div>
+      <!-- Lista de Ebooks -->
+      <div class="section">
+        <div class="section-header"><h3>📚 Biblioteca de Ebooks</h3></div>
+        <div class="card-table" id="bookList"><div class="empty">Nenhum ebook cadastrado</div></div>
       </div>
     </div>
     <div class="page" id="page-courses">
@@ -418,6 +461,14 @@
       </div>
     </div>
   </main>
+</div>
+<!-- Busca global (Ctrl+K) -->
+<div class="search-modal" id="searchModal" onclick="if(event.target===this)closeSearch()">
+  <div class="search-box" style="position:relative">
+    <input type="text" id="searchInput" placeholder="Buscar artigos em todos os blogs..." oninput="doSearch()" autocomplete="off">
+    <span class="search-kbd">Ctrl+K</span>
+    <div class="search-results" id="searchResults"><div class="search-empty">Digite ao menos 2 caracteres...</div></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -514,6 +565,43 @@ function toggleSidebarCollapse(){
   updateCollapseIcon();
 }
 function savedCollapsed(){try{return localStorage.getItem("dz_sidebar_collapsed")==="1"}catch(e){return false}}
+var _searchTimer=null;
+function openSearch(){
+  var m=$("searchModal");if(!m)return;
+  m.style.display="flex";
+  var i=$("searchInput");if(i){i.value="";i.focus()}
+  var r=$("searchResults");if(r)r.innerHTML='<div class="search-empty">Digite ao menos 2 caracteres...</div>';
+}
+function closeSearch(){
+  var m=$("searchModal");if(!m)return;
+  m.style.display="none";
+  var r=$("searchResults");if(r)r.innerHTML='<div class="search-empty">Digite ao menos 2 caracteres...</div>';
+}
+async function doSearch(){
+  var i=$("searchInput"),r=$("searchResults");
+  if(!i||!r)return;
+  var q=i.value.trim();
+  if(q.length<2){r.innerHTML='<div class="search-empty">Digite ao menos 2 caracteres...</div>';return}
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(async function(){
+    r.innerHTML='<div class="search-empty"><div class="spinner" style="margin:0 auto 8px"></div>Buscando...</div>';
+    var res=await api("/api/v1/search?q="+encodeURIComponent(q));
+    var items=res&&res.results?res.results:[];
+    if(!items.length){r.innerHTML='<div class="search-empty">Nenhum resultado para "'+escapeHtml(q)+'"</div>';return}
+    r.innerHTML=items.map(function(it){
+      var sc=it.lili_score;
+      var scHtml='';
+      if(sc!==null&&sc!==undefined){
+        var cls=sc>=80?'good':(sc>=50?'mid':'bad');
+        scHtml='<span class="qb qb-score '+cls+'">🌸 '+sc+'</span>';
+      }
+      var stHtml=it.status==='published'?'<span class="qb qb-status published">✓ Publicado</span>':'<span class="qb qb-status draft">⏳ Rascunho</span>';
+      return '<a class="search-item" href="'+it.url+'" target="_blank">'+
+        '<span class="si-title">'+escapeHtml(it.title)+'</span>'+
+        '<span class="si-blog">'+escapeHtml(it.blog_name||'')+'</span>'+scHtml+stHtml+'</a>';
+    }).join('');
+  },250);
+}
 function initSidebarState(){
   if(!isMobile()&&savedCollapsed())document.body.classList.add("sidebar-collapsed");
   updateCollapseIcon();
@@ -531,10 +619,21 @@ function initSidebarState(){
 initSidebarState();
 document.addEventListener("keydown",function(e){
   var t=e.target;
-  if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT"||t.isContentEditable))return;
+  var inField=t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT"||t.isContentEditable);
+  // Esc fecha a busca (mesmo dentro do input da busca)
+  if(e.key==="Escape"&&$("searchModal")&&$("searchModal").style.display==="flex"){
+    closeSearch();
+    if(inField)t.blur();
+    return;
+  }
+  if(inField)return;
   if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==="b"){
     e.preventDefault();
     if(isMobile())toggleSidebar();else toggleSidebarCollapse();
+  }
+  if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==="k"){
+    e.preventDefault();
+    openSearch();
   }
 });
 
@@ -1837,20 +1936,81 @@ async function loadBooks(){
   var statsEl=$("bookStats"),listEl=$("bookList");
   if(!statsEl)return;
   try{
-    var data=await api("/api/v1/factory/dashboard");
-    var booksCount=data.books_count||0;
-    statsEl.innerHTML='<div class="stat-card"><div class="label">Total de Livros</div><div class="value">'+booksCount+'</div></div>'+
-      '<div class="stat-card"><div class="label">Capitulos</div><div class="value">-</div></div>'+
-      '<div class="stat-card"><div class="label">Palavras</div><div class="value">-</div></div>'+
-      '<div class="stat-card"><div class="label">Status</div><div class="value" style="font-size:14px;color:#fbbf24">Fabrica de Livros em breve</div></div>';
-    if(listEl&&(!data.books||!data.books.length)){
-      listEl.innerHTML='<div class="empty">Nenhum livro cadastrado ainda. A Fabrica de Livros sera ativada em breve.</div>';
-    }else if(listEl&&data.books&&data.books.length){
-      listEl.innerHTML=data.books.map(function(b){
-        return '<div class="table-row cols-4"><div><div class="title">'+escapeHtml(b.title||"")+'</div><div class="meta">'+(b.author||"")+'</div></div><div><span class="tag tag-blue">'+(b.chapters||0)+' cap</span></div></div>';
+    var data=await api("/api/v1/ebooks");
+    var books=data.books||[];
+    var totalWords=books.reduce(function(s,b){return s+(b.total_words||0)},0);
+    var totalChapters=books.reduce(function(s,b){return s+(b.total_chapters||0)},0);
+    statsEl.innerHTML='<div class="stat-card"><div class="label">Total de Ebooks</div><div class="value">'+books.length+'</div></div>'+
+      '<div class="stat-card"><div class="label">Capítulos</div><div class="value">'+totalChapters+'</div></div>'+
+      '<div class="stat-card"><div class="label">Palavras</div><div class="value">'+(totalWords>1000?(totalWords/1000).toFixed(1)+"k":totalWords)+'</div></div>'+
+      '<div class="stat-card"><div class="label">Publicados</div><div class="value">'+books.filter(function(b){return b.status==="published"}).length+'</div></div>';
+    if(!books.length){
+      listEl.innerHTML='<div class="empty">Nenhum ebook ainda. Use o formulário acima para criar o primeiro!</div>';
+    }else{
+      listEl.innerHTML=books.map(function(b){
+        var statusColor=b.status==="published"?"#4ade80":"#fbbf24";
+        return '<div class="table-row cols-4" style="cursor:pointer" onclick="viewEbook(\''+b.id+'\')">'+
+          '<div><div class="title">'+escapeHtml(b.title||"")+'</div><div class="meta">'+escapeHtml(b.niche||b.topic||"")+'</div></div>'+
+          '<div><span class="tag tag-blue">'+(b.total_chapters||0)+' cap</span></div>'+
+          '<div><span style="color:#8a91a5;font-size:12px">'+(b.total_words||0).toLocaleString()+' palavras</span></div>'+
+          '<div><span style="color:'+statusColor+';font-size:12px;font-weight:600">'+(b.status||"draft")+'</span></div></div>';
       }).join("");
     }
   }catch(e){statsEl.innerHTML='<div class="stat-card"><div class="label">Erro</div><div class="value" style="font-size:14px;color:#f87171">Erro ao carregar</div></div>';}
+}
+
+async function startEbookPipeline(){
+  var niche=$("ebNiche").value.trim();
+  if(!niche){alert("Informe o nicho do ebook");return;}
+  var btn=$("ebStartBtn");
+  btn.disabled=true;btn.textContent="⏳ Iniciando...";
+  try{
+    var resp=await api("/api/v1/pipeline/run-ebook-factory","POST",{
+      niche:niche,
+      book_title:$("ebTitle").value.trim(),
+      style_id:$("ebStyle").value,
+      price_cents:parseInt($("ebPrice").value||17)*100,
+      target_chapters:parseInt($("ebChapters").value||8),
+    });
+    var tid=resp.task_id;
+    $("ebookPipelineSection").style.display="block";
+    $("ebookPipelineStatus").textContent="Rodando...";
+    startEbookPolling(tid);
+  }catch(e){
+    btn.disabled=false;btn.textContent="🏭 Iniciar Fábrica de Ebooks";
+    alert("Erro ao iniciar: "+e.message);
+  }
+}
+
+function startEbookPolling(tid){
+  var stages=["fundacao","pesquisa","oferta","producao","refino","entrega"];
+  var interval=setInterval(async function(){
+    try{
+      var data=await api("/api/v1/pipeline/ebook-factory/status/"+tid);
+      if(data.macro_stages){
+        stages.forEach(function(s){
+          var st=data.macro_stages[s];
+          if(st){
+            var el=$("eb-"+s),bar=$("eb-"+s+"-bar"),msg=$("eb-"+s+"-msg");
+            if(el)el.className="stage "+st.status;
+            if(bar)bar.style.width=st.progress+"%";
+            if(msg)msg.textContent=st.message||"";
+          }
+        });
+      }
+      if(data.status==="completed"||data.status==="failed"){
+        clearInterval(interval);
+        $("ebookPipelineStatus").textContent=data.status==="completed"?"✅ Concluída":"❌ Falhou";
+        $("ebookPipelineStatus").className="tag "+(data.status==="completed"?"tag-green":"tag-red");
+        $("ebStartBtn").disabled=false;$("ebStartBtn").textContent="🏭 Iniciar Fábrica de Ebooks";
+        loadBooks();
+      }
+    }catch(e){console.log("Poll ebook:",e);}
+  },3000);
+}
+
+function viewEbook(bookId){
+  window.open("/api/v1/ebooks/"+bookId,"_blank");
 }
 
 async function loadCourses(){

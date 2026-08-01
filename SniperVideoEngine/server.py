@@ -1431,6 +1431,174 @@ async def rag_index():
         raise HTTPException(status_code=500, detail=f"Erro ao indexar: {str(e)}")
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FABRICA DE EBOOKS — PIPELINE + CRUD + CHECKOUT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# In-memory results para polling (mesmo padrao do blog pipeline)
+_ebook_macro_results = {}
+
+@app.post("/api/v1/pipeline/run-ebook-factory")
+async def run_ebook_factory(payload: dict):
+    """Inicia a macro-pipeline de criacao de ebook."""
+    import asyncio
+    niche = payload.get("niche", "")
+    if not niche:
+        raise HTTPException(status_code=400, detail="Nicho e obrigatorio")
+
+    book_title = payload.get("book_title", "")
+    blog_channel_id = payload.get("blog_channel_id", "")
+    style_id = payload.get("style_id", "minimalista")
+    price_cents = payload.get("price_cents", 1700)
+    target_chapters = payload.get("target_chapters", 8)
+
+    task_id = f"ebpipe_{uuid.uuid4().hex[:8]}"
+    _ebook_macro_results[task_id] = {"status": "starting"}
+
+    def _progress_callback(tid, *args, **kwargs):
+        event_type = args[2] if len(args) > 2 else "progress"
+        data = args[3] if len(args) > 3 else {}
+        if isinstance(data, dict):
+            _ebook_macro_results[tid] = data
+
+    async def _run_and_report():
+        try:
+            from modules.ebook_pipeline import run_ebook_macro_pipeline
+            result = await run_ebook_macro_pipeline(
+                niche=niche, book_title=book_title,
+                blog_channel_id=blog_channel_id, style_id=style_id,
+                price_cents=price_cents, target_chapters=target_chapters,
+                task_id=task_id, on_progress=_progress_callback,
+            )
+            _ebook_macro_results[task_id] = result
+        except Exception as e:
+            _ebook_macro_results[task_id] = {"status": "failed", "error": str(e)}
+
+    asyncio.create_task(_run_and_report())
+    return {"task_id": task_id, "status": "starting"}
+
+
+@app.get("/api/v1/pipeline/ebook-factory/status/{task_id}")
+async def ebook_factory_status(task_id: str):
+    """Polling do status da macro-pipeline de ebooks."""
+    data = _ebook_macro_results.get(task_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Task nao encontrada")
+    return data
+
+
+@app.get("/api/v1/pipeline/ebook-factory/history")
+async def ebook_factory_history():
+    """Historico de execucoes da fabrica de ebooks."""
+    from modules.database import get_db_ebook_pipeline_runs
+    runs = get_db_ebook_pipeline_runs()
+    return {"runs": runs}
+
+
+@app.get("/api/v1/ebooks")
+async def list_ebooks():
+    """Lista todos os ebooks."""
+    from modules.database import get_db_books
+    books = get_db_books()
+    return {"books": books}
+
+
+@app.get("/api/v1/ebooks/{book_id}")
+async def get_ebook(book_id: str):
+    """Detalhes de um ebook incluindo capitulos."""
+    from modules.database import get_db_book
+    book = get_db_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Ebook nao encontrado")
+    return {"book": book}
+
+
+@app.delete("/api/v1/ebooks/{book_id}")
+async def delete_ebook(book_id: str):
+    """Deleta um ebook e seus dados."""
+    from modules.database import delete_db_book, SessionLocal, EbookPipelineRun
+    # Deletar pipeline runs associados
+    db = SessionLocal()
+    try:
+        db.query(EbookPipelineRun).filter(EbookPipelineRun.book_id == book_id).delete()
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+    ok = delete_db_book(book_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Ebook nao encontrado")
+    return {"message": "Ebook deletado com sucesso"}
+
+
+@app.post("/api/v1/checkout/create")
+async def create_checkout(payload: dict):
+    """Cria sessao de checkout para um ebook."""
+    from modules.database import create_db_transaction, get_db_products
+    product_id = payload.get("product_id", "")
+    buyer_email = payload.get("buyer_email", "")
+    buyer_name = payload.get("buyer_name", "")
+    payment_method = payload.get("payment_method", "pix")
+
+    if not product_id or not buyer_email:
+        raise HTTPException(status_code=400, detail="product_id e buyer_email obrigatorios")
+
+    products = get_db_products()
+    product = next((p for p in products if p["id"] == product_id), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado")
+
+    txn = create_db_transaction(
+        product_id=product_id, buyer_email=buyer_email,
+        buyer_name=buyer_name, amount_cents=product["price_cents"],
+        payment_method=payment_method,
+    )
+
+    return {
+        "transaction_id": txn["id"],
+        "status": "pending",
+        "amount_cents": product["price_cents"],
+        "product_name": product["name"],
+        "message": "Sessao de checkout criada. Confirme o pagamento.",
+    }
+
+
+@app.post("/api/v1/checkout/confirm")
+async def confirm_checkout(payload: dict):
+    """Confirma pagamento (webhook manual ou admin)."""
+    from modules.database import update_db_transaction
+    txn_id = payload.get("transaction_id", "")
+    if not txn_id:
+        raise HTTPException(status_code=400, detail="transaction_id obrigatorio")
+    ok = update_db_transaction(txn_id, status="completed")
+    if not ok:
+        raise HTTPException(status_code=404, detail="Transacao nao encontrada")
+    return {"message": "Pagamento confirmado!", "status": "completed"}
+
+
+@app.get("/api/v1/transactions")
+async def list_transactions():
+    """Lista transacoes."""
+    from modules.database import get_db_transactions
+    txns = get_db_transactions()
+    return {"transactions": txns}
+
+
+@app.get("/ebook/{slug}/venda")
+async def ebook_sales_page(slug: str):
+    """Serve a pagina de vendas de um ebook."""
+    from modules.database import SessionLocal, Book
+    db = SessionLocal()
+    try:
+        book = db.query(Book).filter(Book.sales_page_slug == slug).first()
+        if not book or not book.sales_page_html:
+            raise HTTPException(status_code=404, detail="Pagina nao encontrada")
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=book.sales_page_html)
+    finally:
+        db.close()
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SEU PEREIRA — MONETIZATION ENDPOINT
@@ -2264,6 +2432,48 @@ async def serve_blog_frontend(slug: str, post: str = None, cat: str = None, q: s
 
     html = generate_blog_html(slug, blog_info, posts, post=individual_post, related_posts=related)
     return HTMLResponse(content=html)
+
+@app.get("/api/v1/search")
+async def global_search(q: str = ""):
+    """Busca global de artigos em todos os blogs (para o Ctrl+K da UI Admin).
+    Procura em titulo, keywords e excerpt dos posts.
+    """
+    from modules.database import SessionLocal, BlogPost, BlogChannel
+    term = (q or "").strip()
+    if len(term) < 2:
+        return {"results": []}
+    # Escapa wildcards do LIKE para busca literal
+    term_esc = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    db = SessionLocal()
+    try:
+        like = f"%{term_esc}%"
+        posts = db.query(BlogPost).filter(
+            (BlogPost.title.ilike(like, escape='\\')) |
+            (BlogPost.keywords.ilike(like, escape='\\')) |
+            (BlogPost.excerpt.ilike(like, escape='\\'))
+        ).order_by(BlogPost.created_at.desc()).limit(25).all()
+        chans = {c.id: c for c in db.query(BlogChannel).all()}
+        results = []
+        for p in posts:
+            ch = chans.get(p.channel_id)
+            c_slug = (ch.name.lower().replace(" ", "-")[:50]) if ch else ""
+            results.append({
+                "id": p.id,
+                "title": p.title,
+                "slug": p.slug,
+                "status": p.status,
+                "lili_score": getattr(p, "lili_score", None),
+                "word_count": p.word_count or 0,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "blog_id": p.channel_id,
+                "blog_name": ch.name if ch else "?",
+                "blog_slug": c_slug,
+                "url": f"/blog/{c_slug}?post={p.id}",
+            })
+        return {"results": results}
+    finally:
+        db.close()
+
 @app.post("/api/v1/blog/{slug}/posts/{post_id}/generate-image")
 async def generate_blog_post_image(slug: str, post_id: str):
     """Gera imagem de destaque para um artigo existente."""

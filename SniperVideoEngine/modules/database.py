@@ -298,7 +298,7 @@ class RegenerationJobItem(Base):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Book(Base):
-    """Livro gerado pela Fabrica de Livros."""
+    """Livro/ebook gerado pela Fabrica de Ebooks."""
     __tablename__ = "books"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -315,6 +315,18 @@ class Book(Base):
     price_cents = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     published_at = Column(DateTime, nullable=True)
+    # --- Campos novos: Fabrica de Ebooks ---
+    style_id = Column(String(30), nullable=True)          # minimalista/feminino/moderno/editorial/didatico
+    blog_channel_id = Column(String(50), nullable=True)    # FK blog_channels (blog de destino)
+    niche = Column(String(100), nullable=True)             # nicho do ebook
+    persona = Column(Text, nullable=True)                  # persona detalhada (JSON)
+    pain_research = Column(Text, nullable=True)            # resultado da fase Pesquisa (JSON)
+    offer_data = Column(Text, nullable=True)               # resultado da fase Oferta (JSON)
+    sales_page_html = Column(Text, nullable=True)          # HTML pagina de vendas
+    sales_page_slug = Column(String(200), nullable=True)   # slug da pagina de vendas
+    checkout_url = Column(String(500), nullable=True)      # link de checkout
+    lili_score = Column(Integer, nullable=True)            # score medio LiLi
+    pipeline_run_id = Column(String(50), nullable=True)    # FK ebook_pipeline_runs
 
 
 class BookChapter(Base):
@@ -341,6 +353,53 @@ class BookFormat(Base):
     file_url = Column(String(1000), nullable=True)
     file_size_bytes = Column(Integer, default=0)
     generated_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODELOS — FABRICA DE EBOOKS (PIPELINE + CHECKOUT)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class EbookPipelineRun(Base):
+    """Checkpoint da macro-pipeline de ebooks."""
+    __tablename__ = "ebook_pipeline_runs"
+
+    id = Column(String(50), primary_key=True, index=True)
+    book_id = Column(String(50), ForeignKey("books.id"), nullable=False, index=True)
+    phase = Column(String(30), default="fundacao")
+    status = Column(String(20), default="running")       # running/completed/failed
+    pipeline_data = Column(Text, nullable=True)           # JSON: stages, research, offer, chapters
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    error = Column(Text, nullable=True)
+
+
+class Product(Base):
+    """Produto para checkout (Stripe-like)."""
+    __tablename__ = "products"
+
+    id = Column(String(50), primary_key=True, index=True)
+    book_id = Column(String(50), ForeignKey("books.id"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    price_cents = Column(Integer, nullable=False)
+    currency = Column(String(10), default="BRL")
+    status = Column(String(20), default="active")        # active/inactive
+    checkout_url = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Transaction(Base):
+    """Transacao de checkout."""
+    __tablename__ = "transactions"
+
+    id = Column(String(50), primary_key=True, index=True)
+    product_id = Column(String(50), ForeignKey("products.id"), nullable=False, index=True)
+    buyer_email = Column(String(200), nullable=True)
+    buyer_name = Column(String(200), nullable=True)
+    amount_cents = Column(Integer, nullable=False)
+    status = Column(String(20), default="pending")       # pending/completed/refunded
+    payment_method = Column(String(20), nullable=True)   # pix/credit_card/boleto
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -482,6 +541,19 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS mercadolivre_token_expires TIMESTAMP;", "blog_channels.mercadolivre_token_expires")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS is_discover BOOLEAN DEFAULT FALSE;", "blog_channels.is_discover")
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS brand_config TEXT;", "blog_channels.brand_config")
+
+        # --- Fabrica de Ebooks: novos campos em books ---
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS style_id VARCHAR(30);", "books.style_id")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS blog_channel_id VARCHAR(50);", "books.blog_channel_id")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS niche VARCHAR(100);", "books.niche")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS persona TEXT;", "books.persona")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS pain_research TEXT;", "books.pain_research")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS offer_data TEXT;", "books.offer_data")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS sales_page_html TEXT;", "books.sales_page_html")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS sales_page_slug VARCHAR(200);", "books.sales_page_slug")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS checkout_url VARCHAR(500);", "books.checkout_url")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS lili_score INTEGER;", "books.lili_score")
+        _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(50);", "books.pipeline_run_id")
 
 
 except Exception as table_err:
@@ -1008,6 +1080,8 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
                 "word_count": p.word_count,
                 "topic": p.topic,
                 "author": getattr(p, "author", "Equipe Dezafira"),
+                "lili_score": getattr(p, "lili_score", None),
+                "lili_approved": getattr(p, "lili_approved", None),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             } for p in posts
@@ -1038,6 +1112,8 @@ def get_db_blog_post(post_id: str) -> dict:
                 "word_count": p.word_count,
                 "topic": p.topic,
                 "author": getattr(p, "author", "Equipe Dezafira"),
+                "lili_score": getattr(p, "lili_score", None),
+                "lili_approved": getattr(p, "lili_approved", None),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             }
@@ -1493,6 +1569,10 @@ def get_db_books(limit: int = 50) -> list:
                 "total_chapters": chapters_count,
                 "total_words": b.total_words,
                 "price_cents": b.price_cents,
+                "style_id": b.style_id, "niche": b.niche,
+                "blog_channel_id": b.blog_channel_id,
+                "sales_page_slug": b.sales_page_slug,
+                "checkout_url": b.checkout_url, "lili_score": b.lili_score,
                 "created_at": b.created_at.isoformat() if b.created_at else None,
             })
         return result
@@ -1517,6 +1597,13 @@ def get_db_book(book_id: str) -> dict:
             "keywords": b.keywords, "status": b.status,
             "total_chapters": len(chapters), "total_words": b.total_words,
             "price_cents": b.price_cents,
+            "style_id": b.style_id, "niche": b.niche,
+            "blog_channel_id": b.blog_channel_id,
+            "persona": b.persona, "pain_research": b.pain_research,
+            "offer_data": b.offer_data,
+            "sales_page_slug": b.sales_page_slug,
+            "checkout_url": b.checkout_url, "lili_score": b.lili_score,
+            "pipeline_run_id": b.pipeline_run_id,
             "chapters": [{
                 "id": ch.id, "chapter_number": ch.chapter_number,
                 "title": ch.title, "content": ch.content,
@@ -1597,6 +1684,149 @@ def delete_db_book(book_id: str) -> bool:
         print(f"[Database] Erro ao deletar livro: {e}")
         db.rollback()
         return False
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CRUD — FABRICA DE EBOOKS (PIPELINE + CHECKOUT)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_db_ebook_pipeline_run(book_id: str) -> dict:
+    db = SessionLocal()
+    try:
+        run = EbookPipelineRun(
+            id=f"ebpipe_{uuid.uuid4().hex[:8]}",
+            book_id=book_id, phase="fundacao", status="running",
+        )
+        db.add(run)
+        db.commit()
+        return {"id": run.id, "book_id": run.book_id, "status": run.status}
+    finally:
+        db.close()
+
+
+def update_db_ebook_pipeline_run(run_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        run = db.query(EbookPipelineRun).filter(EbookPipelineRun.id == run_id).first()
+        if run:
+            for key, value in kwargs.items():
+                if hasattr(run, key):
+                    setattr(run, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def get_db_ebook_pipeline_runs(book_id: str = None, limit: int = 20) -> list:
+    db = SessionLocal()
+    try:
+        q = db.query(EbookPipelineRun)
+        if book_id:
+            q = q.filter(EbookPipelineRun.book_id == book_id)
+        runs = q.order_by(EbookPipelineRun.started_at.desc()).limit(limit).all()
+        return [{
+            "id": r.id, "book_id": r.book_id, "phase": r.phase,
+            "status": r.status, "error": r.error,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+        } for r in runs]
+    finally:
+        db.close()
+
+
+def get_stuck_ebook_pipelines() -> list:
+    db = SessionLocal()
+    try:
+        runs = db.query(EbookPipelineRun).filter(
+            EbookPipelineRun.status == "running"
+        ).all()
+        return [{"id": r.id, "book_id": r.book_id} for r in runs]
+    finally:
+        db.close()
+
+
+def create_db_product(book_id: str, name: str, price_cents: int,
+                      description: str = "", currency: str = "BRL") -> dict:
+    db = SessionLocal()
+    try:
+        prod = Product(
+            id=f"prod_{uuid.uuid4().hex[:8]}",
+            book_id=book_id, name=name, price_cents=price_cents,
+            description=description, currency=currency, status="active",
+        )
+        db.add(prod)
+        db.commit()
+        return {"id": prod.id, "name": prod.name, "price_cents": prod.price_cents}
+    finally:
+        db.close()
+
+
+def get_db_products(book_id: str = None) -> list:
+    db = SessionLocal()
+    try:
+        q = db.query(Product)
+        if book_id:
+            q = q.filter(Product.book_id == book_id)
+        prods = q.order_by(Product.created_at.desc()).all()
+        return [{
+            "id": p.id, "book_id": p.book_id, "name": p.name,
+            "price_cents": p.price_cents, "currency": p.currency,
+            "status": p.status, "checkout_url": p.checkout_url,
+        } for p in prods]
+    finally:
+        db.close()
+
+
+def create_db_transaction(product_id: str, buyer_email: str, buyer_name: str,
+                          amount_cents: int, payment_method: str = "pix") -> dict:
+    db = SessionLocal()
+    try:
+        txn = Transaction(
+            id=f"txn_{uuid.uuid4().hex[:8]}",
+            product_id=product_id, buyer_email=buyer_email,
+            buyer_name=buyer_name, amount_cents=amount_cents,
+            payment_method=payment_method, status="pending",
+        )
+        db.add(txn)
+        db.commit()
+        return {"id": txn.id, "status": txn.status}
+    finally:
+        db.close()
+
+
+def update_db_transaction(txn_id: str, **kwargs) -> bool:
+    db = SessionLocal()
+    try:
+        txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
+        if txn:
+            for key, value in kwargs.items():
+                if hasattr(txn, key):
+                    setattr(txn, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def get_db_transactions(product_id: str = None, limit: int = 50) -> list:
+    db = SessionLocal()
+    try:
+        q = db.query(Transaction)
+        if product_id:
+            q = q.filter(Transaction.product_id == product_id)
+        txns = q.order_by(Transaction.created_at.desc()).limit(limit).all()
+        return [{
+            "id": t.id, "product_id": t.product_id,
+            "buyer_email": t.buyer_email, "buyer_name": t.buyer_name,
+            "amount_cents": t.amount_cents, "status": t.status,
+            "payment_method": t.payment_method,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        } for t in txns]
     finally:
         db.close()
 
