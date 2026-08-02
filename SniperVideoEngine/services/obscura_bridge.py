@@ -844,6 +844,41 @@ async def get_obscura_status(host: str = None, port: int = None) -> dict:
         return {"online": False, "ws_url": bridge.ws_url, "targets": 0, "error": str(e)[:200]}
 
 
+async def get_chrome_status(host: str = None, port: int = None) -> dict:
+    """Verifica se o Chrome real (CDP) está acessível — em produção é o
+    serviço separado (ex.: chrome.railway.internal:9223). Sonda o mesmo
+    endpoint /json/version que o bridge usa, pra saber se o Chrome está de
+    pé e pode desbloquear o Google (SERP/PAA reais).
+
+    Retorna {online, ws_url, targets, browser, error} — browser traz a
+    versão do Chrome (prova de que é o Chrome real, não o headless Rust).
+    """
+    import urllib.request as _urllib
+    host = host or OBSCURA_CHROME_HOST
+    port = port or OBSCURA_CHROME_PORT
+    ws_url = f"ws://{host}:{port}/devtools/browser"
+    try:
+        with _urllib.urlopen(f"http://{host}:{port}/json/version", timeout=3) as r:
+            info = json.loads(r.read().decode("utf-8", "ignore"))
+        online = bool(info.get("webSocketDebuggerUrl"))
+        targets = 1 if online else 0
+        return {
+            "online": online,
+            "ws_url": ws_url,
+            "targets": targets,
+            "browser": info.get("Browser", "")[:80],
+            "error": "",
+        }
+    except Exception as e:
+        return {
+            "online": False,
+            "ws_url": ws_url,
+            "targets": 0,
+            "browser": "",
+            "error": str(e)[:200],
+        }
+
+
 async def test_proxy_connectivity(proxy_url: str) -> dict:
     """Testa se o proxy configurado está de pé: faz um GET real via proxy
     (api.ipify.org devolve o IP de saída — prova que o tráfego passa pelo

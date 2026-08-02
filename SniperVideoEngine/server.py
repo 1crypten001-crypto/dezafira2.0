@@ -104,11 +104,38 @@ async def healthz():
     import os as _os
     import time as _t
 
-    from services.obscura_bridge import get_obscura_status
+    from services.obscura_bridge import get_obscura_status, get_chrome_status, _pick_bridge_host_port
+    # Sondas em PARALELO (gather): Obscura + Chrome real + motor escolhido.
+    # Sequencial levaria até ~15s (3 x timeout 5s) dentro do budget do
+    # healthcheck do Railway; em paralelo o pior caso é ~5s. O Chrome é
+    # sondado via /json/version (o mesmo endpoint que o _pick usa).
+    async def _probe_chrome():
+        c = await get_chrome_status()
+        if not isinstance(c, dict):
+            return {"online": False, "ws_url": "", "targets": 0, "browser": "", "error": "resposta inválida"}
+        c.setdefault("ws_url", "")
+        c.setdefault("targets", 0)
+        c.setdefault("browser", "")
+        c.setdefault("error", "")
+        return c
+
+    async def _probe_picked():
+        _pe_host, _pe_port = await _pick_bridge_host_port()
+        return f"{_pe_host}:{_pe_port}"
+
     try:
-        ping = await asyncio.wait_for(get_obscura_status(), timeout=5)
+        ping, chrome, picked_engine = await asyncio.wait_for(
+            asyncio.gather(
+                get_obscura_status(),
+                _probe_chrome(),
+                _probe_picked(),
+            ),
+            timeout=8,
+        )
     except Exception as e:
         ping = {"online": False, "error": str(e)[:200]}
+        chrome = {"online": False, "ws_url": "", "targets": 0, "browser": "", "error": str(e)[:200]}
+        picked_engine = ""
 
     online = bool(ping.get("online"))
     now = _t.time()
@@ -121,6 +148,8 @@ async def healthz():
         "status": "ok" if online else "degraded",
         "service": "dezafira-backend",
         "obscura": ping,
+        "chrome": chrome,
+        "picked_engine": picked_engine,
         "workers": int(_os.getenv("OBSCURA_WORKERS", "4")),
     }
 
