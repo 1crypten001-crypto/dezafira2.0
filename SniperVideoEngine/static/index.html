@@ -637,9 +637,26 @@ document.addEventListener("keydown",function(e){
   }
 });
 
+var _DZ_TOKEN=null;
+(function(){
+  try{
+    _DZ_TOKEN=localStorage.getItem("dz_panel_token")||null;
+    var qs=new URLSearchParams(location.search);
+    var t=qs.get("token");
+    if(t&&t.length>10){_DZ_TOKEN=t;localStorage.setItem("dz_panel_token",t);
+      try{qs.delete("token");var nu=location.pathname+location.hash+"?"+qs.toString();history.replaceState(null,"",nu)}catch(e){}
+    }
+  }catch(e){}
+})();
+
 async function api(url,opts){
-  try{var r=await fetch(url,{headers:{"Content-Type":"application/json"},...opts});return await r.json()}
-  catch(e){return{error:e.message}}
+  try{
+    var h={"Content-Type":"application/json"};
+    if(_DZ_TOKEN){h["Authorization"]="Bearer "+_DZ_TOKEN;}
+    if(typeof opts==="string"){opts={method:opts,body:arguments[2]?JSON.stringify(arguments[2]):undefined};}
+    var r=await fetch(url,{headers:h,...opts});
+    return await r.json();
+  }catch(e){return{error:e.message}}
 }
 
 function renderPipeline(){
@@ -2019,7 +2036,9 @@ function startEbookPolling(tid){
 }
 
 function viewEbook(bookId){
-  window.open("/api/v1/ebooks/"+bookId,"_blank");
+  var u="/api/v1/ebooks/"+bookId;
+  if(_DZ_TOKEN){u+="?token="+encodeURIComponent(_DZ_TOKEN);}
+  window.open(u,"_blank");
 }
 
 async function loadCourses(){

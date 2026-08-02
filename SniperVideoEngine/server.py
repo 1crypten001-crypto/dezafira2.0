@@ -61,6 +61,7 @@ from modules.database import (
     get_db_course,
     get_db_books,
     get_db_courses,
+    get_db_user_by_id,
 )
 
 try:
@@ -85,6 +86,87 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+import bcrypt as _bcrypt_mod
+from datetime import datetime, timedelta
+
+def _hash_password(password: str) -> str:
+    return _bcrypt_mod.hashpw(password.encode("utf-8"), _bcrypt_mod.gensalt()).decode("utf-8")
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return _bcrypt_mod.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+AUTH_SECRET = os.getenv("AUTH_SECRET", os.getenv("SECRET_KEY", "dezafira-club-secret-change-me"))
+JWT_EXPIRE_HOURS = 24 * 7  # 7 dias
+
+def _generate_jwt_token(user_id: str) -> str:
+    """Gera um token simples (HMAC-SHA256). Para JWT real, usar python-jose."""
+    payload = f"{user_id}:{int(datetime.utcnow().timestamp()) + JWT_EXPIRE_HOURS * 3600}"
+    sig = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
+    return f"{payload}:{sig}"
+
+def _verify_jwt_token(token: str) -> str | None:
+    """Retorna user_id se token válido, senão None."""
+    try:
+        parts = token.split(":")
+        if len(parts) != 3:
+            return None
+        user_id, exp_ts, sig = parts
+        payload = f"{user_id}:{exp_ts}"
+        expected = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
+        if sig != expected:
+            return None
+        if int(exp_ts) < int(datetime.utcnow().timestamp()):
+            return None
+        return user_id
+    except Exception:
+        return None
+
+async def get_current_user(authorization: str = Header(None)):
+    """Dependency: extrai user do header Authorization: Bearer <token>."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Token ausente")
+    token = authorization.replace("Bearer ", "")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+
+async def get_optional_user(authorization: str = Header(None)):
+    """Dependency: retorna user ou None (sem erro 401)."""
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        return None
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        return None
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
+
+async def require_admin(user=Depends(get_current_user)):
+    """Dependency: exige role admin."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
+
+async def require_admin_or_token(token: str = ""):
+    """Valida token via query string (usado pelo painel legacy em iframe).
+    Retorna user admin ou levanta 401/403."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Token ausente")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -198,7 +280,15 @@ async def no_cache_html_middleware(request, call_next):
     return response
 
 @app.get("/", include_in_schema=False)
-async def serve_ui():
+async def serve_ui(token: str = "", authorization: str = Header(None)):
+    """Painel admin legacy (static/index.html). Exige token admin via header Bearer ou query ?token=."""
+    t = token or (authorization.replace("Bearer ", "") if authorization else "")
+    user_id = _verify_jwt_token(t) if t else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token ausente ou inválido")
+    user = get_db_user_by_id(user_id)
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
     template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
     if not os.path.exists(template_path):
         return HTMLResponse("<h1>Dezafira</h1>")
@@ -748,7 +838,7 @@ async def get_ze_status():
 
 
 @app.get("/api/v1/factory/dashboard")
-async def blog_factory_dashboard():
+async def blog_factory_dashboard(_admin=Depends(require_admin)):
     """Dashboard consolidado com metricas de todas as fabricas."""
     from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course, __get_subdomain_for_channel
     from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
@@ -1465,7 +1555,7 @@ async def rag_index():
 _ebook_macro_results = {}
 
 @app.post("/api/v1/pipeline/run-ebook-factory")
-async def run_ebook_factory(payload: dict):
+async def run_ebook_factory(payload: dict, _admin=Depends(require_admin)):
     """Inicia a macro-pipeline de criacao de ebook."""
     import asyncio
     niche = payload.get("niche", "")
@@ -1505,7 +1595,7 @@ async def run_ebook_factory(payload: dict):
 
 
 @app.get("/api/v1/pipeline/ebook-factory/status/{task_id}")
-async def ebook_factory_status(task_id: str):
+async def ebook_factory_status(task_id: str, _admin=Depends(require_admin)):
     """Polling do status da macro-pipeline de ebooks."""
     data = _ebook_macro_results.get(task_id)
     if not data:
@@ -1514,7 +1604,7 @@ async def ebook_factory_status(task_id: str):
 
 
 @app.get("/api/v1/pipeline/ebook-factory/history")
-async def ebook_factory_history():
+async def ebook_factory_history(_admin=Depends(require_admin)):
     """Historico de execucoes da fabrica de ebooks."""
     from modules.database import get_db_ebook_pipeline_runs
     runs = get_db_ebook_pipeline_runs()
@@ -1817,7 +1907,7 @@ async def get_learning_path(slug: str):
 
 
 @app.get("/api/v1/ebooks")
-async def list_ebooks():
+async def list_ebooks(_admin=Depends(require_admin)):
     """Lista todos os ebooks."""
     from modules.database import get_db_books
     books = get_db_books()
@@ -1825,8 +1915,15 @@ async def list_ebooks():
 
 
 @app.get("/api/v1/ebooks/{book_id}")
-async def get_ebook(book_id: str):
-    """Detalhes de um ebook incluindo capitulos."""
+async def get_ebook(book_id: str, token: str = "", authorization: str = Header(None)):
+    """Detalhes de um ebook incluindo capitulos. Aceita token via header Bearer ou query ?token= (para window.open do painel)."""
+    t = token or (authorization.replace("Bearer ", "") if authorization else "")
+    user_id = _verify_jwt_token(t) if t else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token ausente ou inválido")
+    user = get_db_user_by_id(user_id)
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
     from modules.database import get_db_book
     book = get_db_book(book_id)
     if not book:
@@ -1835,7 +1932,7 @@ async def get_ebook(book_id: str):
 
 
 @app.delete("/api/v1/ebooks/{book_id}")
-async def delete_ebook(book_id: str):
+async def delete_ebook(book_id: str, _admin=Depends(require_admin)):
     """Deleta um ebook e seus dados."""
     from modules.database import delete_db_book, SessionLocal, EbookPipelineRun
     # Deletar pipeline runs associados
@@ -2111,7 +2208,7 @@ async def my_ebooks(email: str):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/v1/monetization/status")
-async def get_monetization_status(channel_id: str = None):
+async def get_monetization_status(channel_id: str = None, _admin=Depends(require_admin)):
     """
     Retorna avaliacao completa de monetizacao para um blog.
     Usa o agente Seu Pereira para analisar 19 criterios do Google AdSense.
@@ -2940,7 +3037,7 @@ async def serve_blog_frontend(slug: str, post: str = None, cat: str = None, q: s
     return HTMLResponse(content=html)
 
 @app.get("/api/v1/search")
-async def global_search(q: str = ""):
+async def global_search(q: str = "", _admin=Depends(require_admin)):
     """Busca global de artigos em todos os blogs (para o Ctrl+K da UI Admin).
     Procura em titulo, keywords e excerpt dos posts.
     """
@@ -3343,7 +3440,7 @@ async def run_blog_pipeline_endpoint(payload: dict, background_tasks: Background
     }
 
 @app.get("/api/v1/pipeline/blog-factory/history")
-async def get_blog_factory_history():
+async def get_blog_factory_history(_admin=Depends(require_admin)):
     """Retorna o historico real de execucoes do pipeline da fabrica de blogs."""
     try:
         from modules.database import get_db_blog_pipeline_runs
@@ -3368,7 +3465,7 @@ async def get_blog_factory_status(task_id: str):
 
 
 @app.post("/api/v1/blog/generate-article-hype")
-async def generate_article_hype_endpoint(payload: dict, background_tasks: BackgroundTasks):
+async def generate_article_hype_endpoint(payload: dict, background_tasks: BackgroundTasks, _admin=Depends(require_admin)):
     """
     Inicia a esteira de criação de artigos em segundo plano, minerando as tendências
     do Google Hype ativamente no primeiro estágio e gerando-os de forma sequencial.
@@ -4151,7 +4248,7 @@ async def lili_review_post(post_id: str):
 
 
 @app.get("/api/v1/lili/review-all")
-async def lili_review_all(channel_id: str = None):
+async def lili_review_all(channel_id: str = None, _admin=Depends(require_admin)):
     """Revisa todos os artigos de um blog."""
     from modules.lili import revisar_blog
     
@@ -4168,7 +4265,7 @@ async def lili_review_all(channel_id: str = None):
 
 
 @app.post("/api/v1/lili/correct/{post_id}")
-async def lili_correct_post(post_id: str):
+async def lili_correct_post(post_id: str, _admin=Depends(require_admin)):
     """Aplica correcoes automaticas no conteudo do artigo."""
     from modules.lili import corrigir_conteudo_automatico, revisar_artigo
     from modules.database import get_db_blog_post, update_db_blog_post
@@ -4211,7 +4308,7 @@ async def lili_correct_post(post_id: str):
 
 
 @app.get("/api/v1/lili/ranking")
-async def lili_ranking(channel_id: str = None, status: str = None):
+async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depends(require_admin)):
     """Ranking global de artigos por score LiLi (todos os blogs)."""
     from modules.database import (
         get_db_all_posts_with_meta,
@@ -4288,7 +4385,7 @@ async def lili_ranking(channel_id: str = None, status: str = None):
 
 
 @app.post("/api/v1/blog/post/{post_id}/regenerate")
-async def regenerate_blog_post(post_id: str):
+async def regenerate_blog_post(post_id: str, _admin=Depends(require_admin)):
     """Regenera um artigo do zero com o mesmo topico (deleta o reprovado e recria)."""
     from modules.database import get_db_blog_post, delete_db_blog_post
 
@@ -4378,7 +4475,7 @@ async def regenerate_blog_post(post_id: str):
 
 
 @app.post("/api/v1/blog/post/{post_id}/regenerate-image")
-async def regenerate_blog_post_image(post_id: str):
+async def regenerate_blog_post_image(post_id: str, _admin=Depends(require_admin)):
     """Regenera APENAS a imagem de destaque do artigo (mantem o texto e o score)."""
     from modules.database import get_db_blog_post, update_db_blog_post
     from modules.image_factory import ImageGeneratorAgent
@@ -4405,7 +4502,7 @@ async def regenerate_blog_post_image(post_id: str):
 
 
 @app.post("/api/v1/lili/regenerate-batch")
-async def lili_regenerate_batch(payload: dict):
+async def lili_regenerate_batch(payload: dict, _admin=Depends(require_admin)):
     """Regenera em lote os artigos reprovados pela LiLi (score < 70 ou nao aprovados).
     O job e PERSISTIDO no banco — se o Railway reiniciar no meio, o startup retoma.
     Retorna imediatamente com o job_id para acompanhamento."""
@@ -4648,7 +4745,7 @@ async def generate_single_article(payload: dict):
 
 
 @app.delete("/api/v1/blog/post/{post_id}")
-async def delete_blog_post(post_id: str):
+async def delete_blog_post(post_id: str, _admin=Depends(require_admin)):
     """Remove um post do blog pelo ID."""
     from modules.database import delete_db_blog_post
     success = delete_db_blog_post(post_id)
@@ -4657,7 +4754,7 @@ async def delete_blog_post(post_id: str):
     return {"success": True, "message": f"Post {post_id} removido"}
 
 @app.delete("/api/v1/blog/channel/{channel_id}")
-async def delete_blog_channel(channel_id: str):
+async def delete_blog_channel(channel_id: str, _admin=Depends(require_admin)):
     """Remove um canal de blog e todos os seus artigos pelo ID."""
     from modules.database import SessionLocal, BlogChannel, BlogPost
     db = SessionLocal()
@@ -4682,7 +4779,7 @@ async def delete_blog_channel(channel_id: str):
 
 
 @app.post("/api/v1/pipeline/run-blog-factory")
-async def run_blog_factory_frontend(payload: dict):
+async def run_blog_factory_frontend(payload: dict, _admin=Depends(require_admin)):
     """Alias da UI - delega para a pipeline macro."""
     blog_name = payload.get("blog_name", "")
     niche = payload.get("niche", "")
@@ -4815,7 +4912,7 @@ async def run_blog_factory_frontend(payload: dict):
     return {"task_id": tid, "blog_name": blog_name, "niche": niche, "status": "starting", "message": "Pipeline iniciada!"}
 
 @app.post("/api/v1/pipeline/suggest-blog-idea")
-async def suggest_blog_idea(payload: dict):
+async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
     """
     Usa o LLM para sugerir um Nome de Blog criativo e um Nicho lucrativo.
     Se is_affiliate for True, foca em produtos físicos e reviews de afiliados.
@@ -5143,71 +5240,6 @@ from modules.database import (
     create_db_combo_purchase, get_db_combo_purchases, delete_db_combo,
     get_db_books, get_db_courses, get_db_book, get_db_course,
 )
-import bcrypt as _bcrypt_mod
-from datetime import datetime, timedelta
-
-def _hash_password(password: str) -> str:
-    return _bcrypt_mod.hashpw(password.encode("utf-8"), _bcrypt_mod.gensalt()).decode("utf-8")
-
-def _verify_password(password: str, hashed: str) -> bool:
-    return _bcrypt_mod.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-AUTH_SECRET = os.getenv("AUTH_SECRET", os.getenv("SECRET_KEY", "dezafira-club-secret-change-me"))
-JWT_EXPIRE_HOURS = 24 * 7  # 7 dias
-
-def _generate_jwt_token(user_id: str) -> str:
-    """Gera um token simples (HMAC-SHA256). Para JWT real, usar python-jose."""
-    payload = f"{user_id}:{int(datetime.utcnow().timestamp()) + JWT_EXPIRE_HOURS * 3600}"
-    sig = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
-    return f"{payload}:{sig}"
-
-def _verify_jwt_token(token: str) -> str | None:
-    """Retorna user_id se token válido, senão None."""
-    try:
-        parts = token.split(":")
-        if len(parts) != 3:
-            return None
-        user_id, exp_ts, sig = parts
-        payload = f"{user_id}:{exp_ts}"
-        expected = hashlib.sha256(f"{payload}:{AUTH_SECRET}".encode()).hexdigest()[:32]
-        if sig != expected:
-            return None
-        if int(exp_ts) < int(datetime.utcnow().timestamp()):
-            return None
-        return user_id
-    except Exception:
-        return None
-
-async def get_current_user(authorization: str = Header(None)):
-    """Dependency: extrai user do header Authorization: Bearer <token>."""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Token ausente")
-    token = authorization.replace("Bearer ", "")
-    user_id = _verify_jwt_token(token)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
-    user = get_db_user_by_id(user_id)
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
-
-async def get_optional_user(authorization: str = Header(None)):
-    """Dependency: retorna user ou None (sem erro 401)."""
-    if not authorization:
-        return None
-    token = authorization.replace("Bearer ", "")
-    user_id = _verify_jwt_token(token)
-    if not user_id:
-        return None
-    user = get_db_user_by_id(user_id)
-    if not user or not user.is_active:
-        return None
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "avatar_url": user.avatar_url}
-
-async def require_admin(user=Depends(get_current_user)):
-    """Dependency: exige role admin."""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
-    return user
 
 
 # ─── AUTH ─────────────────────────────────────────────────────────────

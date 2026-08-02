@@ -1030,6 +1030,55 @@ Course
 
 ---
 
+## 🔐 AUTENTICAÇÃO ADMIN & SEGURANÇA
+
+### Controle de Acesso às Fábricas
+
+Todas as fábricas (Blog, Ebook, Curso) são acessíveis apenas por usuários com `role="admin"`.
+
+**Backend** — endpoints administrativos protegidos com `Depends(require_admin)`:
+
+| Endpoint | Método | Uso |
+|----------|--------|-----|
+| `/api/v1/pipeline/run-blog-factory` | POST | Iniciar fábrica de blogs |
+| `/api/v1/pipeline/blog-factory/history` | GET | Histórico |
+| `/api/v1/pipeline/run-ebook-factory` | POST | Iniciar fábrica de ebooks |
+| `/api/v1/pipeline/ebook-factory/history` | GET | Histórico |
+| `/api/v1/pipeline/suggest-blog-idea` | POST | Sugerir ideia |
+| `/api/v1/factory/dashboard` | GET | Dashboard |
+| `/api/v1/blog/generate-article-hype` | POST | Gerar artigos hype |
+| `/api/v1/blog/post/{post_id}` | DELETE | Deletar post |
+| `/api/v1/blog/post/{post_id}/regenerate*` | POST | Regenerar post/imagem |
+| `/api/v1/blog/channel/{channel_id}` | DELETE | Deletar canal |
+| `/api/v1/lili/*` | GET/POST | Revisão e correção LiLi |
+| `/api/v1/monetization/status` | GET | Status monetização |
+| `/api/v1/search` | GET | Busca global |
+| `/api/v1/ebooks` | GET | Lista ebooks |
+| `/api/v1/ebooks/{book_id}` | GET/DELETE | Detalhe/delete (GET aceita `?token=`) |
+
+**Painel admin legacy** (`GET /`) exige token admin via:
+- Header `Authorization: Bearer <token>` 
+- Ou query string `?token=<token>` (usado pelo iframe do frontend)
+
+**Frontend Club** — páginas `/admin/*` verificam `user.role === "admin"` antes de renderizar.
+
+### Endpoints públicos (intencionalmente abertos)
+- `/api/v1/blog/{slug}/posts` (GET)
+- `/api/v1/blog/{slug}/info` (GET)
+
+### Passagem de token ao painel legacy (iframe)
+1. `api.getToken()` retorna o JWT armazenado no `localStorage`
+2. Página Next.js monta URL: `https://backend/?token=<jwt>#blogs` (ou `#books`)
+3. `static/index.html` lê o token da URL, guarda em `localStorage` e envia `Authorization` em todos os fetch
+4. Backend valida o token (`_verify_jwt_token`) e o papel admin
+
+### Dependências de autenticação (server.py)
+```python
+async def get_current_user(authorization: str = Header(None)): ...
+async def get_optional_user(authorization: str = Header(None)): ...
+async def require_admin(user=Depends(get_current_user)): ...
+```
+
 ## 🔐 VARIÁVEIS DE AMBIENTE
 
 ```
@@ -1060,18 +1109,23 @@ UNSPLASH_ACCESS_KEY=...
 **Root Directory:** `/SniperVideoEngine`  
 **Builder:** Dockerfile  
 **Dockerfile Path:** `/SniperVideoEngine/Dockerfile`  
-**Healthcheck Path:** `/health`  
+**Healthcheck Path:** `/health` (timeout 120s)  
 **Port:** 8080  
-**Domínio:** dezafira.com.br (aponta para backend)
+**Domínio:** `backend-production-f90d.up.railway.app`  
+**Envs:** `DATABASE_URL`, `SECRET_KEY`, chaves LLM, Redis
 
-### Frontend Club (Vercel)
-**Directory:** `/club-frontend`  
-**Framework:** Next.js  
-**Build Command:** `npm run build`  
-**Output:** `.next`  
-**Env Vars:** `NEXT_PUBLIC_API_URL=` (vazio — usa proxy rewrite)  
-**Domínio:** club.dezafira.com.br
+### Frontend Club (Railway)
+**Root Directory:** `/SniperVideoEngine/club-frontend`  
+**Builder:** Dockerfile (auto-detectado)  
+**Port:** 8080  
+**Domínio:** `dezafira.com.br`  
+**Envs:** `NEXT_PUBLIC_API_URL=https://backend-production-f90d.up.railway.app`
+
+### Banco de Dados (Railway PostgreSQL)
+**Domínio:** `reseau.proxy.rlwy.net:26643`  
+**Banco:** `railway`
+**Redis:** já vinculado ao Railway
 
 ---
 
-*Documentação gerada em 01/08/2026 — Dezafira Club v3.1*
+*Documentação gerada em 01/08/2026 — Dezafira Club v3.2*

@@ -3,7 +3,7 @@
 > **Automação de Conteúdo Digital com IA — 100% CPU, sem GPU**
 > 
 > **Produção:** https://dezafira.com.br
-> **Club:** https://club.dezafira.com.br (Next.js + Vercel)
+> **Club:** https://dezafira.com.br (Next.js + Railway)
 > 
 > **Status atual:** 89 artigos publicados em 2 blogs, 100% com imagem, score LiLi médio 99.1/100
 
@@ -17,7 +17,7 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 ┌──────────────────────────────────────────────────────────────────────┐
 │                 FRONTEND — Dezafira Club (Next.js 14)                │
 │  Landing │ Auth │ Dashboard │ Admin Panel │ Combos │ Ranking        │
-│  club.dezafira.com.br                                               │
+│  dezafira.com.br                                                      │
 └──────────────────────────┬───────────────────────────────────────────┘
                            │ API Proxy (/api/* → FastAPI)
 ┌──────────────────────────▼───────────────────────────────────────────┐
@@ -32,7 +32,7 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │              🏭 Factories (Pipelines)                            ││
 │  │  📝 Blog Factory (5 phases)  │  📗 Ebook Factory (6 phases)    ││
-│  │  🎓 Course Factory (planned) │  📸 Image Factory (Pexels+SVG)  ││
+│  │  🎓 Course Factory (6 phases) │  📸 Image Factory (Pexels+SVG)   ││
 │  └──────────────────────────────────────────────────────────────────┘│
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
@@ -320,24 +320,36 @@ dezafira/
 ├── SniperVideoEngine/
 │   ├── server.py                  # API principal (130+ endpoints)
 │   ├── modules/
-│   │   ├── database.py            # SQLAlchemy ORM (20+ tables)
+│   │   ├── database.py            # SQLAlchemy ORM (23+ tables)
 │   │   ├── blog_writer.py         # Geração de artigos via LLM
 │   │   ├── blog_pipeline.py       # Macro-esteira com 5 estágios
 │   │   ├── ebook_pipeline.py      # Pipeline de ebooks 6 fases
+│   │   ├── course_pipeline.py     # Pipeline de cursos 6 fases
 │   │   ├── blog_viewer.py         # Blog viewer público dinâmico
 │   │   ├── brand_themes.py        # Temas visuais por nicho
 │   │   ├── image_factory.py       # Geração de imagens (Pexels + SVG)
 │   │   ├── lili.py                # Revisora de qualidade auto-corretiva
 │   │   ├── seu_pereira.py         # Analista de monetização
 │   │   └── seu_ze.py              # Agendador de produção
+│   ├── agents/
+│   │   ├── course_professor.py    # Estrutura curricular (cursos)
+│   │   ├── course_pedagogue.py    # Conteúdo didático
+│   │   ├── course_reviewer.py     # Revisão de qualidade (cursos)
+│   │   ├── course_quizmaster.py   # Quiz generation
+│   │   └── course_cover.py        # Capas/thumbnails de cursos
 │   ├── static/
-│   │   └── index.html             # UI Dashboard SPA (blog admin)
+│   │   └── index.html             # UI Dashboard SPA (blog/ebook admin)
 │   ├── club-frontend/             # Next.js 14 frontend
 │   │   ├── app/
 │   │   │   ├── page.tsx           # Landing page
 │   │   │   ├── auth/              # Login/Register
 │   │   │   ├── painel/            # Member dashboard
 │   │   │   └── admin/             # Admin panel
+│   │   │       ├── fabrica-blog/  # Fábrica de Blogs (iframe do painel)
+│   │   │       ├── fabrica-ebook/ # Fábrica de Ebooks (iframe do painel)
+│   │   │       ├── fabrica-curso/ # Fábrica de Cursos (nativo)
+│   │   │       ├── trilhas/       # Learning paths
+│   │   │       └── analytics/     # Métricas
 │   │   ├── lib/
 │   │   │   ├── api.ts             # API client
 │   │   │   └── auth-context.tsx   # Auth provider
@@ -386,16 +398,21 @@ bab06f4 fix: Seu Pereira reconhece dominio real dezafira.com.br
 - [x] Banco PostgreSQL em produção
 - [x] **Fábrica de Ebooks** — Pipeline de 6 fases + Checkout + Área de Membro
 - [x] **Dezafira Club** — Auth, Gamificação, Cursos, Combos (Next.js 14 + FastAPI)
+- [x] **Fábrica de Cursos** — Pipeline de 6 fases + 5 agentes especializados + quizzes + capa
+- [x] **Trilhas de Aprendizado** — learning paths com ordenação de cursos
+- [x] **Admin Analytics** — métricas reais (usuários, cursos, receita)
+- [x] **Integração Fábrica de Blogs/Ebooks no Club** — páginas Next.js com iframe do painel
+- [x] **Autenticação Admin** — endpoints das fábricas protegidos com `require_admin`
+- [x] **Painel admin protegido** — `GET /` exige token admin (header ou query)
 
 ### 🔜 Próximos Passos
 - [ ] Google Search Console — Verificação e monitoramento
 - [ ] Indexação Google — Solicitar indexação dos artigos
 - [ ] Google AdSense — Solicitar aprovação
-- [ ] Fábrica de Cursos — Pipeline completo 6 fases
 - [ ] Email de confirmação com link de acesso (SMTP/Resend)
-- [ ] Deploy Vercel para club-frontend
-- [ ] Produção: migrar SQLite → PostgreSQL no Railway
+- [ ] Redis — cache e rate limiting ativos em produção
+- [ ] Real images nos blogs e club (substituir SVG placeholders)
 
 ---
 
-*Dezafira — Ecossistema de Fábricas de Conteúdo v3.1*
+*Dezafira — Ecossistema de Fábricas de Conteúdo v3.2*
