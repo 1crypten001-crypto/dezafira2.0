@@ -1,10 +1,9 @@
 # DEZAFIRA — Fábrica de Blogs & Dezafira Club
 
-> **Versão:** 3.1.0  
-> **Produção:** https://dezafira.com.br  
-> **API:** https://backend-production-f90d.up.railway.app  
-> **Frontend Club:** https://club.dezafira.com.br (Vercel)  
-> **Database:** PostgreSQL (Railway)  
+> **Versão:** 3.2.0  
+> **Produção (Frontend + Admin):** https://dezafira.com.br (Railway)  
+> **API Backend:** https://backend-production-f90d.up.railway.app  
+> **Database:** PostgreSQL + Redis (Railway)  
 > **Última atualização:** 01/08/2026
 
 ---
@@ -41,38 +40,33 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                      FRONTEND (Next.js 14 — Vercel)                  │
-│   Landing  │  Auth  │  Dashboard  │  Admin Panel  │  Combos         │
-│   club.dezafira.com.br/*                                              │
+│                 FRONTEND CLUB — Next.js 14 (Railway)                 │
+│        Landing │ Auth │ Painel │ Admin │ Fábricas │ Combos           │
+│        https://dezafira.com.br (dezafira.railway.internal)           │
+│        ANEXA o painel legacy via <iframe> com token ?token=           │
 └──────────────────────────┬───────────────────────────────────────────┘
-                           │ API Proxy (/api/* → FastAPI)
+                           │ chamadas API diretas (fetch → backend)
 ┌──────────────────────────▼───────────────────────────────────────────┐
-│                   FastAPI Backend (Railway) — 130+ endpoints         │
-│                                                                      │
+│              BACKEND — FastAPI (Railway) — 165 endpoints              │
+│        https://backend-production-f90d.up.railway.app (port 8080)     │
+│                                                                       │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                    Auth & Member System                          ││
-│  │  Register │ Login │ Google OAuth │ Password Recovery │ JWT      ││
-│  │  Points │ Badges │ Streak │ Ranking │ Course Tracks │ Combos    ││
+│  │       🔐 Auth & Member System (JWT + bcrypt + Google OAuth)      ││
+│  │  Register │ Login │ Recovery │ Points │ Badges │ Streak │ Rank   ││
+│  │  Course Tracks │ Combos │ Ebooks │ Admin (require_admin)         ││
 │  └──────────────────────────────────────────────────────────────────┘│
-│                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                    Factories (Pipelines)                         ││
-│  │  📝 Blog Factory (5 phases) │ 📗 Ebook Factory (6 phases)       ││
-│  │  🎓 Course Factory (6 phases, implemented)                        ││
-│  └──────────────────────────────────────────────────────────────────┘│
-│                                                                      │
-│  ┌──────────────────────────────────────────────────────────────────┐│
-│  │                    LLM Cascade (5+ providers)                    ││
-│  │  Gemini → OpenRouter → GitHub → Groq → Anthropic                 ││
-│  │  LiLi Reviewer (100/100 score, auto-correction)                  ││
+│  │       🏭 Fábricas / Pipelines (todas admin-gated)                ││
+│  │  📝 Blog Factory(5 fases) │ 📗 Ebook Factory(6) │ 🎓 Curso(6)    ││
+│  │  LiLi Reviewer · LlM Cascade(5) · Redis · Modelos               ││
 │  └──────────────────────────────────────────────────────────────────┘│
 └──────────────────────────┬───────────────────────────────────────────┘
                            │
 ┌──────────────────────────▼───────────────────────────────────────────┐
-│                    PostgreSQL (Railway) — 20+ tables                  │
-│  Blog Channels │ Blog Posts │ Books │ Products │ Transactions        │
-│  Users │ User Sessions │ Password Resets │ Points │ Badges │ Streak │
-│  Course Tracks │ Lesson Progress │ Combos │ Combo Purchases          │
+│              PostgreSQL (Railway) — 30+ tabelas                       │
+│             Blog Channels/Posts/Sections │ Books │ Users              │
+│             Sessions │ Points │ Badges │ Streaks │ Courses            │
+│             LearningPaths │ Combos │ Purchases │ Ebook Accesses      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -186,132 +180,195 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 ## 📡 ENDPOINTS DA API
 
-### 🏥 Health
+> **Base:** `https://backend-production-f90d.up.railway.app` · **165 endpoints no total.**
+> **Autenticação:** `Authorization: Bearer <JWT>`. Endpoints de **admin** (`/admin/*`, pipelines, ebooks, lili, search, monetization) exigem `require_admin` (401 sem token de admin).
+
+### 🏥 Health & Infra
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/health` | Health check do servidor |
+| GET | `/api/v1/version` | Versão da API |
+| GET | `/api/v1/logs` | Logs recentes |
+| GET | `/api/v1/account/balance` | Saldo da conta |
+| GET | `/api/v1/trends` | Tendências globais |
 
-### 📊 Factory / Pipeline
+### 📊 Dashboard / Fábrica (admin)
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/factory/dashboard` | Dashboard completo (canais, artigos, métricas) |
-| GET | `/api/v1/factory/monitor-stats` | Estatísticas do monitor |
+| GET | `/api/v1/factory/dashboard` | Dashboard completo (canais, artigos, métricas) — **admin** |
 | GET | `/api/v1/factory/francisco` | Relatório do Seu Francisco |
 | GET | `/api/v1/factory/ze-status` | Status do Seu Zé |
+| GET | `/api/v1/factory/monitor-stats` | Estatísticas do monitor |
 | GET | `/api/v1/factory/openmontage-status` | Status OpenMontage |
 | POST | `/api/v1/factory/build-app` | Construir aplicativo |
-| POST | `/api/v1/pipeline/run-blog-factory` | Iniciar macro-esteira de blog |
-| POST | `/api/v1/pipeline/run-blog` | Iniciar pipeline de blog |
-| POST | `/api/v1/pipeline/run-sync` | Pipeline síncrono |
-| GET | `/api/v1/pipeline/blog-factory/status/{task_id}` | Status da macro-esteira |
-| GET | `/api/v1/pipeline/macro-result/{task_id}` | Resultado da macro-esteira |
-| GET | `/api/v1/pipeline/blog/history` | Histórico de pipelines |
-| GET | `/api/v1/pipeline/{task_id}` | Status de pipeline específico |
+| GET | `/api/v1/factory/{...}` | Extras do dashboard |
 
-### 📝 Blog API
+### 📝 API de Blogs (público de leitura)
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/api/v1/blog/{slug}/info` | Informações do blog |
 | GET | `/api/v1/blog/{slug}/posts` | Lista de artigos do blog |
 | GET | `/api/v1/blog/{slug}/posts/{post_id}` | Artigo específico |
 | POST | `/api/v1/blog/{slug}/posts/{post_id}/update` | Atualizar artigo |
-| POST | `/api/v1/blog/{slug}/posts/{post_id}/generate-image` | Gerar imagem para artigo |
-| POST | `/api/v1/blog/generate-article` | Gerar artigo via LLM |
-| POST | `/api/v1/blog/generate-batch` | Gerar lote de artigos |
-| POST | `/api/v1/blog/generate-missing-images` | Gerar imagens pendentes |
-| DELETE | `/api/v1/blog/post/{post_id}` | Deletar artigo |
-| POST | `/api/v1/blog/import-posts` | Importar artigos |
-| POST | `/api/v1/blog/{slug}/generate-banner` | Gerar banner do blog |
+| POST | `/api/v1/blog/{slug}/posts/{post_id}/generate-image` | Gerar imagem do artigo |
 | GET | `/api/v1/blog/{slug}/subdomain` | Obter subdomínio |
 | POST | `/api/v1/blog/{slug}/subdomain` | Configurar subdomínio |
+| POST | `/api/v1/blog/{slug}/generate-banner` | Gerar banner do blog |
+| POST | `/api/v1/blog/{slug}/update-affiliate` | Atualizar config do Modo Afiliado |
+| POST | `/api/v1/blog/{slug}/update-modes` | Atualizar modos de exibição |
+| POST | `/api/v1/blog/generate-article` | Gerar artigo via LLM |
+| POST | `/api/v1/blog/generate-article-hype` | Gerar artigo "hype" — **admin** |
+| POST | `/api/v1/blog/generate-batch` | Gerar lote de artigos |
+| POST | `/api/v1/blog/generate-missing-images` | Gerar imagens pendentes |
+| POST | `/api/v1/blog/import-posts` | Importar artigos |
+| DELETE | `/api/v1/blog/post/{post_id}` | Deletar artigo — **admin** |
+| POST | `/api/v1/blog/post/{post_id}/regenerate` | Regenerar post — **admin** |
+| POST | `/api/v1/blog/post/{post_id}/regenerate-image` | Regenerar imagem — **admin** |
+| DELETE | `/api/v1/blog/channel/{channel_id}` | Deletar canal — **admin** |
 | POST | `/api/v1/blogs/seed` | Popular blogs de teste |
 
-### 🌸 LiLi — Revisão
+### 🌸 LiLi — Revisão (admin)
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/lili/review/{post_id}` | Revisar artigo específico |
-| GET | `/api/v1/lili/review-all` | Revisar todos os artigos |
-| POST | `/api/v1/lili/correct/{post_id}` | Corrigir artigo automaticamente |
+| GET | `/api/v1/lili/review/{post_id}` | Revisar artigo — **admin** |
+| GET | `/api/v1/lili/review-all` | Revisar todos os artigos — **admin** |
+| POST | `/api/v1/lili/correct/{post_id}` | Corrigir artigo — **admin** |
+| GET | `/api/v1/lili/ranking` | Ranking LiLi — **admin** |
+| POST | `/api/v1/lili/regenerate-batch` | Regenerar lote — **admin** |
+| GET | `/api/v1/lili/regenerate-jobs/{job_id}` | Status do job — **admin** |
+| GET | `/api/v1/lili/regenerate-jobs` | Lista de jobs — **admin** |
 
-### 💰 Monetização
+### 💰 Monetização & Afiliados
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/monetization/status` | Status do Seu Pereira (AdSense) |
-| POST | `/api/v1/blog/{slug}/update-affiliate` | Atualiza configurações do Modo Afiliado |
-| GET | `/api/v1/affiliate/clicks` | Métricas consolidadas de cliques de afiliados |
-| GET | `/go/{post_slug}/{provider}` | Cloaking de links e redirecionamento de afiliados |
+| GET | `/api/v1/monetization/status` | Status Seu Pereira (AdSense) — **admin** |
+| GET | `/api/v1/affiliate/clicks` | Cliques consolidados |
+| GET | `/go/{post_slug}/{provider}` | Cloaking/redirect de afiliados |
 
 ### 🎨 Imagens
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| POST | `/api/v1/images/generate-blog-image` | Gerar imagem para blog |
 | POST | `/api/v1/images/generate-cover` | Gerar capa |
+| POST | `/api/v1/images/generate-blog-image` | Gerar imagem de blog |
 | POST | `/api/v1/images/generate-thumbnail` | Gerar thumbnail |
 
 ### 🔍 Pesquisa
 | Método | Rota | Descrição |
 |--------|------|-----------|
+| GET | `/api/v1/search` | Busca global — **admin** |
 | POST | `/api/v1/research/niche` | Pesquisar nicho |
 | POST | `/api/v1/research/channel` | Analisar canal YouTube |
 | GET | `/api/v1/research/trending` | Tendências do YouTube |
 | GET | `/api/v1/research/youtube-rules` | Regras do YouTube |
+| POST | `/api/v1/spy/discover` | Descobrir oportunidades |
+| POST | `/api/v1/rag/ask` | Perguntar ao RAG |
+| POST | `/api/v1/rag/index` | Indexar no RAG |
 
-### 📚 Livros
+### 📚 Livros / Ebooks
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/api/v1/books` | Listar livros |
 | POST | `/api/v1/books/generate` | Gerar livro |
 | POST | `/api/v1/books/seed` | Popular livros de teste |
 | GET | `/api/v1/books/{book_id}` | Detalhes do livro |
+| GET | `/api/v1/ebooks` | Listar ebooks — **admin** |
+| GET | `/api/v1/ebooks/{book_id}` | Detalhes do ebook (header OU `?token=`) — **admin** |
+| DELETE | `/api/v1/ebooks/{book_id}` | Deletar ebook — **admin** |
+| GET | `/api/v1/ebooks/{book_id}/chapters` | Capítulos do ebook |
+| GET | `/api/v1/my-ebooks` | Ebooks do usuário |
 
-### 🎓 Cursos
+### 🎓 Cursos (público)
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/api/v1/courses` | Listar cursos |
-| POST | `/api/v1/courses/generate` | Gerar curso |
-| POST | `/api/v1/courses/seed` | Popular cursos de teste |
 | GET | `/api/v1/courses/{course_id}` | Detalhes do curso |
+| POST | `/api/v1/courses/generate` | Gerar curso |
+| POST | `/api/v1/courses/seed` | Seed de cursos |
 
-### 🧠 Hermes Chat
+### 🏗️ Pipelines (todas admin)
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| POST | `/api/v1/hermes/chat` | Conversar com Hermes |
-| POST | `/api/v1/hermes/analyze-video` | Analisar vídeo concorrente |
-| POST | `/api/v1/hermes/clear` | Limpar histórico |
-| GET | `/api/v1/hermes/history` | Histórico do chat |
+| POST | `/api/v1/pipeline/run-blog-factory` | Iniciar macro-esteira de blog |
+| GET | `/api/v1/pipeline/blog-factory/status/{task_id}` | Status da macro-esteira |
+| GET | `/api/v1/pipeline/blog-factory/history` | Histórico |
+| GET | `/api/v1/pipeline/blog/history` | Histórico de pipelines |
+| GET | `/api/v1/pipeline/run-blog` | Iniciar pipeline de blog |
+| POST | `/api/v1/pipeline/suggest-blog-idea` | Sugerir ideia de blog |
+| POST | `/api/v1/pipeline/run-ebook-factory` | Iniciar fábrica de ebooks |
+| GET | `/api/v1/pipeline/ebook-factory/status/{task_id}` | Status fábrica de ebooks |
+| GET | `/api/v1/pipeline/ebook-factory/history` | Histórico |
+| POST | `/api/v1/pipeline/run-course-factory` | Iniciar fábrica de cursos |
+| GET | `/api/v1/pipeline/course-factory/status/{task_id}` | Status fábrica de cursos |
+| GET | `/api/v1/pipeline/course-factory/history` | Histórico |
+| GET | `/api/v1/pipeline/macro-result/{task_id}` | Resultado da macro-esteira |
+| GET | `/api/v1/pipeline/active-tasks` | Tarefas ativas |
+| GET | `/api/v1/pipeline/{task_id}` | Status de pipeline específico |
+| GET | `/api/v1/pipeline` | Listar pipelines |
+| POST | `/api/v1/pipeline/{task_id}/pause` | Pausar |
+| POST | `/api/v1/pipeline/{task_id}/resume` | Retomar |
+| POST | `/api/v1/pipeline/{task_id}/stop` | Parar |
+| POST | `/api/v1/pipeline/{task_id}/approve/{stage}` | Aprovar estágio |
 
-### 📦 Entregáveis
+### 📦 Entregáveis & Checkout
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/api/v1/deliverables` | Listar apps |
 | POST | `/api/v1/deliverables/create` | Criar app |
-| POST | `/api/v1/deliverables/checkout` | Checkout |
 | GET | `/api/v1/deliverables/{slug}` | Detalhes do app |
+| POST | `/api/v1/deliverables/checkout` | Checkout |
 | POST | `/api/v1/deliverables/webhooks/mercadopago` | Webhook Mercado Pago |
 | POST | `/api/v1/deliverables/webhooks/stripe` | Webhook Stripe |
+| POST | `/api/v1/checkout/create` | Criar checkout |
+| POST | `/api/v1/checkout/confirm` | Confirmar checkout |
+| GET | `/api/v1/transactions` | Listar transações |
 
 ### 📊 Analytics
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/analytics/channels` | Analytics de canais |
-| GET | `/api/v1/analytics/metrics` | Métricas de analytics |
+| GET | `/api/v1/analytics/metrics` | Métricas |
+| GET | `/api/v1/analytics/channels` | Analytics por canal |
 
-### 🕵️ Spy / Trends
+### 🧠 Hermes Chat & Canais
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| POST | `/api/v1/spy/discover` | Descobrir oportunidades |
-| POST | `/api/v1/rag/ask` | Perguntar ao RAG |
-| POST | `/api/v1/rag/index` | Indexar conteúdo no RAG |
+| POST | `/api/v1/hermes/chat` | Conversar com Hermes |
+| GET | `/api/v1/hermes/history` | Histórico do chat |
+| POST | `/api/v1/hermes/clear` | Limpar histórico |
+| POST | `/api/v1/hermes/analyze-video` | Analisar vídeo concorrente |
+| GET | `/api/v1/channels` | Listar canais |
+| POST | `/api/v1/channels` | Criar canal |
+| DELETE | `/api/v1/channels/{channel_id}` | Deletar canal |
+| POST | `/api/v1/channels/{channel_id}/login-stealth` | Login stealth |
+| GET | `/api/v1/channels/{channel_id}/connection-status` | Status da conexão |
+| POST | `/api/v1/channels/{channel_id}/submit-2fa` | Enviar 2FA |
+| GET | `/api/v1/channels/{channel_id}/knowledge` | Memória do canal |
+| POST | `/api/v1/channels/{channel_id}/knowledge` | Adicionar memória |
 
-### 🌐 Blog Frontend (HTML)
+### 📈 Predictions
 | Método | Rota | Descrição |
 |--------|------|-----------|
+| POST | `/api/v1/predictions` | Criar predição |
+| GET | `/api/v1/predictions/{prediction_id}/result` | Resultado da predição |
+| GET | `/api/v1/predictions/history` | Histórico |
+| POST | `/api/v1/predictions/{prediction_id}/approve` | Aprovar |
+| POST | `/api/v1/predictions/{prediction_id}/reject` | Rejeitar |
+
+### 🌐 Frontend HTML (Blog Viewer)
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/` | Painel admin legacy (SPA) — exige token admin (`?token=` ou header) |
+| GET | `/app/{slug}` | App do canal |
 | GET | `/blog/{slug}` | Página inicial do blog |
 | GET | `/blog/{slug}/sobre` | Página Sobre |
 | GET | `/blog/{slug}/contato` | Página Contato |
 | GET | `/blog/{slug}/privacidade` | Política de Privacidade |
 | GET | `/blog/{slug}/termos` | Termos de Uso |
-| GET | `/sitemap.xml` | Sitemap XML (todos os artigos) |
+| GET | `/ebook/{slug}/venda` | Página de vendas do ebook |
+| GET | `/ebook/{token}/reader` | Leitor do ebook |
+| GET | `/api/v1/ebook-reader/{token}/chapter/{n}` | Capítulo do leitor |
+| GET | `/oreino`, `/o-reino` | Redirects de blog |
+| GET | `/go/{post_slug}/{provider}` | Redirect de afiliado |
+| GET | `/sitemap.xml` | Sitemap XML |
 | GET | `/robots.txt` | Robots.txt |
 | GET | `/ads.txt` | Ads.txt |
 
@@ -328,8 +385,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | Frontend | Next.js 14.2.35 (App Router) + Tailwind CSS |
 | Backend | FastAPI (integrado ao server.py existente) |
 | Auth | JWT (HMAC-SHA256) + bcrypt + Google OAuth |
-| Deploy Frontend | Vercel |
-| Deploy Backend | Railway (mesmo server) |
+| Deploy Frontend | Railway (root `/SniperVideoEngine/club-frontend`) |
+| Deploy Backend | Railway (root `/SniperVideoEngine`, port 8080) |
 
 ### Autenticação
 
@@ -359,8 +416,10 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/api/v1/member/badges` | Badges conquistadas |
 | GET | `/api/v1/member/streak` | Sequência diária |
 | GET | `/api/v1/member/courses` | Cursos matriculados |
-| POST | `/api/v1/member/courses/{id}/enroll` | Matricular-se no curso |
-| POST | `/api/v1/member/lessons/{id}/complete` | Marcar aula como concluída |
+| POST | `/api/v1/member/courses/{course_id}/enroll` | Matricular-se no curso |
+| POST | `/api/v1/member/lessons/{lesson_id}/complete` | Marcar aula como concluída |
+| GET | `/api/v1/ranking` | Ranking global |
+| GET | `/api/v1/ebooks/{book_id}/chapters` | Capítulos do ebook |
 
 ### Gamificação
 
@@ -401,9 +460,43 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/admin/users` | Listar todos os usuários |
-| GET | `/api/v1/admin/stats` | Estatísticas gerais |
+| GET | `/api/v1/admin/users` | Listar todos os usuários — **admin** |
+| GET | `/api/v1/admin/stats` | Estatísticas gerais — **admin** |
 | GET | `/api/v1/ranking` | Ranking global |
+
+#### Admin — Cursos (CRUD)
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/admin/courses` | Listar cursos — **admin** |
+| POST | `/api/v1/admin/courses` | Criar curso — **admin** |
+| GET | `/api/v1/admin/courses/{course_id}` | Detalhes — **admin** |
+| PUT | `/api/v1/admin/courses/{course_id}` | Atualizar — **admin** |
+| DELETE | `/api/v1/admin/courses/{course_id}` | Deletar — **admin** |
+| POST | `/api/v1/admin/courses/{course_id}/publish` | Publicar — **admin** |
+| POST | `/api/v1/admin/courses/{course_id}/unpublish` | Despublicar — **admin** |
+
+#### Admin — Learning Paths
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/admin/learning-paths` | Listar trilhas — **admin** |
+| POST | `/api/v1/admin/learning-paths` | Criar trilha — **admin** |
+| GET | `/api/v1/admin/learning-paths/{path_id}` | Detalhes — **admin** |
+| PUT | `/api/v1/admin/learning-paths/{path_id}` | Atualizar — **admin** |
+| DELETE | `/api/v1/admin/learning-paths/{path_id}` | Deletar — **admin** |
+| POST | `/api/v1/admin/learning-paths/{path_id}/courses` | Adicionar curso — **admin** |
+| DELETE | `/api/v1/admin/learning-paths/{path_id}/courses/{course_id}` | Remover curso — **admin** |
+
+#### Admin — Analytics
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/admin/analytics/overview` | Resumo analítico — **admin** |
+| GET | `/api/v1/admin/analytics/courses` | Analytics de cursos — **admin** |
+
+#### Trilhas Públicas
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/learning-paths` | Listar trilhas públicas |
+| GET | `/api/v1/learning-paths/{slug}` | Detalhes da trilha
 
 ### Database Tables (Novas)
 
@@ -516,16 +609,21 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | Landing | `/` | Página inicial com hero, combos, ranking |
 | Login | `/auth/login` | Formulário de login |
 | Registro | `/auth/register` | Formulário de registro |
-| Dashboard | `/painel` | Área do membro (tabs: início, cursos, ebooks, ranking) |
-| Admin | `/painel/admin` | Painel administrativo (stats, users, combos) |
+| Painel | `/painel` | Área do membro (tabs: Visão Geral, Cursos, Ebooks, Ranking) |
+| Admin | `/admin` | Painel admin (Stats, Fábricas, Usuários, Combos, Trilhas, Analytics) |
+| Fábrica Blog | `/admin/fabrica-blog` | iframe do painel legacy → `/#blogs` |
+| Fábrica Ebook | `/admin/fabrica-ebook` | iframe do painel legacy → `/#books` |
+| Fábrica Curso | `/admin/fabrica-curso` | Pipeline nativa de cursos (Next.js) |
+| Trilhas | `/admin/trilhas` | Gestão de learning paths |
+| Analytics | `/admin/analytics` | Métricas reais |
 
 **Features UI:**
 - Dark mode (indigo/purple gradient theme)
-- API proxy via Next.js rewrite (`/api/*` → backend)
-- JWT armazenado em localStorage
-- Protected routes (redirect se não logado)
-- Tabs no dashboard (overview, courses, ebooks, ranking)
-- Admin: CRUD de combos, listagem de usuários
+- JWT armazenado em `localStorage` (`dz_token`)
+- Rotas protegidas: `/painel` exige login; `/admin/*` exige `role === "admin"` (redireciona para `/painel` caso contrário)
+- As fábricas Blog/Ebook são um **iframe** do painel legacy (`static/index.html`) com token passado via `?token=` + hash `#blogs`/`#books`
+- Auth flow em `lib/auth-context.tsx` (AuthProvider + useAuth) — usa `api.getMe()` para restaurar sessão
+- API client em `lib/api.ts` injeta `Authorization: Bearer` em todas as chamadas
 
 ---
 

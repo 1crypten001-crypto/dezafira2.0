@@ -16,12 +16,12 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │                 FRONTEND — Dezafira Club (Next.js 14)                │
-│  Landing │ Auth │ Dashboard │ Admin Panel │ Combos │ Ranking        │
-│  dezafira.com.br                                                      │
+│  Landing │ Auth │ Dashboard │ Admin Panel │ Combos │ Ranking         │
+│  dezafira.com.br (Railway)                                            │
 └──────────────────────────┬───────────────────────────────────────────┘
-                           │ API Proxy (/api/* → FastAPI)
+                           │ chamadas diretas (fetch → FastAPI + Bearer)
 ┌──────────────────────────▼───────────────────────────────────────────┐
-│                 BACKEND (FastAPI) — 130+ endpoints                   │
+│                 BACKEND (FastAPI) — 165 endpoints                    │
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │              🔐 Auth & Member System                             ││
@@ -38,7 +38,7 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │              LLM Cascade (5 provedores)                          ││
 │  │  Gemini → OpenRouter → GitHub → Groq → Anthropic                 ││
-│  │  Database PostgreSQL + SQLAlchemy ORM                            ││
+│  │  Database PostgreSQL + SQLAlchemy ORM + Redis                    ││
 │  └──────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,7 @@ Página de Vendas → Checkout → Confirmação → Token Gerado → Leitor HTM
 ## 🏠 Dezafira Club — Área de Membro
 
 ### Visão Geral
-Área de membros completa com autenticação, gamificação, cursos e combos. Frontend Next.js 14 (Vercel), backend integrado no FastAPI existente.
+Área de membros completa com autenticação, gamificação, cursos e combos. Frontend Next.js 14 (Railway), backend integrado no FastAPI existente.
 
 ### Funcionalidades
 
@@ -97,35 +97,96 @@ Página de Vendas → Checkout → Confirmação → Token Gerado → Leitor HTM
 ```
 club-frontend/
 ├── app/
-│   ├── page.tsx              # Landing page (hero, combos, ranking)
-│   ├── auth/login/page.tsx   # Login
+│   ├── page.tsx                # Landing page (hero, combos, ranking)
+│   ├── auth/login/page.tsx    # Login
 │   ├── auth/register/page.tsx # Registro
-│   ├── painel/page.tsx       # Dashboard do membro
-│   └── admin/page.tsx        # Painel admin
+│   ├── painel/page.tsx        # Dashboard do membro (overview, cursos, ebooks, ranking)
+│   └── admin/
+│       ├── page.tsx           # Painel admin (stats, users, combos)
+│       ├── fabrica-blog/      # Fábrica de Blogs (iframe do painel → #blogs)
+│       ├── fabrica-ebook/     # Fábrica de Ebooks (iframe do painel → #books)
+│       ├── fabrica-curso/     # Fábrica de Cursos (pipeline nativa)
+│       ├── trilhas/           # Learning paths
+│       └── analytics/         # Métricas
 ├── lib/
-│   ├── api.ts                # Cliente API com todas as endpoints
-│   └── auth-context.tsx      # React AuthProvider + useAuth
+│   ├── api.ts                # Cliente API com todas as endpoints (injeta Bearer token)
+│   └── auth-context.tsx      # React AuthProvider + useAuth (restaura sessão via /me)
 ├── public/images/            # Imagens placeholder
-├── next.config.js            # API proxy (/api/* → backend)
-└── tailwind.config.js        # Dark mode, indigo/purple theme
+├── Dockerfile                # Build Railway
+└── next.config.js
 ```
 
 ### API Endpoints (Novas)
 
+**Auth**
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| POST | `/api/v1/auth/register` | Registro |
+| POST | `/api/v1/auth/register` | Registro (email + senha) |
 | POST | `/api/v1/auth/login` | Login |
 | POST | `/api/v1/auth/google` | Google OAuth |
-| POST | `/api/v1/auth/forgot-password` | Recuperação |
-| GET | `/api/v1/auth/me` | Dados do usuário |
-| GET | `/api/v1/member/dashboard` | Dashboard |
+| POST | `/api/v1/auth/forgot-password` | Recuperação de senha |
+| POST | `/api/v1/auth/reset-password` | Redefinir senha |
+| GET | `/api/v1/auth/me` | Dados do usuário logado |
+| POST | `/api/v1/auth/logout` | Encerrar sessão |
+
+**Member**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/member/dashboard` | Dashboard do membro |
 | GET | `/api/v1/member/points` | Pontos |
 | GET | `/api/v1/member/badges` | Badges |
 | GET | `/api/v1/member/streak` | Streak |
-| GET | `/api/v1/member/courses` | Cursos |
-| GET | `/api/v1/combos` | Combos |
-| GET | `/api/v1/ranking` | Ranking |
+| GET | `/api/v1/member/courses` | Cursos matriculados |
+| POST | `/api/v1/member/courses/{id}/enroll` | Matricular-se |
+| POST | `/api/v1/member/lessons/{id}/complete` | Completar aula |
+
+**Combos**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/combos` | Listar combos |
+| GET | `/api/v1/combos/{slug}` | Detalhes do combo |
+| POST | `/api/v1/combos/{id}/purchase` | Iniciar compra |
+| POST | `/api/v1/combos/{id}/confirm` | Confirmar pagamento |
+
+**Social**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/ranking` | Ranking global |
+
+**Admin — Cursos / Trilhas / Analytics** *(exigem `require_admin`)*
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET/POST | `/api/v1/admin/courses` | Listar/Criar cursos |
+| GET/PUT/DELETE | `/api/v1/admin/courses/{id}` | Detalhes/Editar/Deletar |
+| POST | `/api/v1/admin/courses/{id}/publish` | Publicar curso |
+| POST | `/api/v1/admin/courses/{id}/unpublish` | Despublicar curso |
+| GET/POST | `/api/v1/admin/learning-paths` | Listar/Criar trilhas |
+| GET/PUT/DELETE | `/api/v1/admin/learning-paths/{id}` | Gestão de trilha |
+| POST | `/api/v1/admin/learning-paths/{id}/courses` | Adicionar curso à trilha |
+| DELETE | `/api/v1/admin/learning-paths/{id}/courses/{cid}` | Remover curso da trilha |
+| GET | `/api/v1/admin/analytics/overview` | Analytics overview |
+| GET | `/api/v1/admin/analytics/courses` | Analytics de cursos |
+| GET | `/api/v1/admin/users` | Listar usuários |
+| GET | `/api/v1/admin/stats` | Estatísticas gerais |
+| POST | `/api/v1/admin/combos` | Criar combo |
+| DELETE | `/api/v1/admin/combos/{id}` | Deletar combo |
+
+**Learning Paths (público)**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/v1/learning-paths` | Listar trilhas |
+| GET | `/api/v1/learning-paths/{slug}` | Detalhes da trilha |
+
+**Pipelines de Fábrica** *(exigem `require_admin`)*
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/pipeline/run-course-factory` | Iniciar fábrica de cursos |
+| GET | `/api/v1/pipeline/course-factory/status/{task_id}` | Status |
+| GET | `/api/v1/pipeline/course-factory/history` | Histórico |
+| POST | `/api/v1/pipeline/run-ebook-factory` | Iniciar fábrica de ebooks |
+| GET | `/api/v1/pipeline/ebook-factory/status/{task_id}` | Status |
+| POST | `/api/v1/pipeline/run-blog-factory` | Iniciar fábrica de blogs |
+| GET | `/api/v1/pipeline/blog-factory/status/{task_id}` | Status |
 
 ---
 
@@ -177,16 +238,16 @@ Trilhas são sequências ordenadas de cursos que guiam o aluno de um tópico bá
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/v1/courses` | Listar cursos |
-| POST | `/api/v1/courses` | Criar curso (admin) |
-| GET | `/api/v1/courses/{id}` | Detalhes do curso |
-| PUT | `/api/v1/courses/{id}` | Atualizar curso (admin) |
-| GET | `/api/v1/courses/{id}/modules` | Listar módulos |
-| POST | `/api/v1/courses/{id}/modules` | Criar módulo (admin) |
-| GET | `/api/v1/learning-paths` | Listar trilhas |
-| POST | `/api/v1/learning-paths` | Criar trilha (admin) |
-| POST | `/api/v1/courses/{id}/enroll` | Inscrever-se no curso |
-| GET | `/api/v1/courses/{id}/progress` | Progresso do aluno |
+| GET | `/api/v1/courses` | Listar cursos (público) |
+| GET | `/api/v1/courses/{id}` | Detalhes do curso (público) |
+| GET | `/api/v1/learning-paths` | Listar trilhas (público) |
+| GET | `/api/v1/learning-paths/{slug}` | Detalhes da trilha (público) |
+| POST | `/api/v1/member/courses/{id}/enroll` | Inscrever-se (membro) |
+
+**CRUD (admin)** — sob `/api/v1/admin/courses/*`
+- `GET/POST` `/api/v1/admin/courses`, `GET/PUT/DELETE` `/api/v1/admin/courses/{id}`
+
+> O CRUD administrativo completo vive em `/api/v1/admin/courses/*` (listado na seção *API Endpoints - Admin*).
 
 ---
 
@@ -269,7 +330,7 @@ Agente especialista que avalia se cada blog está no caminho certo para o **Goog
 | **Auth** | JWT (HMAC-SHA256) + bcrypt + Google OAuth |
 | **Frontend Blog** | HTML + CSS + JavaScript SPA (vanilla) |
 | **Cache** | Redis (sessões, filas, cache de respostas) |
-| **Infraestrutura** | Railway (backend), Vercel (frontend), CPU-only |
+| **Infraestrutura** | Railway (backend + frontend), CPU-only |
 
 ---
 
@@ -318,19 +379,31 @@ GOOGLE_CLIENT_ID=...                  # Google OAuth (opcional)
 ```
 dezafira/
 ├── SniperVideoEngine/
-│   ├── server.py                  # API principal (130+ endpoints)
+│   ├── server.py                  # API principal (165 endpoints)
 │   ├── modules/
-│   │   ├── database.py            # SQLAlchemy ORM (23+ tables)
+│   │   ├── database.py            # SQLAlchemy ORM (30+ tables)
 │   │   ├── blog_writer.py         # Geração de artigos via LLM
 │   │   ├── blog_pipeline.py       # Macro-esteira com 5 estágios
 │   │   ├── ebook_pipeline.py      # Pipeline de ebooks 6 fases
 │   │   ├── course_pipeline.py     # Pipeline de cursos 6 fases
 │   │   ├── blog_viewer.py         # Blog viewer público dinâmico
+│   │   ├── blog_publisher.py      # Publicação de artigos
+│   │   ├── blog_revisor.py        # Revisão gramatical
+│   │   ├── brand_designer.py      # Identidade visual via LLM
 │   │   ├── brand_themes.py        # Temas visuais por nicho
 │   │   ├── image_factory.py       # Geração de imagens (Pexels + SVG)
 │   │   ├── lili.py                # Revisora de qualidade auto-corretiva
 │   │   ├── seu_pereira.py         # Analista de monetização
-│   │   └── seu_ze.py              # Agendador de produção
+│   │   ├── seu_ze.py              # Agendador de produção
+│   │   ├── seu_francisco.py       # Supervisor de produção
+│   │   ├── seu_ricardo.py         # (ver agents/) — só consolida uploads
+│   │   ├── keyword_miner.py       # Mineração de keywords
+│   │   ├── seo_optimizer.py       # Otimização SEO
+│   │   ├── telegram_bot.py        # Bot do Telegram
+│   │   ├── scheduler.py           # Agendador de tarefas
+│   │   ├── deliverables.py        # Entregáveis/checkout
+│   │   ├── image_factory.py       # Geração de capas/thumbnails
+│   │   └── uploader.py            # Upload de assets
 │   ├── agents/
 │   │   ├── course_professor.py    # Estrutura curricular (cursos)
 │   │   ├── course_pedagogue.py    # Conteúdo didático
@@ -338,7 +411,7 @@ dezafira/
 │   │   ├── course_quizmaster.py   # Quiz generation
 │   │   └── course_cover.py        # Capas/thumbnails de cursos
 │   ├── static/
-│   │   └── index.html             # UI Dashboard SPA (blog/ebook admin)
+│   │   └── index.html             # UI Dashboard SPA (blog/ebook admin) — exige token
 │   ├── club-frontend/             # Next.js 14 frontend
 │   │   ├── app/
 │   │   │   ├── page.tsx           # Landing page
@@ -351,10 +424,10 @@ dezafira/
 │   │   │       ├── trilhas/       # Learning paths
 │   │   │       └── analytics/     # Métricas
 │   │   ├── lib/
-│   │   │   ├── api.ts             # API client
+│   │   │   ├── api.ts             # API client (injeta Bearer)
 │   │   │   └── auth-context.tsx   # Auth provider
 │   │   ├── Dockerfile             # Container build
-│   │   └── next.config.js         # API proxy
+│   │   └── next.config.js
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── railway.toml
