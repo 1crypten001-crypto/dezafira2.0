@@ -5,10 +5,12 @@
 #   Root Directory = /SniperVideoEngine/docker/chrome
 # e o build usa este Dockerfile sem configuração extra.
 #
-# Sobe o Chrome real com remote debugging na porta 9223, acessível pela
-# rede privada do Railway (0.0.0.0). O bridge PREFERE este motor para o
-# Google (SERP/PAA reais — o Chrome desbloqueia o anti-bot que o headless
-# Rust não consegue); o Obscura (9222) fica como fallback automático.
+# Sobe o Chrome real headless. O Chrome moderno (136+) IGNORA
+# --remote-debugging-address=0.0.0.0 e binda o DevTools só em 127.0.0.1 —
+# por isso o entrypoint usa SOCAT: Chrome no loopback (porta interna 9224)
+# + socat expondo 0.0.0.0:9223 -> 127.0.0.1:9224 para a rede privada do
+# Railway. O bridge PREFERE este motor para o Google (SERP/PAA reais); o
+# Obscura (9222) fica como fallback automático.
 #
 # Env vars no backend:
 #   OBSCURA_CHROME_HOST=chrome.railway.internal
@@ -20,6 +22,7 @@ FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends wget gnupg ca-certificates fonts-liberation \
        libnss3 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libxshmfence1 \
+       socat \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala o Google Chrome estável (fingerprint TLS real)

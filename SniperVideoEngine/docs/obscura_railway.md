@@ -78,6 +78,14 @@ isso é um **terceiro serviço**:
    `SniperVideoEngine/docker/chrome` (contém `Dockerfile` padrão que o
    Railpack detecta sozinho)
 2. Railway expõe a porta **9223** (EXPOSE no Dockerfile)
+
+> ⚠️ **Chrome moderno (136+) ignora `--remote-debugging-address=0.0.0.0`** e
+> binda o DevTools só em `127.0.0.1` (o log mostra `DevTools listening on
+> ws://127.0.0.1:9223`). Por isso o entrypoint usa **socat**: o Chrome roda no
+> loopback (porta interna `OBSCURA_CHROME_INNER_PORT`, default 9224) e o socat
+> expõe `0.0.0.0:9223 → 127.0.0.1:9224` — a rede privada do Railway alcança o
+> Chrome de verdade, e o healthcheck (`wget :9223/json/version`) passa pelo
+> socat.
 3. No **backend**, configure:
    ```
    OBSCURA_CHROME_HOST=chrome.railway.internal
