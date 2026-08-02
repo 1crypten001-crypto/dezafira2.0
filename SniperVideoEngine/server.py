@@ -78,6 +78,142 @@ app = FastAPI(title="F.Video & Open-Generative-AI Integration API")
 async def health_check():
     return {"status": "ok", "service": "dezafira-backend"}
 
+
+# Estado do healthcheck com graca de tempo (evita restart loop durante deploys)
+_HEALTH_STATE = {"down_since": None}
+
+# Estado do watcher de alertas de queda do motor Obscura
+_OBSCURA_WATCHER = {
+    "running": False,
+    "last_check": None,
+    "incidents": [],       # [{started_at, ended_at, duration_s, alerted}]
+    "down_since": None,
+    "alerted": False,
+}
+
+
+@app.get("/healthz")
+async def healthz():
+    """Healthcheck publico do Railway.
+
+    Retorna 200 enquanto o motor Obscura estiver de pe OU dentro da graca
+    (OBSCURA_HEALTH_GRACE, default 300s) desde que caiu; 503 quando o motor
+    fica fora por mais que a graca — o Railway reinicia o backend. Inclui
+    status detalhado: motor, banco e workers.
+    """
+    import os as _os
+    import time as _t
+
+    from services.obscura_bridge import get_obscura_status
+    try:
+        ping = await asyncio.wait_for(get_obscura_status(), timeout=5)
+    except Exception as e:
+        ping = {"online": False, "error": str(e)[:200]}
+
+    online = bool(ping.get("online"))
+    now = _t.time()
+    if online:
+        _HEALTH_STATE["down_since"] = None
+    elif _HEALTH_STATE["down_since"] is None:
+        _HEALTH_STATE["down_since"] = now
+
+    detail = {
+        "status": "ok" if online else "degraded",
+        "service": "dezafira-backend",
+        "obscura": ping,
+        "workers": int(_os.getenv("OBSCURA_WORKERS", "4")),
+    }
+
+    # Banco: informativo (nao derruba o healthcheck — só o motor decide o 503)
+    try:
+        from sqlalchemy import text as _sql_text
+        from modules.database import SessionLocal
+        _db = SessionLocal()
+        _db.execute(_sql_text("SELECT 1"))
+        _db.close()
+        detail["database"] = "ok"
+    except Exception as e:
+        detail["database"] = f"error: {str(e)[:100]}"
+
+    if not online:
+        from services.obscura_health import get_grace_seconds as _get_grace
+        grace = _get_grace()  # override runtime > .env > default 300s
+        down_for = now - (_HEALTH_STATE["down_since"] or now)
+        detail["down_for_s"] = int(down_for)
+        detail["grace_s"] = int(grace)
+        if down_for >= grace:
+            raise HTTPException(status_code=503, detail=detail)
+    return detail
+
+
+async def _obscura_alert_watcher():
+    """Vigia o motor a cada N segundos e alerta no Telegram quando a queda
+    passa da graça (OBSCURA_HEALTH_GRACE) — uma vez por incidente. Também
+    registra o histórico de incidentes exposto no painel e no status."""
+    import time as _t
+    interval = 30
+    try:
+        interval = max(15, int(os.getenv("OBSCURA_ALERT_INTERVAL", "30")))
+    except Exception:
+        pass
+    enabled = os.getenv("OBSCURA_ENABLED", "true").lower() in ("true", "1", "yes")
+    print(f"[ObscuraWatcher] Iniciado (intervalo {interval}s, enabled={enabled})")
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            from services.obscura_bridge import get_obscura_status as _ping
+            from services.obscura_health import get_grace_seconds as _get_grace
+            try:
+                ping = await asyncio.wait_for(_ping(), timeout=8)
+            except Exception as e:
+                ping = {"online": False, "error": str(e)[:200]}
+            online = bool(ping.get("online"))
+            now = _t.time()
+            _OBSCURA_WATCHER["last_check"] = now
+            if not enabled:
+                # motor desabilitado via env: segue monitorando mas não alerta
+                _OBSCURA_WATCHER["down_since"] = None
+                _OBSCURA_WATCHER["alerted"] = False
+                continue
+            if online:
+                if _OBSCURA_WATCHER["down_since"] is not None and _OBSCURA_WATCHER["alerted"]:
+                    # queda terminou → registra incidente e avisa recuperação
+                    dur = int(now - _OBSCURA_WATCHER["down_since"])
+                    _OBSCURA_WATCHER["incidents"].append({
+                        "started_at": _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime(_OBSCURA_WATCHER["down_since"])),
+                        "ended_at": _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime(now)),
+                        "duration_s": dur,
+                        "alerted": True,
+                    })
+                    _OBSCURA_WATCHER["incidents"] = _OBSCURA_WATCHER["incidents"][-20:]
+                    await asyncio.to_thread(_send_obscura_alert,
+                                            f"🟢 *Obscura voltou!* Motor online após {dur}s fora. Histórico de incidentes atualizado.")
+                _OBSCURA_WATCHER["down_since"] = None
+                _OBSCURA_WATCHER["alerted"] = False
+            else:
+                if _OBSCURA_WATCHER["down_since"] is None:
+                    _OBSCURA_WATCHER["down_since"] = now
+                down_for = now - _OBSCURA_WATCHER["down_since"]
+                grace = _get_grace()
+                if down_for >= grace and not _OBSCURA_WATCHER["alerted"]:
+                    _OBSCURA_WATCHER["alerted"] = True
+                    await asyncio.to_thread(_send_obscura_alert,
+                                            f"🔴 *OBSCURA FORA DO AR* há {int(down_for)}s (graça {int(grace)}s). O Railway pode reiniciar o backend. Verifique o motor na porta 9222.")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[ObscuraWatcher] Erro no ciclo: {e}")
+
+
+def _send_obscura_alert(text: str):
+    """Envia alerta via Telegram (best-effort; nunca derruba o watcher)."""
+    try:
+        from modules.telegram_bot import send_telegram_notification
+        send_telegram_notification(text)
+    except Exception as e:
+        print(f"[ObscuraWatcher] Falha ao enviar alerta Telegram: {e}")
+
+
 # Configurar CORS para permitir chamadas do Next.js e de qualquer origem local
 app.add_middleware(
     CORSMiddleware,
@@ -800,6 +936,14 @@ async def startup_event():
     except Exception as e:
         print(f'[Startup] Erro ao iniciar dashboard broadcast: {e}')
 
+    # ══ Watcher de alertas de queda do motor Obscura ══
+    try:
+        asyncio.create_task(_obscura_alert_watcher())
+        _OBSCURA_WATCHER["running"] = True
+        print('[Startup] Watcher de alertas do Obscura iniciado (30s)')
+    except Exception as e:
+        print(f'[Startup] Erro ao iniciar watcher de alertas: {e}')
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD — Fábrica de Blogs (com Books + Courses)
@@ -835,6 +979,63 @@ async def get_ze_status():
         return resumo_geral()
     except Exception as e:
         return {"status": "erro", "error": str(e)}
+
+
+@app.get("/api/v1/obscura/status")
+async def obscura_status(_admin=Depends(require_admin)):
+    """🕵️ Painel Obscura — status do motor headless, telemetria e historico."""
+    from services.obscura_service import obscura_telemetry
+    from services.obscura_bridge import get_obscura_status as _ping_obscura
+    try:
+        # Ping com cap rígido (o connect do bridge já tem timeout interno de 5s):
+        # nunca travar o event loop nem a página mesmo com host inacessível.
+        ping = await asyncio.wait_for(_ping_obscura(), timeout=6)
+        obscura_telemetry.set_ping(
+            online=bool(ping.get("online")),
+            targets=ping.get("targets", 0),
+            error=ping.get("error", ""),
+        )
+    except Exception as e:
+        obscura_telemetry.set_ping(online=False, error=str(e))
+    status = obscura_telemetry.build_status()
+    # Historico persistido no banco (best-effort)
+    try:
+        from modules.database import get_db_obscura_logs, get_db_obscura_agent_stats
+        status["db_recent"] = get_db_obscura_logs(limit=50)
+        status["db_agent_stats"] = get_db_obscura_agent_stats()
+    except Exception:
+        status["db_recent"] = []
+        status["db_agent_stats"] = []
+    # Grace atual + histórico de incidentes (watcher de alertas)
+    from services.obscura_health import get_grace_seconds, get_grace_source
+    status["grace"] = {"grace_s": int(get_grace_seconds()), "source": get_grace_source()}
+    status["incidents"] = list(reversed(_OBSCURA_WATCHER["incidents"]))
+    status["watcher"] = {
+        "running": _OBSCURA_WATCHER["running"],
+        "last_check": _OBSCURA_WATCHER["last_check"],
+        "down_since": _OBSCURA_WATCHER["down_since"],
+    }
+    return status
+
+
+@app.get("/api/v1/obscura/grace")
+async def obscura_grace(_admin=Depends(require_admin)):
+    """⏱️ Grace atual do healthcheck (override runtime > .env > default 300s)."""
+    from services.obscura_health import get_grace_seconds, get_grace_source
+    return {"grace_s": int(get_grace_seconds()), "source": get_grace_source()}
+
+
+@app.put("/api/v1/obscura/grace")
+async def obscura_grace_set(payload: dict, _admin=Depends(require_admin)):
+    """Aplica nova grace em runtime e persiste no .env (sem reiniciar o backend)."""
+    from services.obscura_health import set_grace_seconds
+    grace_s = (payload or {}).get("grace_s")
+    if grace_s is None:
+        raise HTTPException(status_code=422, detail="grace_s é obrigatório (segundos)")
+    try:
+        return set_grace_seconds(grace_s)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @app.get("/api/v1/factory/dashboard")

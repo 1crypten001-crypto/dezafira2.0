@@ -2,6 +2,7 @@
 Video Analyzer Spider
 Analisa vídeos específicos do YouTube.
 """
+import asyncio
 import re
 from typing import Dict, Any
 from services.obscura_client import obscura_client

@@ -237,7 +237,7 @@ class EbookMacroPipeline:
         self._update_macro(sid, "active", 15, "Buscando dores no Reddit...")
         try:
             from modules.blog_pipeline import get_reddit_questions
-            reddit_qs = get_reddit_questions(self.state.niche, self.state.language)
+            reddit_qs = await get_reddit_questions(self.state.niche, self.state.language)
             pain_data["reddit_questions"] = reddit_qs
             self._update_macro(sid, "active", 25, f"Reddit: {len(reddit_qs)} perguntas encontradas")
         except Exception as e:

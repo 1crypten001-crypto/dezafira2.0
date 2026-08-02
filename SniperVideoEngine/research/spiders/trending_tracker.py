@@ -60,13 +60,8 @@ class TrendingTrackerSpider:
             html = await asyncio.to_thread(obscura_client.fetch_html, url, "networkidle0", 30, True)
 
             if not html:
-                print("[TrendingTracker] Obscura vazio, fallback urllib...")
-                import urllib.request
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                })
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    html = resp.read().decode("utf-8", errors="ignore")
+                print("[TrendingTracker] Sem HTML (motor offline e fallback falhou).")
+                return []
 
             return self._parse_trending(html)
 

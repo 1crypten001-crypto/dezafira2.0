@@ -28,13 +28,8 @@ class ChannelAnalyzerSpider:
             html = await asyncio.to_thread(obscura_client.fetch_html, channel_url, "networkidle0", 30, True)
 
             if not html:
-                import urllib.request
-                print("[ChannelAnalyzer] Obscura vazio, fallback urllib...")
-                req = urllib.request.Request(channel_url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                })
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    html = resp.read().decode("utf-8", errors="ignore")
+                print("[ChannelAnalyzer] Sem HTML (motor offline e fallback falhou).")
+                return {"url": channel_url, "error": "Falha ao buscar página"}
 
             name_match = re.search(r'"name":"([^"]+)"', html)
             desc_match = re.search(r'"description":"([^"]*)"', html)

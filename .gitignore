@@ -9,6 +9,9 @@ env/
 
 # Arquivos locais e caches
 __pycache__/
+
+# Binario local do motor Obscura (baixado para dev local)
+SniperVideoEngine/.obscura-bin/
 *.pyc
 *.pyo
 *.pyd

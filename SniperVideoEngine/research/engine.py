@@ -3,6 +3,7 @@ Dezafira Research Engine
 Motor principal de pesquisa para canais YouTube lucrativos.
 """
 import asyncio
+import re
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -242,3 +243,124 @@ class ResearchEngine:
         
         import random
         return random.choice(name_templates)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VALIDAÇÃO DE DEMANDA — prova de que uma dor real tem público procurando
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Alternância LONGEST-FIRST: (mil|mi|k|m) para "mil" (milhar, pt) não ser
+# engolido por "mi" (milhões, pt). Ex: '5,4 mil' -> 5400, '1,2 mi' -> 1200000.
+_VIEWS_RE = re.compile(r'([\d.,]+)\s*(mil|mi|k|m)?')
+
+
+def parse_views_text(text: str) -> int:
+    """
+    Converte string de views do YouTube (ex: '1,2 mi', '5,4 mil', '1.2M', '1,234,567') em int.
+
+    Robusto para pt-BR (vírgula decimal) e en (ponto decimal):
+    - Ambos separadores presentes -> o último é o decimal.
+    - Só vírgula -> 1 vírgula = decimal (pt), 2+ = milhar (en).
+    - Só ponto -> 1 ponto = decimal (en), 2+ = milhar (pt).
+    """
+    if not text:
+        return 0
+    m = _VIEWS_RE.search(text.lower())
+    if not m:
+        return 0
+    raw = m.group(1)
+    suffix = (m.group(2) or "").strip()
+
+    if "," in raw and "." in raw:
+        # O separador que aparece por último é o decimal
+        if raw.rfind(",") > raw.rfind("."):
+            raw = raw.replace(".", "").replace(",", ".")
+        else:
+            raw = raw.replace(",", "").replace(".", "")
+    elif "," in raw:
+        if raw.count(",") >= 2:
+            raw = raw.replace(",", "")  # milhar (en)
+        else:
+            raw = raw.replace(",", ".")  # decimal (pt)
+    else:
+        if raw.count(".") >= 2:
+            raw = raw.replace(".", "")  # milhar (pt)
+        # 1 ponto: decimal (en) — mantém como está
+
+    try:
+        num = float(raw)
+    except ValueError:
+        return 0
+
+    if suffix in ("mi", "m"):
+        return int(num * 1_000_000)
+    if suffix in ("mil", "k"):
+        return int(num * 1_000)
+    return int(num)
+
+
+async def validate_youtube_demand(pains: list, limit: int = 8) -> list:
+    """
+    Valida a demanda de cada dor real buscando no YouTube se existem vídeos
+    respondendo aquela busca e com quantas views (prova numérica de público).
+
+    Args:
+        pains: lista de dicts [{"text": ..., "source": "youtube_search", ...}]
+        limit: quantas dores validar (as primeiras)
+
+    Returns:
+        Lista enriquecida com "views_evidence" (string formatada),
+        "max_views" (int) e "video_count", ordenada por demanda (maior views primeiro).
+    """
+    if not pains:
+        return pains
+
+    import os
+    import time
+
+    spider = YouTubeSearchSpider()
+    top = pains[:limit]
+    rest = pains[limit:]
+
+    # Limita a concorrência ao pool de workers do Obscura (--workers N):
+    # evita sobrecarregar o motor com páginas renderizando ao mesmo tempo.
+    _workers = int(os.getenv("OBSCURA_WORKERS", "4"))
+    sem = asyncio.Semaphore(max(1, _workers))
+
+    async def _check(pain: dict) -> dict:
+        try:
+            async with sem:
+                videos = await asyncio.wait_for(
+                    spider.search(pain.get("text", ""), limit=5),
+                    timeout=25,
+                )
+        except Exception as e:
+            print(f"[ValidateDemand] Erro validando '{pain.get('text', '')}': {e}")
+            videos = []
+
+        max_views = 0
+        for v in videos or []:
+            vv = parse_views_text(v.get("views", ""))
+            if vv > max_views:
+                max_views = vv
+
+        pain = dict(pain)
+        pain["max_views"] = max_views
+        pain["video_count"] = len(videos or [])
+        if max_views >= 1_000_000:
+            pain["views_evidence"] = f"{max_views / 1_000_000:.1f} mi"
+        elif max_views >= 1_000:
+            pain["views_evidence"] = f"{max_views / 1_000:.0f} mil"
+        else:
+            pain["views_evidence"] = str(max_views) if max_views else ""
+        return pain
+
+    _t0 = time.perf_counter()
+    validated = await asyncio.gather(*[_check(p) for p in top])
+    _dt = time.perf_counter() - _t0
+    print(f"[ValidateDemand] {len(top)} dores validadas em paralelo em {_dt:.1f}s (concorrência máx 4).")
+    if not any(p.get("max_views") for p in validated):
+        print("[ValidateDemand] Nenhuma dor obteve prova de views (buscas falharam ou demanda real muito baixa).")
+    # Ordena por demanda (maior views primeiro); quem não tem views vai pro fim
+    validated.sort(key=lambda p: p.get("max_views", 0), reverse=True)
+    return validated + rest

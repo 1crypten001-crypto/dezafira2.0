@@ -441,10 +441,13 @@ async def generate_full_article(
     language: str = "pt",
     target_words: int = 1000,
     keywords: str = "",
+    pains: list = None,
 ) -> dict:
     """
     Gera artigo completo usando múltiplas chamadas LLM (multipart).
     Cada seção é uma chamada separada para profundidade máxima.
+
+    pains: dores reais do público (ex: buscas do YouTube) para basear o artigo.
 
     Returns:
         dict com title, slug, content (HTML), excerpt, keywords
@@ -455,6 +458,7 @@ async def generate_full_article(
         language=language,
         target_words=target_words,
         keywords=keywords,
+        pains=pains,
     )
 
 
@@ -464,10 +468,14 @@ async def generate_multipart_article(
     language: str = "pt",
     target_words: int = 1000,
     keywords: str = "",
+    pains: list = None,
 ) -> dict:
     """
     Gera artigo em múltiplas chamadas LLM — cada seção é escrita separadamente
     para garantir profundidade e qualidade. Depois tudo é compilado.
+
+    pains: dores reais do público (ex: buscas do YouTube no nicho). Quando
+    presentes, o planejamento do artigo responde diretamente a essas dores.
 
     Etapas:
       1. Planejamento: outline com título, seções, keywords
@@ -627,6 +635,14 @@ Retorne APENAS JSON:
 Gera de 3 a 5 seções dependendo da profundidade necessária."""
 
     outline_prompt = f"Crie o plano para um artigo sobre: {topic}. Keywords: {keywords if keywords else topic}"
+    if pains:
+        pain_lines = "\n".join(
+            f"- {p.get('text', p) if isinstance(p, dict) else p}" for p in pains[:8]
+        )
+        outline_prompt += (
+            f"\n\nDORES REAIS DO PÚBLICO (buscas reais que as pessoas fazem):\n{pain_lines}\n"
+            f"O artigo deve responder a essas dores reais — use-as para escolher título, seções e exemplos."
+        )
 
     print("[BlogWriter] Chamada LLM #1: Planejamento...")
     raw_outline = await _call_llm(outline_system, outline_prompt, temperature=0.7, max_tokens=2048)
@@ -861,7 +877,7 @@ Diretrizes:
 
 
 async def write(topic: str, channel_id: str = "default", language: str = "pt",
-                target_words: int = 1000, keywords: str = "") -> dict:
+                target_words: int = 1000, keywords: str = "", pains: list = None) -> dict:
     """Interface principal — gera e salva o artigo no banco."""
     from .database import create_db_blog_post
 
@@ -871,6 +887,7 @@ async def write(topic: str, channel_id: str = "default", language: str = "pt",
         language=language,
         target_words=target_words,
         keywords=keywords,
+        pains=pains,
     )
 
     if "error" in article:

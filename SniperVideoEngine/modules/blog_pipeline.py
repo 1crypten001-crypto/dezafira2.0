@@ -103,8 +103,10 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     e extrai as 10 principais perguntas/dúvidas.
     """
     from services.obscura_bridge import ObscuraBridge
+    from services.obscura_service import obscura_telemetry
     from urllib.parse import quote
     import json
+    import time as _t
     
     query = f'site:reddit.com "{niche}" ("como" OR "por que" OR "vale a pena" OR "dúvida" OR "melhor" OR "erro" OR "problema" OR "ajuda")'
     if lang == "en":
@@ -113,6 +115,9 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     search_url = f"https://www.google.com/search?q={quote(query)}&hl={'pt-BR' if lang == 'pt' else 'en'}"
     print(f"[Seu Reddit] Buscando discussões em: {search_url}")
     
+    started = _t.perf_counter()
+    fetch_ok = False
+    fetch_error = ""
     bridge = ObscuraBridge()
     questions = []
     try:
@@ -150,12 +155,17 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
             await bridge.disconnect()
             if res_json:
                 questions = json.loads(res_json)
+            fetch_ok = bool(questions)
     except Exception as e:
         print(f"[Seu Reddit] Erro ao extrair dúvidas do Reddit: {e}")
+        fetch_error = str(e)[:200]
         try:
             await bridge.disconnect()
         except Exception:
             pass
+
+    ms = int((_t.perf_counter() - started) * 1000)
+    obscura_telemetry.log_call("seu_reddit", search_url, fetch_ok, ms, fetch_error)
             
     # Fallback caso não encontre nada ou Obscura esteja desativado
     if not questions:
@@ -173,12 +183,17 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
         ]
     return questions
 
-async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False, is_discover: bool = False) -> list:
+async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False, is_discover: bool = False, pains: list = None) -> list:
     """
     Gera topicos de artigos variados usando LLM, especificos para o nicho.
     Usa cache para nao regenerar os mesmos topicos.
+
+    pains: dores reais do publico (ex: buscas do YouTube) para basear os topicos.
     """
-    cache_key = f"{niche.lower().strip()}:{language}:aff={is_affiliate}:disc={is_discover}"
+    pain_seed = "none"
+    if pains:
+        pain_seed = "".join((p.get("text", p) if isinstance(p, dict) else str(p))[:16] for p in pains[:3])
+    cache_key = f"{niche.lower().strip()}:{language}:aff={is_affiliate}:disc={is_discover}:pains={pain_seed}"
     if cache_key in _TOPICS_CACHE and len(_TOPICS_CACHE[cache_key]) >= count:
         return _TOPICS_CACHE[cache_key][:count]
     
@@ -232,6 +247,15 @@ async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = 
                 f"\n"
                 f"Retorne APENAS a lista numerada, um tópico por linha, sem marcadores extras."
             )
+            if pains:
+                pain_lines = "\n".join(
+                    f"- {p.get('text', p) if isinstance(p, dict) else p}" for p in pains[:15]
+                )
+                prompt += (
+                    f"\nDORES REAIS DO PÚBLICO (buscas reais que as pessoas fazem no YouTube sobre este nicho):\n"
+                    f"{pain_lines}\n"
+                    f"Use essas buscas reais como ASSUNTO das manchetes virais — crie curiosidade em cima de dores que o publico realmente procura.\n"
+                )
             system = f"Você é o Joaquim, um redator-chefe de portal de fofocas e curiosidades sobre o nicho {niche}."
         else:
             prompt = (
@@ -251,6 +275,15 @@ async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = 
                 f"2. Os 5 maiores erros financeiros dos brasileiros\n"
                 f"3. Investimento em CDB vs Tesouro Direto: qual escolher\n"
             )
+            if pains:
+                pain_lines = "\n".join(
+                    f"- {p.get('text', p) if isinstance(p, dict) else p}" for p in pains[:15]
+                )
+                prompt += (
+                    f"\nDORES REAIS DO PÚBLICO (buscas reais que as pessoas fazem no YouTube sobre este nicho):\n"
+                    f"{pain_lines}\n"
+                    f"Baseie a MAIORIA dos topicos nessas dores reais — cada artigo deve responder a uma busca real do publico.\n"
+                )
             system = f"Você é um editor-chefe especialista em criar pautas para blogs sobre {niche}."
         raw = await _call_llm(system, prompt, temperature=0.8, max_tokens=4096)
         
@@ -348,6 +381,7 @@ class MacroState:
         self.is_affiliate = is_affiliate
         self.is_discover = is_discover
         self.reddit_questions = []
+        self.youtube_search_pains = []  # dores reais descobertas nas buscas do YouTube
         self.channel_id = None       # Set after Phase 1
         self.pipeline_run_id = None  # Set after Phase 1
         self.sections = []           # Set after Phase 2
@@ -415,6 +449,7 @@ class MacroState:
             "completed_at": _to_iso(self.completed_at),
             "error": self.error,
             "reddit_questions": self.reddit_questions,
+            "youtube_search_pains": self.youtube_search_pains,
         }
 
 
@@ -489,6 +524,7 @@ class BlogMacroPipeline:
                     ],
                     "sections": self.state.sections,
                     "reddit_questions": getattr(self.state, "reddit_questions", []),
+                    "youtube_search_pains": getattr(self.state, "youtube_search_pains", []),
                 },
             )
         except Exception as e:
@@ -790,6 +826,27 @@ class BlogMacroPipeline:
             except Exception as e_red:
                 print(f"[Arquitetura] Erro ao obter dúvidas do Reddit: {e_red}")
 
+            # 1.2 Pesquisa de dores reais nas BUSCAS do YouTube (Seu YouTube)
+            self._update_macro(sid, "active", 14,
+                "🔎 Agente Seu YouTube descobrindo o que as pessoas pesquisam no nicho...")
+            try:
+                from modules.keyword_miner import research_youtube_pains
+                from research.engine import validate_youtube_demand
+                yt_res = await research_youtube_pains(niche, self.state.language, max_pains=40)
+                yt_pains = yt_res.get("pains", [])
+                # Valida demanda (prova de views) nas top dores
+                try:
+                    yt_pains = await validate_youtube_demand(yt_pains, limit=10)
+                except Exception as e_vd:
+                    print(f"[Arquitetura] Erro na validacao de demanda YouTube: {e_vd}")
+                self.state.youtube_search_pains = yt_pains
+                proven = len([p for p in yt_pains if p.get("max_views")])
+                self._update_macro(sid, "active", 16,
+                    f"✓ Seu YouTube encontrou {len(yt_pains)} dores reais de busca ({proven} com demanda provada)!",
+                    data={"youtube_search_pains": yt_pains})
+            except Exception as e_yt:
+                print(f"[Arquitetura] Erro ao obter dores do YouTube: {e_yt}")
+
             # 2. Keyword research geral
             self._update_macro(sid, "active", 15,
                 "🔍 Pesquisando keywords principais com Obscura...")
@@ -879,6 +936,7 @@ class BlogMacroPipeline:
                     "low_hanging_fruits": lh_count,
                     "sections": saved_sections,
                     "reddit_questions": getattr(self.state, "reddit_questions", []),
+                    "youtube_search_pains": getattr(self.state, "youtube_search_pains", []),
                 })
 
         except ImportError as e:
@@ -954,6 +1012,7 @@ class BlogMacroPipeline:
             language=self.state.language,
             is_affiliate=is_affiliate,
             is_discover=getattr(self.state, "is_discover", False),
+            pains=getattr(self.state, "youtube_search_pains", []),
         )
         self._update_macro(sid, "active", 10,
             f"📋 {len(dynamic_topics)} tópicos gerados para o nicho '{self.state.niche[:30]}...'")
@@ -1400,6 +1459,7 @@ class BlogMacroPipeline:
                 language=self.state.language,
                 target_words=target_words,
                 keywords=keywords,
+                pains=getattr(self.state, "youtube_search_pains", []),
             )
 
             if not article.get("success"):

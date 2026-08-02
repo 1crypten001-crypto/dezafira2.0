@@ -276,6 +276,7 @@
       <div class="nav-section" style="margin-top:8px">Inteligencia</div>
       <a class="nav-item" data-page="hermes" title="Hermes — Orquestrador" href="#hermes" onclick="navigate('hermes')"><span class="icon">🤖</span><span class="nav-label">Hermes</span></a>
       <a class="nav-item" data-page="lili" title="Qualidade — Revisora LiLi" href="#lili" onclick="navigate('lili')"><span class="icon">🔍</span><span class="nav-label">Qualidade</span> <span class="badge" id="liliBadge">-</span></a>
+      <a class="nav-item" data-page="obscura" title="Obscura — Motor Headless & Monitoramento" href="#obscura" onclick="navigate('obscura')"><span class="icon">🕵️</span><span class="nav-label">Obscura</span> <span class="badge" id="obscuraBadge">-</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira <span id="uiVersion">v1.1.0</span></div>
   </aside>
@@ -306,6 +307,15 @@
       </div>
       <div class="card-table" id="monetizationPanel">
         <div class="empty" style="padding:20px"><div class="spinner" style="margin:0 auto 8px"></div>Avaliando blog para Google AdSense...</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <h3>🕵️ Obscura — Motor Headless</h3>
+        <span class="tag tag-blue" id="dashObscuraTag">Consultando...</span>
+      </div>
+      <div class="card-table" id="dashObscura">
+        <div class="empty" style="padding:14px"><div class="spinner" style="margin:0 auto 8px"></div>Consultando status do Obscura...</div>
       </div>
     </div>
 
@@ -348,6 +358,15 @@
             </div>
             <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Tópicos e dúvidas reais minerados em fóruns públicos do Reddit sobre este nicho:</div>
             <ol id="redditQuestionsList" style="margin:0;padding-left:20px;color:#a5b4fc;font-size:13px;line-height:1.8;font-weight:500"></ol>
+          </div>
+          <!-- Painel Seu YouTube (Dores Reais de Busca) -->
+          <div id="youtubePainsWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(245,158,11,.05) 100%);border:1px solid rgba(245,158,11,.18);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:18px">🔎</span>
+              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Seu YouTube — Dores Reais de Busca do Público</h4>
+            </div>
+            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">O que as pessoas realmente digitam no YouTube sobre este nicho — cada item é uma busca real, com prova de demanda (views dos vídeos que já respondem isso):</div>
+            <ol id="youtubePainsList" style="margin:0;padding-left:20px;color:#fbbf24;font-size:13px;line-height:1.8;font-weight:500"></ol>
           </div>
           <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
             <div class="macro-current-header">
@@ -460,6 +479,10 @@
         <div class="card-table" id="liliResults"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando ranking...</div></div>
       </div>
     </div>
+    <div class="page" id="page-obscura">
+      <div class="page-header"><h2>🕵️ Obscura — Motor Headless</h2><p>Infraestrutura central de scraping do ecossistema: status, telemetria e historico de chamadas de todos os agentes e fabricas</p></div>
+      <div id="obscuraContent"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Consultando o motor Obscura...</div></div>
+    </div>
   </main>
 </div>
 <!-- Busca global (Ctrl+K) -->
@@ -472,7 +495,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade"};
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura"};
 const STAGES=[
   {id:"fundacao",name:"Fundação",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
@@ -509,13 +532,14 @@ function navigate(p,skipHash){
   document.querySelectorAll(".nav-item").forEach(function(x){x.classList.remove("active")});
   var n=document.querySelector('.nav-item[data-page="'+p+'"]');if(n)n.classList.add("active");
   $("pageTitle").textContent=pageTitles[p]||p;
-  if(p==="dashboard")loadDashboard();
+  if(p==="dashboard"){loadDashboard();loadObscuraCard();}
   else if(p==="blogs"){loadBlogs(); renderPipeline(); loadHistory();}
   else if(p==="books")loadBooks();
   else if(p==="courses")loadCourses();
   else if(p==="images")loadImages();
   else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
+  else if(p==="obscura")loadObscura();
   closeSidebar();
   var an=document.querySelector('.nav-item.active');
   if(an){try{an.focus({preventScroll:true})}catch(e){}}
@@ -710,6 +734,21 @@ function updateStage(sid,status,prog,msg,data){
         qw.style.display = "block";
       }
     }
+    // Painel Seu YouTube — dores reais de busca (com prova de views)
+    var ypains = data.youtube_search_pains || (data.data?.state?.youtube_search_pains) || (data.data?.youtube_search_pains);
+    if(ypains && ypains.length){
+      var yw = $("youtubePainsWrapper");
+      var yl = $("youtubePainsList");
+      if(yw && yl){
+        yl.innerHTML = ypains.map(function(p){
+          var txt = (p && p.text) ? p.text : String(p);
+          var views = (p && p.views_evidence) ? p.views_evidence : '';
+          var viewsHtml = views ? ' <span style="color:#8a91a5;font-size:11px;font-weight:600">(' + escapeHtml(views) + ' views)</span>' : '';
+          return '<li>' + escapeHtml(txt) + viewsHtml + '</li>';
+        }).join('');
+        yw.style.display = "block";
+      }
+    }
     if(data.target_articles!==undefined&&data.target_articles>0){ms.target=parseInt(data.target_articles)||ms.target;$("macroTargetLabel").textContent=ms.target+" artigos";}
     if(data.current_article!==undefined){var _ca=parseInt(data.current_article);if(!isNaN(_ca)){ms.cur=_ca;$("macroCurrentBadge").textContent="📝 Artigo "+_ca+"/"+ms.target;updateBar()}}
     if(data.article_topic){$("macroCurrentTitle").textContent=data.article_topic;ms.topic=data.article_topic}
@@ -872,6 +911,7 @@ function resetMacroPipeline(){
   var gp=$("macroGlobalProgress");if(gp)gp.style.display="none";
   $("macroCurrentArticle").style.display="none";
   var qw = $("redditQuestionsWrapper"); if(qw) qw.style.display = "none";
+  var yw = $("youtubePainsWrapper"); if(yw) yw.style.display = "none";
   renderPipeline();
 }
 
@@ -1793,6 +1833,130 @@ function handleWsMessage(msg){
 }
 
 
+async function loadObscura(){
+  var badge=$("obscuraBadge"),wrap=$("obscuraContent");
+  if(!wrap)return;
+  if(badge)badge.textContent="…";
+  wrap.innerHTML='<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Consultando o motor Obscura...</div>';
+  try{
+    var d=await api("/api/v1/obscura/status");
+    if(d.error)throw new Error(d.error);
+    var ping=d.last_ping||{};
+    var online=ping.online===true;
+    var gr=d.grace||{grace_s:300,source:"env"};
+    if(badge)badge.textContent=online?"🟢":"🔴";
+    var html='';
+    html+='<div class="stats-grid">'
+      +'<div class="stat-card"><div class="label">Motor headless</div><div class="value" style="font-size:22px;color:'+(online?"#34d399":"#f87171")+'">'+(online?"🟢 Online":"🔴 Offline")+'</div><div class="sub">'+(ping.targets||0)+' alvos/sessoes CDP</div></div>'
+      +'<div class="stat-card"><div class="label">Chamadas totais</div><div class="value">'+(d.total_calls||0)+'</div><div class="sub">'+(d.ok_calls||0)+' OK · '+(d.fail_calls||0)+' falhas</div></div>'
+      +'<div class="stat-card"><div class="label">Taxa de sucesso</div><div class="value">'+(d.success_rate!=null?d.success_rate+"%":"-")+'</div><div class="sub">desde '+(d.started_at?d.started_at.slice(0,10):"-")+'</div></div>'
+      +'<div class="stat-card"><div class="label">Latência média</div><div class="value">'+(d.avg_latency_ms||0)+'ms</div><div class="sub">por chamada</div></div>'
+      +'<div class="stat-card"><div class="label">Retries</div><div class="value">'+(d.retries||0)+'</div><div class="sub">falhas transitórias re-tentadas</div></div>'
+      +'</div>'
+      +'<div class="section"><div class="section-header"><h3>⏱️ Graça do healthcheck (Railway)</h3></div><div class="card-table"><div class="lili-article-row">'
+      +'<span class="lili-article-title">Tempo de tolerância do motor fora antes do 503/reinício automático</span>'
+      +'<span class="lili-article-meta">'
+      +'<select id="obscuraGraceSel" style="background:#14161f;border:1px solid #1e2030;color:#fff;border-radius:4px;padding:4px 8px;font-size:12px">'+[0,30,60,120,300,600,900].map(function(v){return '<option value="'+v+'"'+(gr.grace_s===v?' selected':'')+'>'+v+'s</option>';}).join('')+'</select> '
+      +'<button class="btn btn-sm" onclick="saveObscuraGrace()">Aplicar</button> '
+      +'<span title="O /healthz responde 503 (e o Railway reinicia o backend) quando o motor Obscura fica fora por mais que essa graça. O valor é salvo no .env (OBSCURA_HEALTH_GRACE) e aplicado em runtime, sem reiniciar o backend. Fonte atual: '+(gr.source||"env")+'." style="cursor:help">ℹ️</span>'
+      +'</span>'
+      +'</div></div></div>';
+    var agents=d.by_agent||{};
+    var aKeys=Object.keys(agents);
+    if(aKeys.length){
+      html+='<div class="section"><div class="section-header"><h3>🤝 Uso por agente</h3></div><div class="card-table">';
+      aKeys.forEach(function(a){
+        var s=agents[a];
+        var vb=s.via_bridge||0,vf=s.via_fallback||0,tv=vb+vf;
+        var bar='';
+        if(tv){bar='<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:#1e2030;margin-top:4px">'
+          +'<div style="flex:'+vb+';background:#60a5fa" title="bridge: '+vb+'"></div>'
+          +'<div style="flex:'+vf+';background:#fbbf24" title="fallback: '+vf+'"></div></div>'
+          +'<div style="font-size:11px;color:#8a91a5;margin-top:2px">⚡ '+vb+' bridge · 🟡 '+vf+' fallback</div>';}
+        html+='<div class="lili-article-row"><span class="lili-article-title">'+escapeHtml(a)+'</span><span class="lili-article-meta">'+s.total+' chamada(s) · '+s.success_rate+'% OK · '+s.avg_ms+'ms'+(s.retries?' · '+s.retries+' retry(s)':'')+'</span></div>'+(bar?'<div style="padding:0 20px 10px">'+bar+'</div>':'');
+      });
+      html+='</div></div>';
+    }
+    var rec=d.recent_calls||[];
+    if(rec.length){
+      html+='<div class="section"><div class="section-header"><h3>📡 Últimas chamadas</h3></div><div class="card-table">';
+      rec.slice(0,25).forEach(function(c){
+        var st=c.ok?'<span style="color:#34d399">OK</span>':'<span style="color:#f87171">FALHA</span>';
+        var viaT=c.via==="bridge"?'<span style="color:#60a5fa">⚡ bridge</span>':(c.via==="fallback"?'<span style="color:#fbbf24">🟡 fallback</span>':'');
+        html+='<div class="lili-article-row"><span class="lili-article-title" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(c.url)+'</span><span class="lili-article-meta">'+escapeHtml(c.agent)+' · '+st+' · '+c.ms+'ms'+(viaT?' · '+viaT:'')+'</span></div>';
+      });
+      html+='</div></div>';
+    }
+    var dbStats=d.db_agent_stats||[];
+    var dbRecent=d.db_recent||[];
+    if(!aKeys.length&&dbStats.length){
+      html+='<div class="section"><div class="section-header"><h3>🤝 Uso por agente (persistido no banco)</h3></div><div class="card-table">';
+      dbStats.forEach(function(s){
+        html+='<div class="lili-article-row"><span class="lili-article-title">'+escapeHtml(s.agent)+'</span><span class="lili-article-meta">'+s.total+' chamada(s) · '+s.ok+' OK · '+s.fail+' falhas · '+s.avg_ms+'ms</span></div>';
+      });
+      html+='</div></div>';
+    }
+    if(!rec.length&&dbRecent.length){
+      html+='<div class="section"><div class="section-header"><h3>📡 Últimas chamadas (persistidas)</h3></div><div class="card-table">';
+      dbRecent.slice(0,15).forEach(function(c){
+        var st=c.ok?'<span style="color:#34d399">OK</span>':'<span style="color:#f87171">FALHA</span>';
+        html+='<div class="lili-article-row"><span class="lili-article-title" style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(c.url)+'</span><span class="lili-article-meta">'+escapeHtml(c.agent)+' · '+st+' · '+(c.latency_ms||0)+'ms</span></div>';
+      });
+      html+='</div></div>';
+    }
+    if(!aKeys.length&&!rec.length&&!dbStats.length&&!dbRecent.length){
+      html+='<div class="card-table"><div class="empty">Nenhuma chamada registrada ainda. Hermes, Joaquim, Seu YouTube e as fábricas registrarão aqui quando usarem o Obscura (cliente real + bridge CDP).</div></div>';
+    }
+    var inc=d.incidents||[];
+    if(inc.length){
+      html+='<div class="section"><div class="section-header"><h3>🚨 Incidentes de queda do motor</h3></div><div class="card-table">';
+      inc.slice(0,10).forEach(function(it){
+        html+='<div class="lili-article-row"><span class="lili-article-title">'+escapeHtml(it.started_at||"")+' → '+(it.ended_at?escapeHtml(it.ended_at):"agora")+'</span><span class="lili-article-meta">⏱️ '+it.duration_s+'s fora'+(it.alerted?' · 🔔 alertado':'')+'</span></div>';
+      });
+      html+='</div></div>';
+    }
+    wrap.innerHTML=html;
+  }catch(e){
+    if(badge)badge.textContent="⚠️";
+    wrap.innerHTML='<div class="card-table"><div class="empty">Falha ao consultar o Obscura: '+escapeHtml(e.message||e)+'</div></div>';
+  }
+}
+async function saveObscuraGrace(){
+  var sel=document.getElementById("obscuraGraceSel");if(!sel)return;
+  var v=parseInt(sel.value,10);
+  var r=await api("/api/v1/obscura/grace",{method:"PUT",body:JSON.stringify({grace_s:v})});
+  if(r.error){alert("Erro ao salvar graça: "+r.error);return;}
+  loadObscura();
+}
+async function loadObscuraCard(){
+  var tag=$("dashObscuraTag"),card=$("dashObscura");
+  if(!card)return;
+  try{
+    var d=await api("/api/v1/obscura/status");
+    if(d.error)throw new Error(d.error);
+    var ping=d.last_ping||{};
+    var online=ping.online===true;
+    if(tag)tag.textContent=(online?"🟢 Online":"🔴 Offline")+" · "+(d.total_calls||0)+" chamadas · "+(d.success_rate||0)+"% OK · "+(d.retries||0)+" retries";
+    var rec=(d.recent_calls||[]).slice(0,5);
+    var html='';
+    var agents=d.by_agent||{};
+    var aKeys=Object.keys(agents);
+    if(aKeys.length){
+      html+='<div class="lili-article-row"><span class="lili-article-title">🤝 Por agente</span><span class="lili-article-meta">'+aKeys.map(function(a){
+        var s=agents[a];
+        return escapeHtml(a)+' ('+s.total+', '+s.success_rate+'% OK'+(s.retries?', '+s.retries+' retry':'')+(s.via_bridge||s.via_fallback?', ⚡'+(s.via_bridge||0)+'/🟡'+(s.via_fallback||0):'')+')';
+      }).join(' · ')+'</span></div>';
+    }
+    html+=rec.length?rec.map(function(c){
+      var viaT=c.via==="bridge"?'<span style="color:#60a5fa">⚡ bridge</span>':(c.via==="fallback"?'<span style="color:#fbbf24">🟡 fallback</span>':'');
+      return '<div class="lili-article-row"><span class="lili-article-title" style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(c.url)+'</span><span class="lili-article-meta">'+escapeHtml(c.agent)+' · '+(c.ok?"OK":"FALHA")+' · '+c.ms+'ms'+(viaT?' · '+viaT:'')+'</span></div>';
+    }).join(''):'<div class="empty" style="padding:14px">Sem chamadas ainda — <a href="#obscura" onclick="navigate(\'obscura\')">abrir painel completo 🕵️</a></div>';
+    card.innerHTML=html;
+  }catch(e){
+    if(tag)tag.textContent="⚠️ erro";
+    card.innerHTML='<div class="empty" style="padding:14px">Sem conexão com o painel Obscura.</div>';
+  }
+}
 async function loadLili(){
   var statsEl=$("liliStats"),resultsEl=$("liliResults"),badgeEl=$("liliBadge");
   if(!statsEl||!resultsEl)return;

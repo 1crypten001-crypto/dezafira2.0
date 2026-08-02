@@ -3,7 +3,7 @@ import uuid
 import re
 import hashlib
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text, Float, UniqueConstraint
+from sqlalchemy import create_engine, Column, String, DateTime, JSON, ForeignKey, Integer, Boolean, text, Text, Float, UniqueConstraint, func, case
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # 1. Determinar URL do banco de dados (Railway Postgres ou SQLite local)
@@ -697,6 +697,23 @@ class ComboPurchase(Base):
     status = Column(String(20), default="pending")  # pending, confirmed, failed
     ebook_access_token = Column(String(100), nullable=True)
     course_access_token = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODELO — OBSCURA (TELEMETRIA)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ObscuraLog(Base):
+    """Log de chamadas ao motor Obscura (telemetria da página 🕵️ Obscura)."""
+    __tablename__ = "obscura_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    agent = Column(String(100), nullable=False, index=True)   # quem chamou (hermes, seu_youtube, joaquim...)
+    url = Column(String(2000), nullable=True)
+    ok = Column(Boolean, default=True)
+    latency_ms = Column(Integer, default=0)
+    error = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -3319,6 +3336,69 @@ def delete_db_combo(combo_id: str):
         db.rollback()
         print(f"[Database] Falha ao deletar combo: {e}")
         return False
+    finally:
+        db.close()
+
+
+# ─── Obscura Logs CRUD ─────────────────────────────────────────────────
+
+def create_db_obscura_log(agent: str, url: str, ok: bool, latency_ms: int, error: str = "") -> bool:
+    """Persiste uma chamada ao Obscura (telemetria best-effort)."""
+    db = SessionLocal()
+    try:
+        log = ObscuraLog(
+            agent=(agent or "unknown")[:100],
+            url=(url or "")[:2000],
+            ok=bool(ok),
+            latency_ms=int(latency_ms or 0),
+            error=(error or "")[:500],
+        )
+        db.add(log)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+def get_db_obscura_logs(limit: int = 50) -> list:
+    """Últimos logs do Obscura (mais recentes primeiro)."""
+    db = SessionLocal()
+    try:
+        rows = db.query(ObscuraLog).order_by(ObscuraLog.created_at.desc()).limit(limit).all()
+        return [{
+            "id": r.id,
+            "agent": r.agent,
+            "url": r.url,
+            "ok": r.ok,
+            "latency_ms": r.latency_ms,
+            "error": r.error,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        } for r in rows]
+    finally:
+        db.close()
+
+
+def get_db_obscura_agent_stats() -> list:
+    """Agregação por agente (para o painel)."""
+    db = SessionLocal()
+    try:
+        rows = db.query(
+            ObscuraLog.agent,
+            func.count(ObscuraLog.id),
+            func.sum(case((ObscuraLog.ok == True, 1), else_=0)),
+            func.sum(case((ObscuraLog.ok == False, 1), else_=0)),
+            func.avg(ObscuraLog.latency_ms),
+        ).group_by(ObscuraLog.agent).all()
+        return [{
+            "agent": r[0],
+            "total": r[1],
+            "ok": int(r[2] or 0),
+            "fail": int(r[3] or 0),
+            "avg_ms": round(float(r[4] or 0), 1),
+        } for r in rows]
     finally:
         db.close()
 

@@ -33,6 +33,9 @@ from urllib.parse import quote
 
 GOOGLE_SUGGEST_URL = "https://suggestqueries.google.com/complete/search?output=firefox&q={query}"
 GOOGLE_SEARCH_URL = "https://www.google.com/search?q={query}&hl={lang}"
+# Autocomplete ESPECIFICO do YouTube (ds=yt) — retorna buscas REAIS que os
+# usuarios digitam no YouTube (sem API key). Cada sugestao e uma dor declarada.
+YOUTUBE_SUGGEST_URL = "https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&hl={hl}&q={query}"
 
 # Prefixos para expansão de keywords (cauda longa)
 PREFIXES = [
@@ -41,6 +44,18 @@ PREFIXES = [
     'como', 'o que', 'por que', 'quando', 'onde', 'qual', 'quais',
     'melhor', 'melhores', 'top', 'quanto', 'quanto custa',
     'how', 'what', 'why', 'when', 'where', 'which', 'best',
+]
+
+# Prefixos/sufixos FOCADOS EM PERGUNTAS para minerar dores no YouTube.
+# Subconjunto enxuto (evita ~80 req do PREFIXES/SUFFIXES completos -> rate-limit).
+YOUTUBE_PAIN_PREFIXES = [
+    'como', 'o que', 'por que', 'quando', 'onde', 'qual', 'quais',
+    'melhor', 'melhores', 'quanto', 'quanto custa', 'vale a pena',
+    'duvida', 'erro', 'problema', 'ajuda',
+]
+YOUTUBE_PAIN_SUFFIXES = [
+    'para iniciantes', 'como fazer', 'o que e', 'vale a pena', 'dicas',
+    'melhor', 'review', 'vs', 'erros', 'problemas', 'ajuda', 'passo a passo',
 ]
 
 # Sufixos para expansão
@@ -98,6 +113,17 @@ STRONG_DOMAIN_PATTERNS = [
     'globo.com', 'uol.com.br', 'terra.com.br',
     'abril.com.br', 'exame.com', 'infomoney.com',
 ]
+
+def _is_relevant_keyword(seed: str, kw: str) -> bool:
+    """Retorna True se a keyword é relevante ao seed (contém OU overlap significativo)."""
+    kw_lower = kw.lower()
+    if seed in kw_lower:
+        return True
+    seed_words = set(seed.split())
+    kw_words = set(kw_lower.split())
+    overlap = len(seed_words & kw_words)
+    return overlap >= max(1, len(seed_words) // 2)
+
 
 # Países para busca (gl parameter)
 COUNTRIES = {
@@ -235,6 +261,45 @@ class KeywordMiner:
             print(f"[KeywordMiner] Erro ao buscar sugestões para '{query}': {e}")
             return []
 
+    # ─── YOUTUBE AUTOCOMPLETE (ds=yt) ──────────────────────────────────────
+
+    async def fetch_youtube_suggestions(self, query: str, lang: str = "pt") -> list:
+        """
+        Busca sugestões do autocomplete ESPECIFICO do YouTube (ds=yt).
+
+        Diferente do Google web, essas sugestões refletem exatamente o que
+        os usuários digitam na busca do YouTube — a dor já vem declarada
+        na própria busca (ex: "como sair das dívidas", "investimento vale a pena").
+        """
+        hl = "pt-BR" if lang == "pt" else "en"
+        url = YOUTUBE_SUGGEST_URL.format(hl=hl, query=quote(query))
+
+        try:
+            client = await self._get_http()
+            response = await client.get(url, headers={"Accept-Language": hl})
+            response.raise_for_status()
+
+            text = response.text.strip()
+            # O endpoint ds=yt devolve JSONP (window.google.ac.h(<json>))
+            # quando chamado sem contexto de navegador — extrai o JSON puro.
+            if text.startswith("window.google.ac.h"):
+                start = text.find("(")
+                end = text.rfind(")")
+                if start != -1 and end > start:
+                    text = text[start + 1:end]
+
+            data = json.loads(text)
+            if isinstance(data, list) and len(data) > 1:
+                suggestions = []
+                for item in data[1]:
+                    if isinstance(item, list) and len(item) > 0:
+                        suggestions.append(str(item[0]))
+                return suggestions
+
+        except Exception as e:
+            print(f"[KeywordMiner] Erro ao buscar sugestões YouTube para '{query}': {e}")
+            return []
+
     # ─── EXPANSÃO POR PREFIXOS ──────────────────────────────────────────────
 
     async def expand_by_prefixes(self, keyword: str, lang: str = "pt") -> list:
@@ -272,6 +337,55 @@ class KeywordMiner:
             await asyncio.sleep(0.3)
 
         return list(all_keywords)
+
+    # ─── MINERAÇÃO DE DORES NO YOUTUBE ─────────────────────────────────────
+
+    async def mine_youtube_pains(self, seed_keyword: str, lang: str = "pt",
+                                 max_pains: int = 30) -> list:
+        """
+        Descobre DORES REAIS a partir das BUSCAS que as pessoas fazem no YouTube.
+
+        Expande o seed por prefixos/sufixos no autocomplete do YouTube (ds=yt)
+        e coleta as sugestões — cada uma é uma busca real de um usuário,
+        ou seja, uma dor/pedido declarado ("como", "por que", "melhor", "vale a pena").
+
+        Returns:
+            Lista de dicts: [{"text", "source": "youtube_search", "url", "views_evidence"}]
+        """
+        seed = seed_keyword.lower().strip()
+        print(f"[KeywordMiner] Minerando dores no YouTube para: '{seed}'")
+
+        queries = set()
+        queries.add(seed)
+
+        # Expansão por prefixos focados em perguntas (como, por que, melhor...)
+        for prefix in YOUTUBE_PAIN_PREFIXES:
+            expanded_query = f"{prefix} {seed}"
+            suggestions = await self.fetch_youtube_suggestions(expanded_query, lang)
+            for s in suggestions:
+                queries.add(s.lower().strip())
+            await asyncio.sleep(0.2)  # Delay para não tomar block
+
+        # Expansão por sufixos (para iniciantes, vale a pena, vs...)
+        for suffix in YOUTUBE_PAIN_SUFFIXES:
+            expanded_query = f"{seed} {suffix}"
+            suggestions = await self.fetch_youtube_suggestions(expanded_query, lang)
+            for s in suggestions:
+                queries.add(s.lower().strip())
+            await asyncio.sleep(0.2)
+
+        # Filtra: só relevantes (contém o seed OU overlap significativo)
+        relevant = [q for q in queries if _is_relevant_keyword(seed, q) and len(q) > 5]
+
+        pains = [{
+            "text": q,
+            "source": "youtube_search",
+            "url": f"https://www.youtube.com/results?search_query={quote(q)}",
+            "views_evidence": "",  # preenchido na validacao de demanda
+        } for q in relevant[:max_pains]]
+
+        print(f"[KeywordMiner] {len(pains)} dores reais encontradas no YouTube")
+        return pains
 
     # ─── PEOPLE ALSO ASK (PAA) ──────────────────────────────────────────────
 
@@ -544,17 +658,7 @@ class KeywordMiner:
         all_raw.add(seed)
 
         # Filtra: só keywords que contêm o seed ou são variações próximas
-        def is_relevant(kw: str) -> bool:
-            kw_lower = kw.lower()
-            seed_words = set(seed.split())
-            kw_words = set(kw_lower.split())
-            # Contém o seed OU tem overlap significativo
-            if seed in kw_lower:
-                return True
-            overlap = len(seed_words & kw_words)
-            return overlap >= max(1, len(seed_words) // 2)
-
-        relevant = [kw for kw in all_raw if is_relevant(kw)]
+        relevant = [kw for kw in all_raw if _is_relevant_keyword(seed, kw)]
         print(f"[KeywordMiner] Relevant keywords: {len(relevant)}")
 
         # 5. Limitar
@@ -778,6 +882,35 @@ async def research_keywords(seed: str, lang: str = "pt",
             "best_for_article": best,
             "people_also_ask": best["people_also_ask"],
             "keyword_string": best["keyword_string"],
+        }
+    finally:
+        await miner.close()
+
+
+async def research_youtube_pains(seed: str, lang: str = "pt",
+                                 max_pains: int = 30) -> dict:
+    """
+    Função de alto nível: minera as DORES REAIS que as pessoas buscam no YouTube
+    (autocomplete ds=yt) para um nicho. Cada dor é uma busca real de usuário.
+
+    Exemplo:
+        result = await research_youtube_pains("investimento")
+        # result["pains"] = [{"text": "como investir primeiro salário", ...}]
+    """
+    miner = KeywordMiner(use_obscura=False)
+    try:
+        pains = await miner.mine_youtube_pains(seed, lang, max_pains)
+        return {
+            "success": True,
+            "seed": seed,
+            "total_found": len(pains),
+            "pains": pains,
+            "source": "youtube_search",
+            "tip": (
+                "Cada dor veio do autocomplete REAL do YouTube (ds=yt): são as "
+                "buscas que os usuários realmente digitam. Use-as como tópicos "
+                "e keywords dos artigos para capturar esse público."
+            ),
         }
     finally:
         await miner.close()

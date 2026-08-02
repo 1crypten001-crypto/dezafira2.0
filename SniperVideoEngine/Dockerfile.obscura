@@ -1,0 +1,18 @@
+# 🕵️ Obscura — Serviço exclusivo do motor headless (Rust, ~30MB RAM)
+#
+# Imagem oficial publicada pelo repo https://github.com/h4ckf0r0day/obscura
+# (multi-stage em distroless/cc — sem shell, sem package manager, ~57MB).
+#
+# Uso no Railway: crie um SEGUNDO serviço neste projeto apontando para este
+# Dockerfile. O backend Python alcança este serviço pela rede privada:
+#   http://obscura.railway.internal:9222
+# Mais detalhes: docs/obscura_railway.md
+
+FROM h4ckf0r0day/obscura:latest
+
+# Porta do servidor CDP (WebSocket)
+EXPOSE 9222
+
+# Roda o servidor CDP com stealth (anti-fingerprint + bloqueio de trackers)
+# e 4 workers paralelos. Ajuste --workers conforme o plano do Railway.
+CMD ["serve", "--host", "0.0.0.0", "--port", "9222", "--workers", "4", "--stealth"]

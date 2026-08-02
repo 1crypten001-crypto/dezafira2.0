@@ -29,6 +29,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Optional
 
 logger = logging.getLogger("obscura")
@@ -62,6 +63,7 @@ class ObscuraBridge:
         self.ws_url = f"ws://{self.host}:{self.port}/devtools/browser"
         self._ws = None
         self._target_id = None
+        self._session_id = None
         self._message_id = 0
         self._pending_responses = {}
         self._connected = False
@@ -110,6 +112,19 @@ class ObscuraBridge:
             else:
                 self._target_id = targets[0].get("targetId")
 
+            # Comandos de página exigem uma SESSÃO CDP anexada ao target
+            # (sem isso o motor responde "No page for session").
+            try:
+                attach = await self._send_cdp("Target.attachToTarget", {
+                    "targetId": self._target_id,
+                    "flatten": True,
+                })
+                self._session_id = attach.get("sessionId")
+                logger.info(f"[Obscura] Sessão anexada ao target: {self._session_id}")
+            except Exception as e:
+                logger.warning(f"[Obscura] Sem sessão anexada (fallback direto): {e}")
+                self._session_id = None
+
             logger.info(f"[Obscura] Usando target: {self._target_id}")
             return True
 
@@ -133,12 +148,18 @@ class ObscuraBridge:
         self._ws = None
         self._connected = False
         self._target_id = None
+        self._session_id = None
         logger.info("[Obscura] Desconectado")
 
     # ─── COMANDOS CDP ──────────────────────────────────────────────────
 
-    async def _send_cdp(self, method: str, params: dict = None) -> dict:
-        """Envia um comando CDP e retorna a resposta."""
+    async def _send_cdp(self, method: str, params: dict = None,
+                        session_id: str = None) -> dict:
+        """Envia um comando CDP e retorna a resposta.
+
+        Comandos de página (Page.*, Runtime.*, DOM.*, LP.*) devem ser
+        roteados com session_id da sessão anexada ao target.
+        """
         if not self._ws:
             raise ObscuraNotAvailableError("WebSocket não conectado")
 
@@ -150,6 +171,8 @@ class ObscuraBridge:
             "method": method,
             "params": params or {},
         }
+        if session_id:
+            message["sessionId"] = session_id
 
         await self._ws.send(json.dumps(message))
 
@@ -172,11 +195,8 @@ class ObscuraBridge:
                 continue
 
     async def _send_cdp_to_target(self, method: str, params: dict = None) -> dict:
-        """Envia comando CDP para o target da página atual."""
-        session_id = None
-        return await self._send_cdp(method, {
-            **(params or {}),
-        })
+        """Envia comando CDP para a página, usando a sessão anexada."""
+        return await self._send_cdp(method, params, session_id=self._session_id)
 
     # ─── NAVEGAÇÃO ─────────────────────────────────────────────────────
 
@@ -194,9 +214,9 @@ class ObscuraBridge:
         if not self._connected:
             raise ObscuraNotAvailableError("Obscura não conectado")
 
-        # Navega
-        result = await self._send_cdp("Page.enable")
-        result = await self._send_cdp("Page.navigate", {"url": url})
+        # Navega (comandos de página vão pela sessão anexada)
+        result = await self._send_cdp_to_target("Page.enable")
+        result = await self._send_cdp_to_target("Page.navigate", {"url": url})
 
         # Aguarda carregamento
         if wait_until == "networkidle":
@@ -213,11 +233,11 @@ class ObscuraBridge:
         if not self._connected:
             raise ObscuraNotAvailableError("Obscura não conectado")
 
-        result = await self._send_cdp("DOM.getDocument", {"depth": -1})
+        result = await self._send_cdp_to_target("DOM.getDocument", {"depth": -1})
         node_id = result.get("root", {}).get("nodeId")
 
         if node_id:
-            result = await self._send_cdp("DOM.getOuterHTML", {
+            result = await self._send_cdp_to_target("DOM.getOuterHTML", {
                 "nodeId": node_id,
             })
             return result.get("outerHTML", "")
@@ -232,7 +252,7 @@ class ObscuraBridge:
         if not self._connected:
             raise ObscuraNotAvailableError("Obscura não conectado")
 
-        result = await self._send_cdp("Runtime.evaluate", {
+        result = await self._send_cdp_to_target("Runtime.evaluate", {
             "expression": script,
             "returnByValue": True,
         })
@@ -243,13 +263,28 @@ class ObscuraBridge:
                 return str(value)
             # Se não tem value, pode ser um objeto — tenta serializar
             if "objectId" in result["result"]:
-                props = await self._send_cdp("Runtime.getProperties", {
+                props = await self._send_cdp_to_target("Runtime.getProperties", {
                     "objectId": result["result"]["objectId"],
                     "ownProperties": True,
                 })
                 return json.dumps(props.get("result", []), ensure_ascii=False)
 
         return ""
+
+    async def get_markdown_native(self) -> str:
+        """Extrai markdown via método CDP nativo do Obscura (LP.getMarkdown).
+        Se o motor não suportar, cai no get_markdown JS."""
+        if not self._connected:
+            raise ObscuraNotAvailableError("Obscura não conectado")
+        try:
+            result = await self._send_cdp_to_target("LP.getMarkdown")
+            if result:
+                md = result.get("markdown") or result.get("text") or ""
+                if md:
+                    return str(md)
+        except Exception:
+            pass
+        return await self.get_markdown()
 
     async def get_markdown(self) -> str:
         """Tenta extrair conteúdo como Markdown (se Obscura suportar)."""
@@ -269,6 +304,66 @@ class ObscuraBridge:
             """)
         except Exception:
             return await self.get_html()
+
+    # ─── INTERAÇÃO COM A PÁGINA (DOM) ───────────────────────────────────
+
+    async def click(self, selector: str) -> bool:
+        """Clica no primeiro elemento que casa com o seletor CSS."""
+        script = (
+            "(() => {"
+            f"  const el = document.querySelector({json.dumps(selector)});"
+            "  if(!el) return 'NOT_FOUND';"
+            "  el.click();"
+            "  return 'OK';"
+            "})()"
+        )
+        res = await self.execute_js(script)
+        return res == "OK"
+
+    async def type_text(self, selector: str, text: str) -> bool:
+        """Digita texto em um input/textarea (dispara eventos reais)."""
+        script = (
+            "(() => {"
+            f"  const el = document.querySelector({json.dumps(selector)});"
+            "  if(!el) return 'NOT_FOUND';"
+            "  el.focus();"
+            "  const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;"
+            "  const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;"
+            f"  setter.call(el, {json.dumps(text)});"
+            "  el.dispatchEvent(new Event('input', {bubbles:true}));"
+            "  el.dispatchEvent(new Event('change', {bubbles:true}));"
+            "  return 'OK';"
+            "})()"
+        )
+        res = await self.execute_js(script)
+        return res == "OK"
+
+    async def wait_for_selector(self, selector: str, timeout: float = 10.0) -> bool:
+        """Espera o elemento aparecer na página (polling via JS)."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            res = await self.execute_js(
+                f"!!document.querySelector({json.dumps(selector)})"
+            )
+            if str(res).strip().lower() in ("true", "1"):
+                return True
+            await asyncio.sleep(0.3)
+        return False
+
+    async def get_status(self) -> dict:
+        """Status do motor: conectado, targets/sessões ativas e URL."""
+        status = {
+            "connected": bool(self._connected),
+            "ws_url": self.ws_url,
+            "targets": 0,
+        }
+        if self._connected:
+            try:
+                result = await self._send_cdp("Target.getTargets")
+                status["targets"] = len(result.get("targetInfos", []))
+            except Exception:
+                pass
+        return status
 
     # ─── MÉTODOS DE ALTO NÍVEL ─────────────────────────────────────────
 
@@ -373,6 +468,29 @@ class ObscuraBridge:
 # VERIFICAÇÃO DE DISPONIBILIDADE
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def get_obscura_status(host: str = None, port: int = None) -> dict:
+    """Verifica se o Obscura está rodando e retorna status detalhado."""
+    bridge = ObscuraBridge(host=host, port=port)
+    try:
+        connected = await bridge.connect()
+        if not connected:
+            return {
+                "online": False,
+                "ws_url": bridge.ws_url,
+                "targets": 0,
+                "error": "Não conectou (binário parado ou OBSCURA_ENABLED=false)",
+            }
+        status = await bridge.get_status()
+        await bridge.disconnect()
+        return {
+            "online": True,
+            "ws_url": status["ws_url"],
+            "targets": status["targets"],
+        }
+    except Exception as e:
+        return {"online": False, "ws_url": bridge.ws_url, "targets": 0, "error": str(e)[:200]}
+
+
 async def is_obscura_available(host: str = None, port: int = None) -> bool:
     """Verifica se o Obscura está rodando e acessível."""
     bridge = ObscuraBridge(host=host, port=port)
@@ -390,27 +508,47 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
     Tenta usar Obscura para SERP data. Se falhar, retorna dict vazio
     para que o KeywordMiner use o fallback regex.
 
-    Esta é a função principal usada pelo KeywordMiner.
+    Esta é a função principal usada pelo KeywordMiner (PAA + dificuldade SERP).
     """
+    from services.obscura_service import obscura_telemetry
+    import time as _t
+
+    started = _t.perf_counter()
+    ok = False
+    error = ""
+    data = {}
     bridge = ObscuraBridge()
     try:
         connected = await bridge.connect()
         if connected:
             data = await bridge.get_serp_data(keyword, lang)
             await bridge.disconnect()
-            return data
+            ok = bool(data)
+            error = "" if ok else "serp vazio"
+        else:
+            error = "nao conectado"
     except Exception as e:
         logger.warning(f"[Obscura] Fallback acionado: {e}")
+        error = str(e)[:200]
         try:
             await bridge.disconnect()
         except Exception:
             pass
 
-    return {
-        "html": "",
-        "text": "",
-        "urls": [],
-        "people_also_ask": [],
-        "search_url": "",
-        "source": "regex_fallback",
-    }
+    if not ok:
+        data = {
+            "html": "",
+            "text": "",
+            "urls": [],
+            "people_also_ask": [],
+            "search_url": "",
+            "source": "regex_fallback",
+        }
+
+    ms = int((_t.perf_counter() - started) * 1000)
+    obscura_telemetry.log_call(
+        "keyword_miner_serp",
+        f"https://www.google.com/search?q={keyword}&hl={'pt-BR' if lang == 'pt' else 'en'}",
+        ok, ms, error,
+    )
+    return data

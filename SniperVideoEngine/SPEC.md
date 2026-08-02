@@ -47,7 +47,7 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 └──────────────────────────┬───────────────────────────────────────────┘
                            │ chamadas API diretas (fetch → backend)
 ┌──────────────────────────▼───────────────────────────────────────────┐
-│              BACKEND — FastAPI (Railway) — 165 endpoints              │
+│              BACKEND — FastAPI (Railway) — 167 endpoints              │
 │        https://backend-production-f90d.up.railway.app (port 8080)     │
 │                                                                       │
 │  ┌──────────────────────────────────────────────────────────────────┐│
@@ -180,17 +180,29 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 ## 📡 ENDPOINTS DA API
 
-> **Base:** `https://backend-production-f90d.up.railway.app` · **165 endpoints no total.**
+> **Base:** `https://backend-production-f90d.up.railway.app` · **167 endpoints no total.**
 > **Autenticação:** `Authorization: Bearer <JWT>`. Endpoints de **admin** (`/admin/*`, pipelines, ebooks, lili, search, monetization) exigem `require_admin` (401 sem token de admin).
 
 ### 🏥 Health & Infra
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/health` | Health check do servidor |
+| GET | `/healthz` | Healthcheck do Railway: **200** com motor OK ou dentro da graça · **503** quando o motor fica fora por mais que `OBSCURA_HEALTH_GRACE` (default 300s) — reinicia o backend |
+| GET | `/api/v1/obscura/status` | 🕵️ Painel Obscura: status do motor, telemetria por agente (com `via_bridge`/`via_fallback`), retries, incidentes e grace — **admin** |
+| GET | `/api/v1/obscura/grace` | Grace atual do healthcheck (`grace_s` + fonte `runtime`/`env`) — **admin** |
+| PUT | `/api/v1/obscura/grace` | Aplica nova grace em runtime **e persiste no .env** (sem reiniciar o backend) — **admin** |
 | GET | `/api/v1/version` | Versão da API |
 | GET | `/api/v1/logs` | Logs recentes |
 | GET | `/api/v1/account/balance` | Saldo da conta |
 | GET | `/api/v1/trends` | Tendências globais |
+
+### 🕵️ Monitoramento Obscura
+| Recurso | Descrição |
+|---------|-----------|
+| **Card de graça configurável** | No painel 🕵️: select 0–900s + botão **Aplicar** → `PUT /api/v1/obscura/grace` (runtime + `.env`) |
+| **Sinalizador bridge/fallback** | Barra por agente (⚡ azul = bridge CDP · 🟡 amarelo = fallback urllib) + resumo no dashboard |
+| **Alertas de queda** | Watcher (task asyncio, `OBSCURA_ALERT_INTERVAL` default 30s) detecta motor fora além da graça e envia alerta **Telegram** (🔴 queda / 🟢 recuperação), 1 por incidente; histórico nos últimos 20 fica no painel |
+| **E2E em 1 comando** | `bash .e2e_all.sh` — roda pytest + healthz E2E (200→503→200) + via counters + grace config, com relatório PASS/FAIL |
 
 ### 📊 Dashboard / Fábrica (admin)
 | Método | Rota | Descrição |

@@ -21,7 +21,7 @@ Dezafira é um ecossistema integrado de fábricas de conteúdo digital — **Blo
 └──────────────────────────┬───────────────────────────────────────────┘
                            │ chamadas diretas (fetch → FastAPI + Bearer)
 ┌──────────────────────────▼───────────────────────────────────────────┐
-│                 BACKEND (FastAPI) — 165 endpoints                    │
+│                 BACKEND (FastAPI) — 167 endpoints                    │
 │                                                                      │
 │  ┌──────────────────────────────────────────────────────────────────┐│
 │  │              🔐 Auth & Member System                             ││
@@ -379,7 +379,7 @@ GOOGLE_CLIENT_ID=...                  # Google OAuth (opcional)
 ```
 dezafira/
 ├── SniperVideoEngine/
-│   ├── server.py                  # API principal (165 endpoints)
+│   ├── server.py                  # API principal (167 endpoints)
 │   ├── modules/
 │   │   ├── database.py            # SQLAlchemy ORM (30+ tables)
 │   │   ├── blog_writer.py         # Geração de artigos via LLM

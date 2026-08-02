@@ -32,7 +32,7 @@ class YouTubeSearchSpider:
         return videos
 
     async def _search_with_fetcher(self, url: str, limit: int) -> List[Dict[str, Any]]:
-        """Busca usando Obscura (renderiza JS real do YouTube)."""
+        """Busca via Obscura — o cliente central já faz bridge→fallback→telemetria."""
         try:
             import asyncio
             from services.obscura_client import obscura_client
@@ -40,13 +40,8 @@ class YouTubeSearchSpider:
             html = await asyncio.to_thread(obscura_client.fetch_html, url, "networkidle0", 30, True)
 
             if not html:
-                print("[YouTubeSearch] Obscura retornou vazio, fallback urllib...")
-                import urllib.request
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                })
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    html = resp.read().decode("utf-8", errors="ignore")
+                print("[YouTubeSearch] Sem HTML (motor offline e fallback falhou).")
+                return []
 
             class MockResponse:
                 def __init__(self, html):

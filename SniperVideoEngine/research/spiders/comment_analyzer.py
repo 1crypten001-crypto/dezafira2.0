@@ -2,6 +2,7 @@
 Comment Analyzer Spider
 Analisa comentários de vídeos YouTube.
 """
+import asyncio
 import re
 from typing import List, Dict, Any
 from services.obscura_client import obscura_client
