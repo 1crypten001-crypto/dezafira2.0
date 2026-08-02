@@ -1,14 +1,17 @@
 # 🕵️ Obscura — Serviço exclusivo do motor headless (Rust, ~30MB RAM)
 #
+# ⚠️ IMPORTANTE (Railway): este arquivo deve se chamar EXATAMENTE "Dockerfile"
+# para o Railpack detectar automaticamente. No Railway, crie um serviço com:
+#   Root Directory = /SniperVideoEngine/docker/obscura
+# e o build usa este Dockerfile sem configuração extra.
+#
 # Usa uma base com shell (debian slim) para o entrypoint conseguir ler
 # OBSCURA_PROXY_URL e adicionar --proxy condicionalmente — a imagem
 # oficial é distroless (sem shell), então aqui baixamos o MESMO binário
 # das releases (mesmo fluxo do start_obscura_local.bat).
 #
-# Uso no Railway: crie um SEGUNDO serviço neste projeto apontando para
-# este Dockerfile. O backend Python alcança este serviço pela rede privada:
+# O backend Python alcança este serviço pela rede privada do Railway:
 #   http://obscura.railway.internal:9222
-# Mais detalhes: docs/obscura_railway.md
 #
 # Env vars suportadas:
 #   OBSCURA_PORT       (default 9222)
@@ -31,7 +34,8 @@ RUN set -eux; \
     find /opt/obscura -type f -exec chmod +x {} \;; \
     rm -f /tmp/obscura.tar.gz
 
-COPY docker/obscura_entrypoint.sh /usr/local/bin/obscura_entrypoint.sh
+# Entrypoint na mesma pasta do Dockerfile (contexto de build = esta pasta)
+COPY entrypoint.sh /usr/local/bin/obscura_entrypoint.sh
 RUN chmod +x /usr/local/bin/obscura_entrypoint.sh
 
 # Porta do servidor CDP (WebSocket)

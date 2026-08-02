@@ -15,11 +15,13 @@ conectar o backend Dezafira a ele via Private Networking.
 ## 1) Subir o serviço no Railway
 
 1. No **mesmo projeto Railway** do backend, crie um **segundo serviço**
-2. Aponte o **Dockerfile** para `SniperVideoEngine/Dockerfile.obscura`
+2. No campo **Root Directory**, aponte para `SniperVideoEngine/docker/obscura`
+   (a pasta contém um `Dockerfile` com nome padrão que o Railpack detecta
+   automaticamente — sem precisar de configuração extra)
 3. Railway expõe a porta **9222** (EXPOSE no Dockerfile)
 4. Workers: env `OBSCURA_WORKERS` (default 4 = scraping de dores em paralelo)
 5. **Proxy residencial (opcional):** env `OBSCURA_PROXY_URL` no serviço — o
-   entrypoint (`docker/obscura_entrypoint.sh`) adiciona `--proxy`
+   entrypoint (`docker/obscura/entrypoint.sh`) adiciona `--proxy`
    automaticamente quando preenchida
 
 > **Por que este Dockerfile baixa o binário das releases?** A imagem oficial
@@ -31,11 +33,12 @@ conectar o backend Dezafira a ele via Private Networking.
 ### Healthcheck
 
 O Obscura **não tem endpoint `/health` nativo**. Como o protocolo CDP expõe o
-endpoint HTTP `/json/version`, o `Dockerfile.obscura` já traz um **`HEALTHCHECK`
-nativo** (`curl -fsS http://localhost:9222/json/version`) — o Railway só marca o
-serviço como **healthy** quando o CDP responde de verdade, evitando o backend
-tentar usar o Obscura antes de ele estar de pé. O `Dockerfile.chrome` faz o
-mesmo via `wget` em `http://localhost:9223/json/version`.
+endpoint HTTP `/json/version`, o `docker/obscura/Dockerfile` já traz um
+**`HEALTHCHECK` nativo** (`curl -fsS http://localhost:9222/json/version`) — o
+Railway só marca o serviço como **healthy** quando o CDP responde de verdade,
+evitando o backend tentar usar o Obscura antes de ele estar de pé. O
+`docker/chrome/Dockerfile` faz o mesmo via `wget` em
+`http://localhost:9223/json/version`.
 
 ## 2) Conectar o backend (Private Networking)
 
@@ -71,7 +74,9 @@ O Chrome real (fingerprint TLS genuíno) desbloqueia o Google SERP/PAA que o
 headless Rust não consegue (o Google devolve `/sorry/` CAPTCHA). No Railway
 isso é um **terceiro serviço**:
 
-1. Crie um serviço apontando para `SniperVideoEngine/Dockerfile.chrome`
+1. Crie um serviço apontando o **Root Directory** para
+   `SniperVideoEngine/docker/chrome` (contém `Dockerfile` padrão que o
+   Railpack detecta sozinho)
 2. Railway expõe a porta **9223** (EXPOSE no Dockerfile)
 3. No **backend**, configure:
    ```

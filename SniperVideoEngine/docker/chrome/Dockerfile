@@ -1,15 +1,19 @@
 # 🌐 Chrome real (headless) — Serviço CDP para o bridge Dezafira
 #
+# ⚠️ IMPORTANTE (Railway): este arquivo deve se chamar EXATAMENTE "Dockerfile"
+# para o Railpack detectar automaticamente. No Railway, crie um serviço com:
+#   Root Directory = /SniperVideoEngine/docker/chrome
+# e o build usa este Dockerfile sem configuração extra.
+#
 # Sobe o Chrome real com remote debugging na porta 9223, acessível pela
 # rede privada do Railway (0.0.0.0). O bridge PREFERE este motor para o
 # Google (SERP/PAA reais — o Chrome desbloqueia o anti-bot que o headless
 # Rust não consegue); o Obscura (9222) fica como fallback automático.
 #
-# Uso no Railway: crie um serviço apontando para este Dockerfile e defina
-#   OBSCURA_CHROME_HOST=chrome.railway.internal  (no serviço do backend)
+# Env vars no backend:
+#   OBSCURA_CHROME_HOST=chrome.railway.internal
 #   OBSCURA_CHROME_PORT=9223                     (default)
 #   OBSCURA_PROXY_URL=...                        (opcional — residencial)
-# Mais detalhes: docs/obscura_railway.md
 
 FROM debian:bookworm-slim
 
@@ -26,7 +30,8 @@ RUN set -eux; \
     rm -f /tmp/chrome.deb; \
     rm -rf /var/lib/apt/lists/*
 
-COPY docker/chrome_entrypoint.sh /usr/local/bin/chrome_entrypoint.sh
+# Entrypoint na mesma pasta do Dockerfile (contexto de build = esta pasta)
+COPY entrypoint.sh /usr/local/bin/chrome_entrypoint.sh
 RUN chmod +x /usr/local/bin/chrome_entrypoint.sh
 
 # Porta do CDP (remote debugging)
