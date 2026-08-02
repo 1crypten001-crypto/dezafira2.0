@@ -107,43 +107,41 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     from urllib.parse import quote
     import json
     import time as _t
-    
-    query = f'site:reddit.com "{niche}" ("como" OR "por que" OR "vale a pena" OR "dúvida" OR "melhor" OR "erro" OR "problema" OR "ajuda")'
-    if lang == "en":
-        query = f'site:reddit.com "{niche}" ("how" OR "why" OR "worth it" OR "question" OR "best" OR "error" OR "problem" OR "help")'
-        
-    search_url = f"https://www.google.com/search?q={quote(query)}&hl={'pt-BR' if lang == 'pt' else 'en'}"
-    print(f"[Seu Reddit] Buscando discussões em: {search_url}")
-    
+
+    from services.obscura_bridge import ObscuraBridge, _pick_bridge_port
+    bridge = ObscuraBridge(port=await _pick_bridge_port())
+    questions = []
+
+    # ─── 1) old.reddit.com — fonte primária (threads REAIS, HTML server-rendered) ──
+    old_url = f"https://old.reddit.com/search?q={quote(niche)}&sort=relevance&t=year"
+    print(f"[Seu Reddit] Buscando discussões em: {old_url}")
     started = _t.perf_counter()
     fetch_ok = False
     fetch_error = ""
-    bridge = ObscuraBridge()
-    questions = []
+    had_bridge = False
     try:
         connected = await bridge.connect()
         if connected:
-            await bridge.navigate_and_get_html(search_url)
+            had_bridge = True
+            await bridge.navigate_and_get_html(old_url)
             js_code = """
                 (() => {
-                    const links = Array.from(document.querySelectorAll('a'));
                     const results = [];
-                    links.forEach(a => {
-                        const href = a.getAttribute('href') || '';
-                        if (href.includes('reddit.com') && !href.includes('google.com')) {
-                            const h3 = a.querySelector('h3');
-                            if (h3) {
-                                const txt = h3.textContent.trim();
-                                if (txt && !results.includes(txt) && txt.length > 8) {
-                                    results.push(txt);
-                                }
+                    document.querySelectorAll('div.search-result').forEach(r => {
+                        const a = r.querySelector('.search-title a, a.search-title, .search-result-header a');
+                        if (a) {
+                            const txt = a.textContent.trim();
+                            const href = a.href || '';
+                            if (txt && txt.length > 8 && href.includes('/comments/') && !results.includes(txt)) {
+                                results.push(txt);
                             }
                         }
                     });
                     if (results.length === 0) {
-                        document.querySelectorAll('h3').forEach(h3 => {
-                            const txt = h3.textContent.trim();
-                            if (txt && txt.length > 12 && !results.includes(txt)) {
+                        document.querySelectorAll('div.search-result a').forEach(a => {
+                            const txt = a.textContent.trim();
+                            const href = a.href || '';
+                            if (txt && txt.length > 12 && href.includes('/comments/') && !results.includes(txt)) {
                                 results.push(txt);
                             }
                         });
@@ -157,17 +155,64 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
                 questions = json.loads(res_json)
             fetch_ok = bool(questions)
     except Exception as e:
-        print(f"[Seu Reddit] Erro ao extrair dúvidas do Reddit: {e}")
+        print(f"[Seu Reddit] Erro ao extrair dúvidas do Reddit (old.reddit): {e}")
         fetch_error = str(e)[:200]
         try:
             await bridge.disconnect()
         except Exception:
             pass
-
     ms = int((_t.perf_counter() - started) * 1000)
-    obscura_telemetry.log_call("seu_reddit", search_url, fetch_ok, ms, fetch_error)
-            
-    # Fallback caso não encontre nada ou Obscura esteja desativado
+    obscura_telemetry.log_call("seu_reddit", old_url, fetch_ok, ms, fetch_error,
+                               via="bridge" if fetch_ok else "fallback")
+
+    # ─── 2) DuckDuckGo HTML — secundária (se old.reddit falhar E motor online) ──
+    if not questions and had_bridge:
+        ddg_query = f'site:reddit.com "{niche}"'
+        try:
+            ddg_url = f"https://html.duckduckgo.com/html/?q={quote(ddg_query)}&kl={'br-pt' if lang == 'pt' else 'us-en'}"
+            print(f"[Seu Reddit] Tentando DuckDuckGo: {ddg_url}")
+            d_started = _t.perf_counter()
+            d_ok = False
+            d_err = ""
+            connected = await bridge.connect()
+            if connected:
+                await bridge.navigate_and_get_html(ddg_url)
+                ddg_js = """
+                    (() => {
+                        const results = [];
+                        document.querySelectorAll('.result').forEach(r => {
+                            const a = r.querySelector('.result__a');
+                            const href = a ? (a.href || '') : '';
+                            if (href.includes('reddit.com')) {
+                                const t = a.textContent.trim();
+                                if (t && t.length > 8) results.push(t);
+                            }
+                        });
+                        if (results.length === 0) {
+                            document.querySelectorAll('.result__a').forEach(a => {
+                                const t = a.textContent.trim();
+                                if (t && t.length > 8 && !results.includes(t)) results.push(t);
+                            });
+                        }
+                        return JSON.stringify(results.slice(0, 10));
+                    })()
+                """
+                res_ddg = await bridge.execute_js(ddg_js)
+                await bridge.disconnect()
+                if res_ddg:
+                    questions = json.loads(res_ddg)
+                d_ok = bool(questions)
+            d_ms = int((_t.perf_counter() - d_started) * 1000)
+            obscura_telemetry.log_call("seu_reddit", ddg_url, d_ok, d_ms, d_err,
+                                       via="bridge" if d_ok else "fallback")
+        except Exception as e_ddg:
+            print(f"[Seu Reddit] DuckDuckGo também falhou: {e_ddg}")
+            try:
+                await bridge.disconnect()
+            except Exception:
+                pass
+
+    # Fallback caso não encontre nada ou Obscura esteja desativado    # Fallback caso não encontre nada ou Obscura esteja desativado
     if not questions:
         questions = [
             f"Como escolher o melhor {niche} para começar?",
@@ -851,9 +896,9 @@ class BlogMacroPipeline:
             self._update_macro(sid, "active", 15,
                 "🔍 Pesquisando keywords principais com Obscura...")
 
-            # Obscura desabilitado para testes locais (OBSCURA_ENABLED=false no .env)
-            import os
-            use_obs = os.getenv("OBSCURA_ENABLED", "false").lower() == "true"
+            # Gate único do Obscura (OBSCURA_ENABLED no .env)
+            from services.obscura_bridge import obscura_enabled
+            use_obs = obscura_enabled()
             research = await research_keywords(
                 seed=niche, lang=self.state.language,
                 max_results=50, use_obscura=use_obs,
@@ -1876,7 +1921,8 @@ async def run_blog_pipeline(topic: str, channel_id: str = "default", language: s
 
         try:
             from modules.keyword_miner import research_keywords
-            kw_res = await research_keywords(topic, lang=language, max_results=15, use_obscura=True)
+            from services.obscura_bridge import obscura_enabled
+            kw_res = await research_keywords(topic, lang=language, max_results=15, use_obscura=obscura_enabled())
             kw_string = kw_res.get("keyword_string", kw_string)
         except Exception as e_kw:
             print(f"[Pipeline] KeywordMiner: erro: {e_kw}")
@@ -2044,7 +2090,8 @@ async def mine_google_hype(niche: str, language: str = "pt") -> dict:
         seeds = [niche]
 
     # 2. Minera o Autocomplete do Google para cada semente
-    miner = KeywordMiner(use_obscura=False)
+    from services.obscura_bridge import obscura_enabled
+    miner = KeywordMiner(use_obscura=obscura_enabled())
     hot_suggestions = []
     try:
         for seed in seeds[:3]:

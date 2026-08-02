@@ -100,3 +100,6 @@ SniperVideoEngine/credentials/
 
 # logs
 SniperVideoEngine/server_log.txt
+
+# Chrome real (perfil persistente do CDP)
+SniperVideoEngine/.chrome-profile/

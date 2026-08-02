@@ -191,6 +191,9 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/api/v1/obscura/status` | 🕵️ Painel Obscura: status do motor, telemetria por agente (com `via_bridge`/`via_fallback`), retries, incidentes e grace — **admin** |
 | GET | `/api/v1/obscura/grace` | Grace atual do healthcheck (`grace_s` + fonte `runtime`/`env`) — **admin** |
 | PUT | `/api/v1/obscura/grace` | Aplica nova grace em runtime **e persiste no .env** (sem reiniciar o backend) — **admin** |
+| GET | `/api/v1/obscura/proxy-check` | 🕵️ Healthcheck do proxy configurado: testa conectividade real (GET via proxy em api.ipify.org), mede latência + IP de saída — **admin** |
+| GET | `/api/v1/obscura/serp-sources` | 🔀 Fontes SERP da rodada atual + histórico de rodadas (rotacao de buscadores) — **admin** |
+| POST | `/api/v1/obscura/serp-sources/reset` | Zera os contadores de fonte SERP (início de nova rodada da fábrica) — **admin** |
 | GET | `/api/v1/version` | Versão da API |
 | GET | `/api/v1/logs` | Logs recentes |
 | GET | `/api/v1/account/balance` | Saldo da conta |
@@ -203,6 +206,9 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | **Sinalizador bridge/fallback** | Barra por agente (⚡ azul = bridge CDP · 🟡 amarelo = fallback urllib) + resumo no dashboard |
 | **Alertas de queda** | Watcher (task asyncio, `OBSCURA_ALERT_INTERVAL` default 30s) detecta motor fora além da graça e envia alerta **Telegram** (🔴 queda / 🟢 recuperação), 1 por incidente; histórico nos últimos 20 fica no painel |
 | **E2E em 1 comando** | `bash .e2e_all.sh` — roda pytest + healthz E2E (200→503→200) + via counters + grace config, com relatório PASS/FAIL |
+| **🔀 Rotação de buscadores** | Google bloqueado → fallback **round-robin** entre Bing (`obscura_bing`), DuckDuckGo (`obscura_ddg`, HTML + decode do redirect) e Ecosia (`obscura_ecosia`) — distribui carga e reduz rate-limit; fonte real de cada SERP registrada na telemetria |
+| **🕵️ Healthcheck de proxy** | Card "Proxy residencial" no painel com botão **testar** → `GET /api/v1/obscura/proxy-check` (latência + IP de saída; SOCKS avisado como não-testável via urllib) |
+| **🔀 Fontes SERP por rodada** | Seção no painel com barras por fonte (obscura/bing/ddg/ecosia/regex) + botão **🔄 Nova rodada** + histórico das últimas 20 rodadas; só conta como sucesso quando a SERP veio com URLs |
 
 ### 📊 Dashboard / Fábrica (admin)
 | Método | Rota | Descrição |

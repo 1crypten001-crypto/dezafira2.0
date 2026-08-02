@@ -897,7 +897,8 @@ async def research_youtube_pains(seed: str, lang: str = "pt",
         result = await research_youtube_pains("investimento")
         # result["pains"] = [{"text": "como investir primeiro salário", ...}]
     """
-    miner = KeywordMiner(use_obscura=False)
+    from services.obscura_bridge import obscura_enabled
+    miner = KeywordMiner(use_obscura=obscura_enabled())
     try:
         pains = await miner.mine_youtube_pains(seed, lang, max_pains)
         return {

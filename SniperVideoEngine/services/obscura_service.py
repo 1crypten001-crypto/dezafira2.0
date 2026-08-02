@@ -34,6 +34,8 @@ class ObscuraTelemetry:
         self._last_call_at = None
         self._last_ping = None       # {ts, online, targets, error}
         self._db_enabled = True
+        self._serp_sources = {}      # fonte SERP -> contagem (rotacao de buscadores)
+        self._serp_sources_by_run = []  # snapshots por rodada da fabrica
 
     def log_call(self, agent: str, url: str, ok: bool, ms: float, error: str = "",
                  via: str = "") -> None:
@@ -83,6 +85,38 @@ class ObscuraTelemetry:
                 # Sem banco disponível — telemetria segue em memória
                 pass
 
+    def log_serp_source(self, source: str) -> None:
+        """Registra a fonte real de uma chamada SERP (rotacao de buscadores).
+
+        Fontes possiveis: obscura (Google via Chrome), obscura_bing,
+        obscura_ddg, obscura_ecosia, regex_fallback.
+        """
+        src = (source or "desconhecida")[:30]
+        with self._lock:
+            self._serp_sources[src] = self._serp_sources.get(src, 0) + 1
+
+    def reset_serp_sources(self) -> dict:
+        """Zera os contadores de fonte SERP e guarda o snapshot da rodada
+        anterior. Chamado no inicio de cada rodada da fabrica."""
+        with self._lock:
+            snap = {
+                "ts": datetime.utcnow().isoformat(),
+                "sources": dict(self._serp_sources),
+            }
+            if self._serp_sources:
+                self._serp_sources_by_run.append(snap)
+                self._serp_sources_by_run = self._serp_sources_by_run[-20:]
+            self._serp_sources = {}
+            return snap
+
+    def serp_run_summary(self) -> dict:
+        """Resumo das fontes SERP da rodada atual + historico de rodadas."""
+        with self._lock:
+            return {
+                "current": dict(self._serp_sources),
+                "runs": list(self._serp_sources_by_run),
+            }
+
     def log_retry(self, agent: str = "unknown") -> None:
         """Registra um retry (falha transitória re-tentada pelo cliente)."""
         with self._lock:
@@ -102,6 +136,14 @@ class ObscuraTelemetry:
                 "error": (error or "")[:200],
                 "ts": datetime.utcnow().isoformat(),
             }
+
+    def _proxy_config(self) -> dict:
+        """Config de proxy via import lazy (evita circular com o bridge)."""
+        try:
+            from services.obscura_bridge import obscura_proxy
+            return obscura_proxy()
+        except Exception:
+            return {"enabled": False, "url": "", "masked": ""}
 
     def build_status(self) -> dict:
         """Monta o payload do endpoint /api/v1/obscura/status e da página."""
@@ -137,6 +179,9 @@ class ObscuraTelemetry:
                 "by_agent": by_agent,
                 "recent_calls": recent,
                 "last_ping": self._last_ping,
+                "proxy": self._proxy_config(),
+                "serp_sources": dict(self._serp_sources),
+                "serp_runs": list(self._serp_sources_by_run),
             }
 
 

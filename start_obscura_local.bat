@@ -34,8 +34,19 @@ if not errorlevel 1 (
     goto :status
 )
 
-echo [3/4] Subindo o motor (workers 4, stealth)...
-start "Obscura" cmd /k ""%EXE%" serve --port %PORT% --workers 4 --stealth"
+echo [3/4] Subindo o motor (workers 4, stealth, proxy opcional)...
+set PROXY_URL=
+for /f "usebackq tokens=1,* delims==" %%a in ("%CD%\.env") do (
+    if "%%a"=="OBSCURA_PROXY_URL" if not "%%b"=="" set PROXY_URL=%%b
+)
+if defined PROXY_URL (
+    echo    [proxy] residencial ativo: %PROXY_URL%
+) else (
+    echo    [proxy] nao configurado (OBSCURA_PROXY_URL vazio no .env)
+)
+set PROXY_ARG=
+if defined PROXY_URL set PROXY_ARG=--proxy "%PROXY_URL%"
+start "Obscura" cmd /k ""%EXE%" serve --port %PORT% --workers 4 --stealth %PROXY_ARG%""
 timeout /t 5 /nobreak >nul
 
 :status

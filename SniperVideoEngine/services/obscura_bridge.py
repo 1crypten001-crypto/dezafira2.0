@@ -37,8 +37,56 @@ logger = logging.getLogger("obscura")
 # Configuração via env vars
 OBSCURA_HOST = os.getenv("OBSCURA_HOST", "127.0.0.1")
 OBSCURA_PORT = int(os.getenv("OBSCURA_PORT", "9222"))
+OBSCURA_CHROME_PORT = int(os.getenv("OBSCURA_CHROME_PORT", "9223"))
+OBSCURA_SERP_DELAY = float(os.getenv("OBSCURA_SERP_DELAY", "1.5"))
 OBSCURA_ENABLED = os.getenv("OBSCURA_ENABLED", "true").lower() in ("true", "1", "yes")
 OBSCURA_WS_URL = f"ws://{OBSCURA_HOST}:{OBSCURA_PORT}/devtools/browser"
+
+
+def obscura_enabled() -> bool:
+    """Fonte única do gate do Obscura — lê OBSCURA_ENABLED em tempo de chamada.
+
+    Todas as pipelines/agentes devem usar esta função (e não o módulo constante
+    OBSCURA_ENABLED, que é lido no import). Assim, trocar o .env em runtime
+    (ex.: o card de graça / monitoramento) vale para tudo de uma vez.
+    """
+    return os.getenv("OBSCURA_ENABLED", "true").lower() in ("true", "1", "yes")
+
+
+def obscura_proxy() -> dict:
+    """Fonte única da config de proxy — lê OBSCURA_PROXY_URL em runtime.
+
+    Retorna {"enabled": bool, "url": str, "masked": str} onde masked esconde
+    credenciais (user:pass) pra exibição segura no painel. Usado pelos .bat
+    (que passam a flag --proxy/--proxy-server) e pelo status do painel.
+    """
+    url = (os.getenv("OBSCURA_PROXY_URL") or "").strip().strip('"').strip("'")
+    if not url:
+        return {"enabled": False, "url": "", "masked": ""}
+    masked = url
+    if "@" in url:
+        scheme, _, rest = url.partition("//")
+        cred, _, host = rest.rpartition("@")
+        masked = f"{scheme}//***@{host}" if scheme else f"***@{host}"
+    return {"enabled": True, "url": url, "masked": masked}
+
+
+# Cache: uma vez que o Google bloqueou o headless, pula direto pro Bing
+_GOOGLE_BLOCKED = {"value": False}
+
+# Rotação de buscadores de fallback (distribui carga e reduz rate-limit)
+_SERP_FALLBACK_ENGINES = ["bing", "ddg", "ecosia"]
+_SERP_ROTATION = {"i": 0}
+
+
+def _next_fallback_engine() -> str:
+    """Retorna o próximo buscador de fallback em round-robin."""
+    engine = _SERP_FALLBACK_ENGINES[_SERP_ROTATION["i"] % len(_SERP_FALLBACK_ENGINES)]
+    _SERP_ROTATION["i"] += 1
+    return engine
+
+# Cache: porta do motor já resolvida (evita sondar /json/version a cada SERP)
+_PICKED_PORT = {"value": None}
 
 
 class ObscuraNotAvailableError(Exception):
@@ -79,8 +127,29 @@ class ObscuraBridge:
 
     # ─── CONEXÃO ───────────────────────────────────────────────────────
 
+    async def _resolve_ws_url(self) -> str:
+        """Resolve a URL do WebSocket: prefere Chrome real (HTTP /json/version
+        com webSocketDebuggerUrl dinâmico), senão usa o path fixo do Obscura.
+
+        Isso permite o MESMO bridge falar com os dois motores:
+          - Chrome real (--remote-debugging-port) → /json/version
+          - Obscura (engine Rust) → ws://host:port/devtools/browser
+        """
+        try:
+            import urllib.request
+            with urllib.request.urlopen(
+                f"http://{self.host}:{self.port}/json/version", timeout=3
+            ) as r:
+                info = json.loads(r.read().decode("utf-8", "ignore"))
+                ws = info.get("webSocketDebuggerUrl")
+                if ws:
+                    return str(ws)
+        except Exception:
+            pass
+        return f"ws://{self.host}:{self.port}/devtools/browser"
+
     async def connect(self) -> bool:
-        """Tenta conectar ao Obscura via WebSocket CDP."""
+        """Tenta conectar via WebSocket CDP (Chrome real ou Obscura)."""
         if not self.enabled:
             logger.info("[Obscura] Desabilitado via OBSCURA_ENABLED=false")
             return False
@@ -91,6 +160,7 @@ class ObscuraBridge:
         try:
             import websockets
 
+            self.ws_url = await self._resolve_ws_url()
             logger.info(f"[Obscura] Conectando a {self.ws_url}...")
             self._ws = await asyncio.wait_for(
                 websockets.connect(self.ws_url, max_size=10_000_000),
@@ -103,14 +173,18 @@ class ObscuraBridge:
             targets = result.get("targetInfos", [])
             logger.info(f"[Obscura] Conectado! Targets encontrados: {len(targets)}")
 
-            # Se não houver target, cria um
-            if not targets:
+            # Chrome real expõe targets auxiliares (browser_ui/Omnibox) além da
+            # página — filtra por type == 'page' pra pegar a aba de verdade.
+            page_targets = [t for t in targets if t.get("type") == "page"]
+
+            # Se não houver target de página, cria um
+            if not page_targets:
                 result = await self._send_cdp("Target.createTarget", {
                     "url": "about:blank",
                 })
                 self._target_id = result.get("targetId")
             else:
-                self._target_id = targets[0].get("targetId")
+                self._target_id = page_targets[0].get("targetId")
 
             # Comandos de página exigem uma SESSÃO CDP anexada ao target
             # (sem isso o motor responde "No page for session").
@@ -383,9 +457,247 @@ class ObscuraBridge:
             logger.error(f"[Obscura] Erro ao navegar para {url}: {e}")
             return "", ""
 
+    async def get_serp_data_bing(self, keyword: str, lang: str = "pt") -> dict:
+        """
+        Extrai SERP REAL do Bing (o Google bloqueia o headless com anti-bot).
+
+        Retorna o mesmo formato de get_serp_data, com source 'obscura_bing'.
+        As URLs vêm decodificadas (o Bing usa redirect /ck/a com u=base64)
+        e as perguntas relacionadas são extraídas dos títulos/snippets reais.
+        """
+        from urllib.parse import quote, parse_qs
+        import base64
+
+        search_url = (
+            f"https://www.bing.com/search?q={quote(keyword)}"
+            f"&setlang={'pt-br' if lang == 'pt' else 'en-us'}"
+            f"&mkt={'pt-BR' if lang == 'pt' else 'en-US'}"
+        )
+        html, text = await self.navigate_and_get_html(search_url)
+
+        js = """
+        (() => {
+            const items = [];
+            document.querySelectorAll('#b_results li.b_algo').forEach(li => {
+                const a = li.querySelector('h2 a');
+                const sn = li.querySelector('.b_caption p, .b_caption, p');
+                if (a && a.href && a.href.startsWith('http')) {
+                    items.push({
+                        title: a.textContent.trim(),
+                        url: a.href,
+                        snippet: sn ? sn.textContent.trim().slice(0, 200) : ''
+                    });
+                }
+            });
+            return JSON.stringify({items: items.slice(0, 10)});
+        })()
+        """
+        out = await self.execute_js(js)
+        items = []
+        try:
+            data = json.loads(out) if out else {}
+            items = data.get("items", [])
+        except json.JSONDecodeError:
+            pass
+
+        # Decodifica as URLs reais do redirect do Bing (u=base64)
+        def _real_url(href: str) -> str:
+            try:
+                qs = parse_qs(href)
+                u = qs.get("u", [""])[0]
+                if u.startswith("a1") and len(u) > 2:
+                    raw = u[2:]
+                    padded = raw + "=" * (-len(raw) % 4)
+                    decoded = base64.urlsafe_b64decode(padded).decode("utf-8", "ignore")
+                    if decoded.startswith("http"):
+                        return decoded
+            except Exception:
+                pass
+            return href
+
+        urls, titles, questions = [], [], []
+        Q_MARKERS = ("como ", "por que ", "qual ", "quanto ", "quais ",
+                     "melhor ", "vale a pena", "dúvida", "erro", "problema",
+                     "ajuda", "?", "posso ", "devo ", "quando ")
+        for it in items:
+            url = _real_url(it.get("url", ""))
+            urls.append(url)
+            titles.append(it.get("title", ""))
+            for fld in (it.get("title", ""), it.get("snippet", "")):
+                low = (fld or "").lower()
+                if any(m in low for m in Q_MARKERS):
+                    q = (it.get("title") or it.get("snippet") or "").strip()[:120]
+                    if q and q not in questions:
+                        questions.append(q)
+                    break
+
+        return {
+            "html": html,
+            "text": text[:10000],
+            "urls": urls,
+            "titles": titles,
+            "people_also_ask": questions[:10],
+            "search_url": search_url,
+            "source": "obscura_bing",
+        }
+
+    async def get_serp_data_ddg(self, keyword: str, lang: str = "pt") -> dict:
+        """
+        Extrai SERP REAL do DuckDuckGo (HTML lite) — busca com `site:`
+        funciona aqui e a carga é distribuída (round-robin com Bing/Ecosia).
+        Source 'obscura_ddg'.
+        """
+        from urllib.parse import quote
+
+        search_url = (
+            f"https://html.duckduckgo.com/html/?q={quote(keyword)}"
+            f"&kl={'br-pt' if lang == 'pt' else 'us-en'}"
+        )
+        html, text = await self.navigate_and_get_html(search_url)
+
+        js = """
+        (() => {
+            const items = [];
+            document.querySelectorAll('.result').forEach(r => {
+                const a = r.querySelector('a.result__a');
+                const sn = r.querySelector('.result__snippet');
+                if (a && a.href) {
+                    items.push({
+                        title: a.textContent.trim(),
+                        url: a.href,
+                        snippet: sn ? sn.textContent.trim().slice(0, 200) : ''
+                    });
+                }
+            });
+            return JSON.stringify({items: items.slice(0, 10)});
+        })()
+        """
+        out = await self.execute_js(js)
+        items = []
+        try:
+            data = json.loads(out) if out else {}
+            items = data.get("items", [])
+        except json.JSONDecodeError:
+            pass
+
+        def _real_url(href: str) -> str:
+            # DDG redireciona via //duckduckgo.com/l/?uddg=<encoded>
+            try:
+                if "uddg=" in href:
+                    from urllib.parse import urlparse, unquote, parse_qs
+                    qs = parse_qs(urlparse(href).query)
+                    u = qs.get("uddg", [""])[0]
+                    if u.startswith("http"):
+                        return unquote(u)
+            except Exception:
+                pass
+            return href
+
+        urls, titles, questions = [], [], []
+        Q_MARKERS = ("como ", "por que ", "qual ", "quanto ", "quais ",
+                     "melhor ", "vale a pena", "dúvida", "erro", "problema",
+                     "ajuda", "?", "posso ", "devo ", "quando ")
+        for it in items:
+            url = _real_url(it.get("url", ""))
+            urls.append(url)
+            titles.append(it.get("title", ""))
+            for fld in (it.get("title", ""), it.get("snippet", "")):
+                low = (fld or "").lower()
+                if any(m in low for m in Q_MARKERS):
+                    q = (it.get("title") or it.get("snippet") or "").strip()[:120]
+                    if q and q not in questions:
+                        questions.append(q)
+                    break
+
+        return {
+            "html": html,
+            "text": text[:10000],
+            "urls": urls,
+            "titles": titles,
+            "people_also_ask": questions[:10],
+            "search_url": search_url,
+            "source": "obscura_ddg",
+        }
+
+    async def get_serp_data_ecosia(self, keyword: str, lang: str = "pt") -> dict:
+        """
+        Extrai SERP REAL do Ecosia (usa o índice do Bing, HTML server-rendered).
+        Source 'obscura_ecosia'.
+        """
+        from urllib.parse import quote
+
+        search_url = (
+            f"https://www.ecosia.org/search?q={quote(keyword)}"
+            f"&language={'pt' if lang == 'pt' else 'en'}"
+        )
+        html, text = await self.navigate_and_get_html(search_url)
+
+        js = """
+        (() => {
+            const items = [];
+            document.querySelectorAll('.result, .mainline .result').forEach(r => {
+                const a = r.querySelector('a[data-test-id="result-title"]') || r.querySelector('a.result__title') || r.querySelector('h2 a');
+                const sn = r.querySelector('p[data-test-id="result-snippet"], .result__snippet, .result-snippet');
+                if (a && a.href) {
+                    items.push({
+                        title: a.textContent.trim(),
+                        url: a.href,
+                        snippet: sn ? sn.textContent.trim().slice(0, 200) : ''
+                    });
+                }
+            });
+            return JSON.stringify({items: items.slice(0, 10)});
+        })()
+        """
+        out = await self.execute_js(js)
+        items = []
+        try:
+            data = json.loads(out) if out else {}
+            items = data.get("items", [])
+        except json.JSONDecodeError:
+            pass
+
+        urls, titles, questions = [], [], []
+        Q_MARKERS = ("como ", "por que ", "qual ", "quanto ", "quais ",
+                     "melhor ", "vale a pena", "dúvida", "erro", "problema",
+                     "ajuda", "?", "posso ", "devo ", "quando ")
+        for it in items:
+            url = it.get("url", "")
+            urls.append(url)
+            titles.append(it.get("title", ""))
+            for fld in (it.get("title", ""), it.get("snippet", "")):
+                low = (fld or "").lower()
+                if any(m in low for m in Q_MARKERS):
+                    q = (it.get("title") or it.get("snippet") or "").strip()[:120]
+                    if q and q not in questions:
+                        questions.append(q)
+                    break
+
+        return {
+            "html": html,
+            "text": text[:10000],
+            "urls": urls,
+            "titles": titles,
+            "people_also_ask": questions[:10],
+            "search_url": search_url,
+            "source": "obscura_ecosia",
+        }
+
+    async def _serp_fallback_engine(self, keyword: str, lang: str, engine: str) -> dict:
+        """Dispatch do fallback rotativo: bing | ddg | ecosia."""
+        if engine == "ddg":
+            return await self.get_serp_data_ddg(keyword, lang)
+        if engine == "ecosia":
+            return await self.get_serp_data_ecosia(keyword, lang)
+        return await self.get_serp_data_bing(keyword, lang)
+
     async def get_serp_data(self, keyword: str, lang: str = "pt") -> dict:
         """
         Método especializado para extrair dados SERP do Google.
+
+        O Google bloqueia o headless (anti-bot) — quando isso acontece
+        (HTML minúsculo ou falha de navegação), cai automaticamente no
+        Bing para continuar entregando SERP REAL (nunca fallback genérico).
 
         Retorna dict com:
           - html: HTML completo da SERP
@@ -401,7 +713,28 @@ class ObscuraBridge:
             f"&hl={'pt-BR' if lang == 'pt' else 'en'}"
         )
 
+        # Google já detectado bloqueado → pula direto pro fallback rotativo (evita 2 navegações)
+        if _GOOGLE_BLOCKED["value"]:
+            engine = _next_fallback_engine()
+            logger.info(f"[Obscura] Google já bloqueado — fallback rotativo: {engine}")
+            return await self._serp_fallback_engine(keyword, lang, engine)
+
         html, text = await self.navigate_and_get_html(search_url)
+
+        # Detecta CAPTCHA/anti-bot do Google: redirect /sorry/ OU página minúscula
+        blocked = len(html) < 10000
+        if not blocked:
+            try:
+                href = (await self.execute_js("location.href")) or ""
+                blocked = "/sorry/" in str(href)
+            except Exception:
+                pass
+
+        if blocked:
+            _GOOGLE_BLOCKED["value"] = True
+            engine = _next_fallback_engine()
+            logger.info(f"[Obscura] Google bloqueou (anti-bot/captcha) — fallback rotativo: {engine}")
+            return await self._serp_fallback_engine(keyword, lang, engine)
 
         # Extrai URLs dos resultados via JS (mais confiável que regex)
         urls_json = await self.execute_js("""
@@ -486,9 +819,51 @@ async def get_obscura_status(host: str = None, port: int = None) -> dict:
             "online": True,
             "ws_url": status["ws_url"],
             "targets": status["targets"],
+            "proxy": obscura_proxy(),
         }
     except Exception as e:
         return {"online": False, "ws_url": bridge.ws_url, "targets": 0, "error": str(e)[:200]}
+
+
+async def test_proxy_connectivity(proxy_url: str) -> dict:
+    """Testa se o proxy configurado está de pé: faz um GET real via proxy
+    (api.ipify.org devolve o IP de saída — prova que o tráfego passa pelo
+    proxy) e mede latência. Retorna {enabled, ok, ms, ip, error}."""
+    import time as _t
+    started = _t.perf_counter()
+    # urllib só suporta http(s) — socks5 dá falso negativo; avisa em vez de falhar
+    if proxy_url.lower().startswith(("socks4://", "socks5://", "socks://")):
+        return {
+            "enabled": True,
+            "ok": None,
+            "ms": 0,
+            "ip": "",
+            "error": "proxy SOCKS: o teste HTTP (urllib) não suporta — confirme manualmente via start_chrome_local.bat",
+        }
+    try:
+        import urllib.request
+        proxy_handler = urllib.request.ProxyHandler({
+            "http": proxy_url,
+            "https": proxy_url,
+        })
+        opener = urllib.request.build_opener(proxy_handler)
+        req = urllib.request.Request(
+            "https://api.ipify.org?format=json",
+            headers={"User-Agent": "DezafiraObscura/1.0"},
+        )
+        with opener.open(req, timeout=6) as resp:
+            body = resp.read().decode("utf-8", "ignore")[:200]
+        ms = int((_t.perf_counter() - started) * 1000)
+        ip = ""
+        try:
+            import json as _json
+            ip = (_json.loads(body) or {}).get("ip", "")
+        except Exception:
+            ip = body[:50]
+        return {"enabled": True, "ok": True, "ms": ms, "ip": ip}
+    except Exception as e:
+        ms = int((_t.perf_counter() - started) * 1000)
+        return {"enabled": True, "ok": False, "ms": ms, "error": str(e)[:200], "ip": ""}
 
 
 async def is_obscura_available(host: str = None, port: int = None) -> bool:
@@ -503,12 +878,39 @@ async def is_obscura_available(host: str = None, port: int = None) -> bool:
         return False
 
 
+async def _pick_bridge_port() -> int:
+    """Escolhe o motor a usar: Chrome real (OBSCURA_CHROME_PORT) se estiver
+    de pé via HTTP /json/version, senão o Obscura (OBSCURA_PORT).
+
+    A porta escolhida fica em cache (padrão _GOOGLE_BLOCKED) para não
+    sondar /json/version a cada keyword — só resolve de novo se o motor
+    parar de responder.
+    """
+    if _PICKED_PORT["value"] is not None:
+        return _PICKED_PORT["value"]
+    for port in (OBSCURA_CHROME_PORT, OBSCURA_PORT):
+        try:
+            import urllib.request
+            with urllib.request.urlopen(
+                f"http://{OBSCURA_HOST}:{port}/json/version", timeout=2
+            ) as r:
+                info = json.loads(r.read().decode("utf-8", "ignore"))
+                if info.get("webSocketDebuggerUrl"):
+                    _PICKED_PORT["value"] = port
+                    return port
+        except Exception:
+            continue
+    _PICKED_PORT["value"] = OBSCURA_PORT
+    return OBSCURA_PORT
+
+
 async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
     """
-    Tenta usar Obscura para SERP data. Se falhar, retorna dict vazio
+    Tenta usar Obscura/Chrome para SERP data. Se falhar, retorna dict vazio
     para que o KeywordMiner use o fallback regex.
 
     Esta é a função principal usada pelo KeywordMiner (PAA + dificuldade SERP).
+    Prefere o Chrome real (desbloqueia o Google); senão o Obscura (Bing).
     """
     from services.obscura_service import obscura_telemetry
     import time as _t
@@ -517,8 +919,12 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
     ok = False
     error = ""
     data = {}
-    bridge = ObscuraBridge()
+    port = await _pick_bridge_port()
+    bridge = ObscuraBridge(port=port)
     try:
+        # Delay entre SERPs para não estourar rate-limit dos buscadores
+        if OBSCURA_SERP_DELAY > 0:
+            await asyncio.sleep(OBSCURA_SERP_DELAY)
         connected = await bridge.connect()
         if connected:
             data = await bridge.get_serp_data(keyword, lang)
@@ -550,5 +956,15 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
         "keyword_miner_serp",
         f"https://www.google.com/search?q={keyword}&hl={'pt-BR' if lang == 'pt' else 'en'}",
         ok, ms, error,
+        via="bridge" if ok else "fallback",
     )
+    # Registra a fonte real da SERP (rotacao de buscadores) p/ telemetria por rodada.
+    # Só conta como sucesso quando veio com URLs — motor bloqueado (0 urls) não
+    # deve inflar a estatística de fontes.
+    if ok and data.get("urls"):
+        obscura_telemetry.log_serp_source(data.get("source") or "desconhecida")
+    elif ok:
+        obscura_telemetry.log_serp_source(data.get("source") + "_vazio" if data.get("source") else "regex_fallback")
+    else:
+        obscura_telemetry.log_serp_source("regex_fallback")
     return data

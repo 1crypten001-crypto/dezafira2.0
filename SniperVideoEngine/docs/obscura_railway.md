@@ -42,6 +42,30 @@ OBSCURA_ENABLED=true
 O `ObscuraBridge` (`services/obscura_bridge.py`) já lê `OBSCURA_HOST` /
 `OBSCURA_PORT`, e `get_obscura_status()` faz o ping CDP no `/json`.
 
+### Variáveis opcionais (produção)
+
+```
+# Rotação de buscadores: quando o Google bloqueia, o fallback alterna
+# round-robin entre Bing, DuckDuckGo e Ecosia (distribui carga e reduz
+# rate-limit). Delay entre SERPs para não estourar os buscadores:
+OBSCURA_SERP_DELAY=1.5
+
+# Proxy residencial (destrava Google SERP/PAA de vez). Preencha no Railway
+# e o motor sobe com a flag --proxy. Formato http://user:pass@host:port
+# ou socks5://user:pass@host:port:
+OBSCURA_PROXY_URL=
+
+# Porta do Chrome real (CDP) — somente uso local (dev). Em produção o
+# bridge usa o motor Obscura via OBSCURA_HOST/OBSCURA_PORT:
+OBSCURA_CHROME_PORT=9223
+```
+
+> **Produção (Railway):** o Chrome real é local-only (start_chrome_local.bat).
+> No Railway o backend usa o motor Obscura via Private Networking — o bridge
+> tenta o Chrome (9223) primeiro e, não havendo, cai no Obscura (9222)
+> automaticamente. Se usar proxy residencial, configure `OBSCURA_PROXY_URL`
+> nas env vars do serviço Obscura (a flag `--proxy` é passada no start).
+
 ## 3) Rodando local (desenvolvimento)
 
 Sem Docker, use o binário das releases do repo `h4ckf0r0day/obscura`:

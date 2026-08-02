@@ -302,6 +302,10 @@ Cada artigo passa por todas as etapas obrigatórias:
 | **Pipeline respeita artigos existentes** | Conta artigos no DB antes de gerar, ajusta target_articles |
 | **Instruções de redação por nicho** | 5 nichos (finanças, cristão, saúde, tecnologia, casa) com prompts específicos |
 | **Tópicos dinâmicos** | Gera tópicos variados via LLM por nicho (não mais fixo "Jesus") |
+| **Dores REAIS na pipeline** | Seu Reddit (old.reddit.com, threads reais) + Seu YouTube (demanda com views) + Joaquim (SERP) — fim das frases adaptadas |
+| **Chrome real + Obscura (CDP)** | Bridge com auto-detecção de motor: Chrome real (9223) desbloqueia Google; Obscura (9222) como fallback; mesmo código fala com os dois |
+| **🔀 Rotação de buscadores** | Google bloqueado → round-robin Bing/DuckDuckGo/Ecosia (distribui carga, reduz rate-limit); fonte real registrada na telemetria |
+| **🕵️ Healthcheck de proxy + fontes SERP** | Card de proxy testável no painel + seção "Fontes SERP desta rodada" com histórico — pré-requisito pro proxy residencial destravar o PAA |
 
 ---
 

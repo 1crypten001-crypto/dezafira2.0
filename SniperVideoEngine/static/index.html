@@ -1848,6 +1848,7 @@ async function loadObscura(){
     var html='';
     html+='<div class="stats-grid">'
       +'<div class="stat-card"><div class="label">Motor headless</div><div class="value" style="font-size:22px;color:'+(online?"#34d399":"#f87171")+'">'+(online?"🟢 Online":"🔴 Offline")+'</div><div class="sub">'+(ping.targets||0)+' alvos/sessoes CDP</div></div>'
+      +'<div class="stat-card"><div class="label">Proxy residencial</div><div class="value" style="font-size:15px;color:'+(d.proxy&&d.proxy.enabled?"#fbbf24":"#6b7280")+'">'+(d.proxy&&d.proxy.enabled?"🟡 Ativo":"⚪ Desligado")+'</div><div class="sub" title="Preencha OBSCURA_PROXY_URL no .env e rode o start de novo (Chrome + Obscura sobem com proxy). Formato: http://user:pass@host:port ou socks5://...">'+(d.proxy&&d.proxy.masked?d.proxy.masked:"OBSCURA_PROXY_URL vazio no .env")+' <a href="javascript:void(0)" onclick="checkProxyHealth()" style="color:#60a5fa;font-size:11px">testar</a><span id="proxyCheckRes"></span></div></div>'
       +'<div class="stat-card"><div class="label">Chamadas totais</div><div class="value">'+(d.total_calls||0)+'</div><div class="sub">'+(d.ok_calls||0)+' OK · '+(d.fail_calls||0)+' falhas</div></div>'
       +'<div class="stat-card"><div class="label">Taxa de sucesso</div><div class="value">'+(d.success_rate!=null?d.success_rate+"%":"-")+'</div><div class="sub">desde '+(d.started_at?d.started_at.slice(0,10):"-")+'</div></div>'
       +'<div class="stat-card"><div class="label">Latência média</div><div class="value">'+(d.avg_latency_ms||0)+'ms</div><div class="sub">por chamada</div></div>'
@@ -1861,6 +1862,28 @@ async function loadObscura(){
       +'<span title="O /healthz responde 503 (e o Railway reinicia o backend) quando o motor Obscura fica fora por mais que essa graça. O valor é salvo no .env (OBSCURA_HEALTH_GRACE) e aplicado em runtime, sem reiniciar o backend. Fonte atual: '+(gr.source||"env")+'." style="cursor:help">ℹ️</span>'
       +'</span>'
       +'</div></div></div>';
+    var src=d.serp_sources||{};
+    var sKeys=Object.keys(src);
+    html+='<div class="section"><div class="section-header"><h3>🔀 Fontes SERP desta rodada</h3><button class="btn btn-sm" onclick="resetSerpSources()">🔄 Nova rodada</button></div><div class="card-table">';
+    if(sKeys.length){
+      var sTotal=0;sKeys.forEach(function(k){sTotal+=src[k];});
+      sKeys.forEach(function(k){
+        var n=src[k],pct=Math.round(100*n/Math.max(sTotal,1));
+        var col=k.indexOf("obscura")===0?"#60a5fa":"#fbbf24";
+        html+='<div class="lili-article-row"><span class="lili-article-title">'+escapeHtml(k)+'</span><span class="lili-article-meta">'+n+' chamada(s) · '+pct+'%</span></div>'
+          +'<div style="padding:0 20px 10px"><div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:#1e2030"><div style="flex:'+pct+';background:'+col+'"></div></div></div>';
+      });
+    } else {
+      html+='<div class="empty" style="padding:14px">Sem SERPs ainda nesta rodada. A rotação distribui entre Google (obscura) → Bing (obscura_bing) → DuckDuckGo (obscura_ddg) → Ecosia (obscura_ecosia).</div>';
+    }
+    var runs=d.serp_runs||[];
+    if(runs.length){
+      html+='<div style="padding:0 20px 10px;font-size:11px;color:#8a91a5">Rodadas anteriores: '+runs.slice(-3).map(function(r){
+        var tot=0,parts=[];Object.keys(r.sources||{}).forEach(function(k){tot+=r.sources[k];parts.push(k+":"+r.sources[k]);});
+        return (r.ts||"").slice(11,19)+' ('+tot+') '+parts.join(" ");
+      }).join(' · ')+'</div>';
+    }
+    html+='</div></div>';
     var agents=d.by_agent||{};
     var aKeys=Object.keys(agents);
     if(aKeys.length){
@@ -1920,6 +1943,25 @@ async function loadObscura(){
     if(badge)badge.textContent="⚠️";
     wrap.innerHTML='<div class="card-table"><div class="empty">Falha ao consultar o Obscura: '+escapeHtml(e.message||e)+'</div></div>';
   }
+}
+async function checkProxyHealth(){
+  var res=document.getElementById("proxyCheckRes");
+  if(res)res.textContent=" …";
+  try{
+    var d=await api("/api/v1/obscura/proxy-check");
+    if(res){
+      if(d.enabled===false){res.textContent=" ⚪ sem proxy configurado";res.style.color="#8a91a5";}
+      else if(d.ok){res.textContent=" ✅ ok "+d.ms+"ms · IP "+(d.ip||"?");res.style.color="#34d399";}
+      else{res.textContent=" ❌ "+(d.error||"falha");res.style.color="#f87171";}
+    }
+  }catch(e){
+    if(res){res.textContent=" ❌ erro";res.style.color="#f87171";}
+  }
+}
+async function resetSerpSources(){
+  var r=await api("/api/v1/obscura/serp-sources/reset",{method:"POST"});
+  if(r.error){alert("Erro: "+r.error);return;}
+  loadObscura();
 }
 async function saveObscuraGrace(){
   var sel=document.getElementById("obscuraGraceSel");if(!sel)return;

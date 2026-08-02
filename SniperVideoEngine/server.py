@@ -1038,6 +1038,37 @@ async def obscura_grace_set(payload: dict, _admin=Depends(require_admin)):
         raise HTTPException(status_code=422, detail=str(e))
 
 
+@app.get("/api/v1/obscura/proxy-check")
+async def obscura_proxy_check(_admin=Depends(require_admin)):
+    """🕵️ Healthcheck do proxy configurado — testa conectividade real
+    (HTTP via proxy) e mede latência. Sem proxy configurado, retorna
+    disabled. Sempre executa rápido (timeout 8s) pra não travar o painel."""
+    from services.obscura_bridge import obscura_proxy, test_proxy_connectivity
+    cfg = obscura_proxy()
+    if not cfg.get("enabled"):
+        return {"enabled": False, "ok": False, "error": "OBSCURA_PROXY_URL vazio no .env", "ms": 0}
+    try:
+        result = await asyncio.wait_for(test_proxy_connectivity(cfg["url"]), timeout=8)
+    except Exception as e:
+        result = {"enabled": True, "ok": False, "error": str(e)[:200], "ms": 0}
+    result["masked"] = cfg.get("masked", "")
+    return result
+
+
+@app.get("/api/v1/obscura/serp-sources")
+async def obscura_serp_sources(_admin=Depends(require_admin)):
+    """🕵️ Fontes SERP da rodada atual + histórico de rodadas (rotacao)."""
+    from services.obscura_service import obscura_telemetry
+    return obscura_telemetry.serp_run_summary()
+
+
+@app.post("/api/v1/obscura/serp-sources/reset")
+async def obscura_serp_sources_reset(_admin=Depends(require_admin)):
+    """Zera os contadores de fonte SERP (inicio de nova rodada da fabrica)."""
+    from services.obscura_service import obscura_telemetry
+    return obscura_telemetry.reset_serp_sources()
+
+
 @app.get("/api/v1/factory/dashboard")
 async def blog_factory_dashboard(_admin=Depends(require_admin)):
     """Dashboard consolidado com metricas de todas as fabricas."""
