@@ -1864,6 +1864,8 @@ async function loadObscura(){
       +'</div></div></div>';
     var src=d.serp_sources||{};
     var sKeys=Object.keys(src);
+    var blk=d.serp_blocks||{};
+    var bKeys=Object.keys(blk);
     html+='<div class="section"><div class="section-header"><h3>🔀 Fontes SERP desta rodada</h3><button class="btn btn-sm" onclick="resetSerpSources()">🔄 Nova rodada</button></div><div class="card-table">';
     if(sKeys.length){
       var sTotal=0;sKeys.forEach(function(k){sTotal+=src[k];});
@@ -1875,6 +1877,11 @@ async function loadObscura(){
       });
     } else {
       html+='<div class="empty" style="padding:14px">Sem SERPs ainda nesta rodada. A rotação distribui entre Google (obscura) → Bing (obscura_bing) → DuckDuckGo (obscura_ddg) → Ecosia (obscura_ecosia).</div>';
+    }
+    if(bKeys.length){
+      html+='<div style="padding:0 20px 10px;font-size:11px;color:#8a91a5">🚫 Bloqueios por buscador: '+bKeys.map(function(k){
+        return escapeHtml(k)+': '+blk[k];
+      }).join(' · ')+' <span style="color:#f87171" title="Google /sorry/ CAPTCHA ou buscador retornando 0 URLs — a rotação cobre isso; proxy residencial elimina o bloqueio do Google">ℹ️</span></div>';
     }
     var runs=d.serp_runs||[];
     if(runs.length){

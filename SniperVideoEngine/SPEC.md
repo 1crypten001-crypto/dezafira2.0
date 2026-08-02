@@ -209,6 +209,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | **🔀 Rotação de buscadores** | Google bloqueado → fallback **round-robin** entre Bing (`obscura_bing`), DuckDuckGo (`obscura_ddg`, HTML + decode do redirect) e Ecosia (`obscura_ecosia`) — distribui carga e reduz rate-limit; fonte real de cada SERP registrada na telemetria |
 | **🕵️ Healthcheck de proxy** | Card "Proxy residencial" no painel com botão **testar** → `GET /api/v1/obscura/proxy-check` (latência + IP de saída; SOCKS avisado como não-testável via urllib) |
 | **🔀 Fontes SERP por rodada** | Seção no painel com barras por fonte (obscura/bing/ddg/ecosia/regex) + botão **🔄 Nova rodada** + histórico das últimas 20 rodadas; só conta como sucesso quando a SERP veio com URLs |
+| **🚫 Bloqueios por fonte** | Telemetria `serp_blocks` (google/bing/ddg/ecosia) no relatório e no painel — mostra quantas vezes o Google devolveu `/sorry/` CAPTCHA e quantas o fallback salvou; proxy residencial deve zerar o bloqueio do Google |
+| **🌐 Chrome real como serviço** | `Dockerfile.chrome` sobe o Chrome real headless (CDP 9223) como serviço no Railway — o bridge tenta **Chrome primeiro** (`OBSCURA_CHROME_HOST`/`OBSCURA_CHROME_PORT`), senão Obscura; cadeia prod = local (Chrome → Google → fallback rotativo) |
 
 ### 📊 Dashboard / Fábrica (admin)
 | Método | Rota | Descrição |

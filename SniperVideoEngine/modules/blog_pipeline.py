@@ -108,8 +108,9 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     import json
     import time as _t
 
-    from services.obscura_bridge import ObscuraBridge, _pick_bridge_port
-    bridge = ObscuraBridge(port=await _pick_bridge_port())
+    from services.obscura_bridge import ObscuraBridge, _pick_bridge_host_port
+    _bhost, _bport = await _pick_bridge_host_port()
+    bridge = ObscuraBridge(host=_bhost, port=_bport)
     questions = []
 
     # ─── 1) old.reddit.com — fonte primária (threads REAIS, HTML server-rendered) ──

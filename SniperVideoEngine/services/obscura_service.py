@@ -36,6 +36,8 @@ class ObscuraTelemetry:
         self._db_enabled = True
         self._serp_sources = {}      # fonte SERP -> contagem (rotacao de buscadores)
         self._serp_sources_by_run = []  # snapshots por rodada da fabrica
+        self._serp_blocks = {}       # bloqueios por buscador -> contagem (google/bing/ddg/ecosia)
+        self._serp_blocks_by_run = []  # snapshots de bloqueios por rodada
 
     def log_call(self, agent: str, url: str, ok: bool, ms: float, error: str = "",
                  via: str = "") -> None:
@@ -95,6 +97,14 @@ class ObscuraTelemetry:
         with self._lock:
             self._serp_sources[src] = self._serp_sources.get(src, 0) + 1
 
+    def log_serp_block(self, engine: str) -> None:
+        """Registra um bloqueio do buscador (ex.: Google devolveu /sorry/,
+        Bing/DDG/Ecosia retornaram 0 URLs). Alimenta a telemetria
+        "bloqueios por fonte" do relatório da fábrica."""
+        eng = (engine or "desconhecido")[:20]
+        with self._lock:
+            self._serp_blocks[eng] = self._serp_blocks.get(eng, 0) + 1
+
     def reset_serp_sources(self) -> dict:
         """Zera os contadores de fonte SERP e guarda o snapshot da rodada
         anterior. Chamado no inicio de cada rodada da fabrica."""
@@ -102,18 +112,22 @@ class ObscuraTelemetry:
             snap = {
                 "ts": datetime.utcnow().isoformat(),
                 "sources": dict(self._serp_sources),
+                "blocks": dict(self._serp_blocks),
             }
-            if self._serp_sources:
+            if self._serp_sources or self._serp_blocks:
                 self._serp_sources_by_run.append(snap)
                 self._serp_sources_by_run = self._serp_sources_by_run[-20:]
             self._serp_sources = {}
+            self._serp_blocks = {}
             return snap
 
     def serp_run_summary(self) -> dict:
-        """Resumo das fontes SERP da rodada atual + historico de rodadas."""
+        """Resumo das fontes SERP + bloqueios por fonte da rodada atual
+        e historico de rodadas."""
         with self._lock:
             return {
                 "current": dict(self._serp_sources),
+                "blocks": dict(self._serp_blocks),
                 "runs": list(self._serp_sources_by_run),
             }
 
@@ -181,6 +195,7 @@ class ObscuraTelemetry:
                 "last_ping": self._last_ping,
                 "proxy": self._proxy_config(),
                 "serp_sources": dict(self._serp_sources),
+                "serp_blocks": dict(self._serp_blocks),
                 "serp_runs": list(self._serp_sources_by_run),
             }
 

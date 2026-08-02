@@ -16,10 +16,17 @@ conectar o backend Dezafira a ele via Private Networking.
 
 1. No **mesmo projeto Railway** do backend, crie um **segundo serviço**
 2. Aponte o **Dockerfile** para `SniperVideoEngine/Dockerfile.obscura`
-   (ou use a imagem direto: `h4ckf0r0day/obscura`)
 3. Railway expõe a porta **9222** (EXPOSE no Dockerfile)
-4. Workers: ajuste o `--workers` no Dockerfile conforme o plano
-   (4 workers = scraping de dores em paralelo)
+4. Workers: env `OBSCURA_WORKERS` (default 4 = scraping de dores em paralelo)
+5. **Proxy residencial (opcional):** env `OBSCURA_PROXY_URL` no serviço — o
+   entrypoint (`docker/obscura_entrypoint.sh`) adiciona `--proxy`
+   automaticamente quando preenchida
+
+> **Por que este Dockerfile baixa o binário das releases?** A imagem oficial
+> `h4ckf0r0day/obscura` é **distroless** (sem shell), impossível de montar o
+> `--proxy` condicional. Este Dockerfile usa `debian:bookworm-slim` + o mesmo
+> binário stealth das releases (mesmo fluxo do `start_obscura_local.bat`) para
+> o entrypoint conseguir ler `OBSCURA_PROXY_URL` e montar os args.
 
 ### Healthcheck
 
@@ -54,17 +61,27 @@ OBSCURA_SERP_DELAY=1.5
 # e o motor sobe com a flag --proxy. Formato http://user:pass@host:port
 # ou socks5://user:pass@host:port:
 OBSCURA_PROXY_URL=
-
-# Porta do Chrome real (CDP) — somente uso local (dev). Em produção o
-# bridge usa o motor Obscura via OBSCURA_HOST/OBSCURA_PORT:
-OBSCURA_CHROME_PORT=9223
 ```
 
-> **Produção (Railway):** o Chrome real é local-only (start_chrome_local.bat).
-> No Railway o backend usa o motor Obscura via Private Networking — o bridge
-> tenta o Chrome (9223) primeiro e, não havendo, cai no Obscura (9222)
-> automaticamente. Se usar proxy residencial, configure `OBSCURA_PROXY_URL`
-> nas env vars do serviço Obscura (a flag `--proxy` é passada no start).
+## 1.5) Chrome real como serviço (desbloqueia o Google de vez)
+
+O Chrome real (fingerprint TLS genuíno) desbloqueia o Google SERP/PAA que o
+headless Rust não consegue (o Google devolve `/sorry/` CAPTCHA). No Railway
+isso é um **terceiro serviço**:
+
+1. Crie um serviço apontando para `SniperVideoEngine/Dockerfile.chrome`
+2. Railway expõe a porta **9223** (EXPOSE no Dockerfile)
+3. No **backend**, configure:
+   ```
+   OBSCURA_CHROME_HOST=chrome.railway.internal
+   OBSCURA_CHROME_PORT=9223
+   OBSCURA_PROXY_URL=            # opcional — proxy residencial
+   ```
+
+O bridge (`_pick_bridge_host_port`) tenta **Chrome primeiro** (host/porta do
+Chrome) e, não havendo, cai no **Obscura** (OBSCURA_HOST/OBSCURA_PORT). Assim
+em produção a cadeia fica igual à local: **Chrome → Google → fallback**
+rotativo (Bing/DDG/Ecosia).
 
 ## 3) Rodando local (desenvolvimento)
 

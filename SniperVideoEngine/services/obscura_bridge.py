@@ -38,6 +38,9 @@ logger = logging.getLogger("obscura")
 OBSCURA_HOST = os.getenv("OBSCURA_HOST", "127.0.0.1")
 OBSCURA_PORT = int(os.getenv("OBSCURA_PORT", "9222"))
 OBSCURA_CHROME_PORT = int(os.getenv("OBSCURA_CHROME_PORT", "9223"))
+# Host do Chrome real — em produção (Railway) pode ser um serviço separado
+# (ex.: chrome.railway.internal); local usa o mesmo host do Obscura.
+OBSCURA_CHROME_HOST = os.getenv("OBSCURA_CHROME_HOST", OBSCURA_HOST)
 OBSCURA_SERP_DELAY = float(os.getenv("OBSCURA_SERP_DELAY", "1.5"))
 OBSCURA_ENABLED = os.getenv("OBSCURA_ENABLED", "true").lower() in ("true", "1", "yes")
 OBSCURA_WS_URL = f"ws://{OBSCURA_HOST}:{OBSCURA_PORT}/devtools/browser"
@@ -87,6 +90,7 @@ def _next_fallback_engine() -> str:
 
 # Cache: porta do motor já resolvida (evita sondar /json/version a cada SERP)
 _PICKED_PORT = {"value": None}
+_PICKED_HOST_PORT = {"value": None}  # (host, porta) do motor escolhido
 
 
 class ObscuraNotAvailableError(Exception):
@@ -143,7 +147,16 @@ class ObscuraBridge:
                 info = json.loads(r.read().decode("utf-8", "ignore"))
                 ws = info.get("webSocketDebuggerUrl")
                 if ws:
-                    return str(ws)
+                    # O Chrome real anuncia ws://127.0.0.1:9223/... mesmo quando o
+                    # serviço está remoto (Railway) — reescreve o host para o
+                    # self.host real, senão o backend conectar-se-ia a si mesmo.
+                    from urllib.parse import urlsplit, urlunsplit
+                    parts = urlsplit(str(ws))
+                    if parts.hostname and parts.hostname not in ("127.0.0.1", "localhost", "::1"):
+                        return str(ws)
+                    rewritten = urlunsplit((parts.scheme, f"{self.host}:{self.port}",
+                                            parts.path, parts.query, parts.fragment))
+                    return rewritten
         except Exception:
             pass
         return f"ws://{self.host}:{self.port}/devtools/browser"
@@ -734,6 +747,12 @@ class ObscuraBridge:
             _GOOGLE_BLOCKED["value"] = True
             engine = _next_fallback_engine()
             logger.info(f"[Obscura] Google bloqueou (anti-bot/captcha) — fallback rotativo: {engine}")
+            # Telemetria: registra o bloqueio do Google (fonte real do relatório)
+            try:
+                from services.obscura_service import obscura_telemetry
+                obscura_telemetry.log_serp_block("google")
+            except Exception:
+                pass
             return await self._serp_fallback_engine(keyword, lang, engine)
 
         # Extrai URLs dos resultados via JS (mais confiável que regex)
@@ -879,29 +898,45 @@ async def is_obscura_available(host: str = None, port: int = None) -> bool:
 
 
 async def _pick_bridge_port() -> int:
-    """Escolhe o motor a usar: Chrome real (OBSCURA_CHROME_PORT) se estiver
-    de pé via HTTP /json/version, senão o Obscura (OBSCURA_PORT).
+    """Escolhe o motor a usar: Chrome real se estiver de pé via HTTP
+    /json/version, senão o Obscura. Retorna APENAS a porta (compat);
+    use _pick_bridge_host_port() quando precisar do host também.
 
-    A porta escolhida fica em cache (padrão _GOOGLE_BLOCKED) para não
-    sondar /json/version a cada keyword — só resolve de novo se o motor
-    parar de responder.
+    A escolha fica em cache (padrão _GOOGLE_BLOCKED) para não sondar
+    /json/version a cada keyword — só resolve de novo se o motor parar.
     """
-    if _PICKED_PORT["value"] is not None:
-        return _PICKED_PORT["value"]
-    for port in (OBSCURA_CHROME_PORT, OBSCURA_PORT):
+    host, port = await _pick_bridge_host_port()
+    return port
+
+
+async def _pick_bridge_host_port() -> tuple:
+    """Escolhe (host, porta) do motor: Chrome real (OBSCURA_CHROME_HOST:
+    OBSCURA_CHROME_PORT) se estiver de pé, senão Obscura (OBSCURA_HOST:
+    OBSCURA_PORT). O Chrome pode estar em host separado (Railway: serviço
+    chrome.railway.internal); o Obscura segue no OBSCURA_HOST.
+
+    Cache global: só re-sonda se o motor escolhido parar de responder.
+    """
+    if _PICKED_HOST_PORT["value"] is not None:
+        return _PICKED_HOST_PORT["value"]
+    candidates = [
+        (OBSCURA_CHROME_HOST, OBSCURA_CHROME_PORT),  # Chrome real primeiro
+        (OBSCURA_HOST, OBSCURA_PORT),                # Obscura como fallback
+    ]
+    for host, port in candidates:
         try:
             import urllib.request
             with urllib.request.urlopen(
-                f"http://{OBSCURA_HOST}:{port}/json/version", timeout=2
+                f"http://{host}:{port}/json/version", timeout=2
             ) as r:
                 info = json.loads(r.read().decode("utf-8", "ignore"))
                 if info.get("webSocketDebuggerUrl"):
-                    _PICKED_PORT["value"] = port
-                    return port
+                    _PICKED_HOST_PORT["value"] = (host, port)
+                    return host, port
         except Exception:
             continue
-    _PICKED_PORT["value"] = OBSCURA_PORT
-    return OBSCURA_PORT
+    _PICKED_HOST_PORT["value"] = (OBSCURA_HOST, OBSCURA_PORT)
+    return OBSCURA_HOST, OBSCURA_PORT
 
 
 async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
@@ -919,8 +954,8 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
     ok = False
     error = ""
     data = {}
-    port = await _pick_bridge_port()
-    bridge = ObscuraBridge(port=port)
+    host, port = await _pick_bridge_host_port()
+    bridge = ObscuraBridge(host=host, port=port)
     try:
         # Delay entre SERPs para não estourar rate-limit dos buscadores
         if OBSCURA_SERP_DELAY > 0:
@@ -965,6 +1000,10 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
         obscura_telemetry.log_serp_source(data.get("source") or "desconhecida")
     elif ok:
         obscura_telemetry.log_serp_source(data.get("source") + "_vazio" if data.get("source") else "regex_fallback")
+        # Telemetria de bloqueio por fonte: o motor respondeu mas veio vazio
+        if data.get("source"):
+            engine = data["source"].replace("obscura_", "").replace("obscura", "google")
+            obscura_telemetry.log_serp_block(engine)
     else:
         obscura_telemetry.log_serp_source("regex_fallback")
     return data
