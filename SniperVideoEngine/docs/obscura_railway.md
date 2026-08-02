@@ -31,9 +31,11 @@ conectar o backend Dezafira a ele via Private Networking.
 ### Healthcheck
 
 O Obscura **não tem endpoint `/health` nativo**. Como o protocolo CDP expõe o
-endpoint HTTP `/json` (lista de sessões/targets), configure o healthcheck do
-Railway apontando para a **porta 9222** no caminho `/json`. É o mesmo endpoint
-que o `ObscuraBridge.get_status()` usa para saber se o motor está vivo.
+endpoint HTTP `/json/version`, o `Dockerfile.obscura` já traz um **`HEALTHCHECK`
+nativo** (`curl -fsS http://localhost:9222/json/version`) — o Railway só marca o
+serviço como **healthy** quando o CDP responde de verdade, evitando o backend
+tentar usar o Obscura antes de ele estar de pé. O `Dockerfile.chrome` faz o
+mesmo via `wget` em `http://localhost:9223/json/version`.
 
 ## 2) Conectar o backend (Private Networking)
 
@@ -111,7 +113,10 @@ Depois rode o backend com `OBSCURA_ENABLED=true` (é o default do cliente).
   chamadas por agente, taxa de sucesso, latência média e últimas 100 chamadas
 - **Card no Dashboard:** status compacto com as 5 últimas chamadas
 - **Banco:** tabela `obscura_logs` guarda o histórico persistido (criada
-  automaticamente pelo `create_all` em `modules/database.py`)
+  automaticamente pelo `create_all` em `modules/database.py`); tabela
+  `obscura_serp_runs` guarda o snapshot de fontes/bloqueios SERP de cada rodada
+  da fábrica — o histórico **sobrevive a restarts e deploys** (exposto como
+  `persisted_runs` em `GET /api/v1/obscura/serp-sources`)
 
 ## Notas
 

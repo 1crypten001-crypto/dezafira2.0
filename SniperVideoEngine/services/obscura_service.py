@@ -107,7 +107,12 @@ class ObscuraTelemetry:
 
     def reset_serp_sources(self) -> dict:
         """Zera os contadores de fonte SERP e guarda o snapshot da rodada
-        anterior. Chamado no inicio de cada rodada da fabrica."""
+        anterior. Chamado no inicio de cada rodada da fabrica.
+
+        O snapshot também é persistido no banco (obscura_serp_runs) para
+        sobreviver a restarts — best-effort, nunca quebra a rodada. A
+        persistência roda FORA do lock (não segura I/O de banco durante
+        as chamadas SERP)."""
         with self._lock:
             snap = {
                 "ts": datetime.utcnow().isoformat(),
@@ -119,7 +124,22 @@ class ObscuraTelemetry:
                 self._serp_sources_by_run = self._serp_sources_by_run[-20:]
             self._serp_sources = {}
             self._serp_blocks = {}
-            return snap
+        # Persistência best-effort no banco (sobrevive a restarts) — fora do lock
+        if snap.get("sources") or snap.get("blocks"):
+            try:
+                from modules.database import save_db_obscura_serp_run
+                save_db_obscura_serp_run(snap["sources"], snap["blocks"])
+            except Exception:
+                pass
+        return snap
+
+    def persisted_serp_runs(self, limit: int = 20) -> list:
+        """Rodadas SERP persistidas no banco (histórico entre restarts)."""
+        try:
+            from modules.database import get_db_obscura_serp_runs
+            return get_db_obscura_serp_runs(limit)
+        except Exception:
+            return []
 
     def serp_run_summary(self) -> dict:
         """Resumo das fontes SERP + bloqueios por fonte da rodada atual

@@ -1057,9 +1057,12 @@ async def obscura_proxy_check(_admin=Depends(require_admin)):
 
 @app.get("/api/v1/obscura/serp-sources")
 async def obscura_serp_sources(_admin=Depends(require_admin)):
-    """🕵️ Fontes SERP da rodada atual + histórico de rodadas (rotacao)."""
+    """🕵️ Fontes SERP da rodada atual + histórico de rodadas (rotacao).
+    Inclui as rodadas persistidas no banco (sobrevivem a restarts)."""
     from services.obscura_service import obscura_telemetry
-    return obscura_telemetry.serp_run_summary()
+    summary = obscura_telemetry.serp_run_summary()
+    summary["persisted_runs"] = obscura_telemetry.persisted_serp_runs(limit=20)
+    return summary
 
 
 @app.post("/api/v1/obscura/serp-sources/reset")

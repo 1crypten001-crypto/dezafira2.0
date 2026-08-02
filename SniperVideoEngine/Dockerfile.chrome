@@ -32,4 +32,10 @@ RUN chmod +x /usr/local/bin/chrome_entrypoint.sh
 # Porta do CDP (remote debugging)
 EXPOSE 9223
 
+# Healthcheck nativo: o Chrome expõe /json/version via HTTP (CDP).
+# O Railway marca o serviço como healthy só quando o CDP responde —
+# evita o bridge tentar o Chrome antes de o remote debugging estar de pé.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost:9223/json/version || exit 1
+
 ENTRYPOINT ["/usr/local/bin/chrome_entrypoint.sh"]

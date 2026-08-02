@@ -717,6 +717,18 @@ class ObscuraLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ObscuraSerpRun(Base):
+    """Snapshot de fontes/bloqueios SERP ao fim de cada rodada da fábrica.
+    Permite comparar a evolução Google (obscura) vs fallback (bing/ddg/ecosia)
+    entre rodadas e deploys — independe da telemetria em memória."""
+    __tablename__ = "obscura_serp_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sources = Column(JSON, nullable=True)    # {obscura: n, obscura_bing: n, ...}
+    blocks = Column(JSON, nullable=True)     # {google: n, bing: n, ...}
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # FIM DEZAFIRA CLUB — Modelos
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3398,6 +3410,58 @@ def get_db_obscura_agent_stats() -> list:
             "ok": int(r[2] or 0),
             "fail": int(r[3] or 0),
             "avg_ms": round(float(r[4] or 0), 1),
+        } for r in rows]
+    finally:
+        db.close()
+
+
+def save_db_obscura_serp_run(sources: dict, blocks: dict) -> bool:
+    """Persiste o snapshot de fontes/bloqueios SERP de uma rodada da fábrica.
+
+    Sobrevive a restarts do backend (diferente da telemetria em memória) —
+    permite comparar a evolução Google (obscura) vs fallback (bing/ddg/ecosia)
+    entre rodadas e deploys no Railway.
+
+    Poda as rodadas antigas (mantém as últimas OBSCURA_SERP_RUNS_KEEP,
+    default 100) para o histórico persistido não crescer sem limite."""
+    db = SessionLocal()
+    try:
+        run = ObscuraSerpRun(
+            sources=dict(sources or {}),
+            blocks=dict(blocks or {}),
+        )
+        db.add(run)
+        db.commit()
+        # Poda idempotente: apaga só as rodadas além do limite (mais recentes primeiro)
+        keep = int(os.getenv("OBSCURA_SERP_RUNS_KEEP", "100") or 100)
+        try:
+            stale = db.query(ObscuraSerpRun.id).order_by(
+                ObscuraSerpRun.created_at.desc()
+            ).offset(keep).all()
+            if stale:
+                stale_ids = [r[0] for r in stale]
+                db.query(ObscuraSerpRun).filter(ObscuraSerpRun.id.in_(stale_ids)).delete(synchronize_session=False)
+                db.commit()
+        except Exception:
+            db.rollback()  # poda é best-effort; o save em si já persistiu
+        return True
+    except Exception:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+def get_db_obscura_serp_runs(limit: int = 20) -> list:
+    """Últimas rodadas SERP persistidas (mais recentes primeiro)."""
+    db = SessionLocal()
+    try:
+        rows = db.query(ObscuraSerpRun).order_by(ObscuraSerpRun.created_at.desc()).limit(limit).all()
+        return [{
+            "id": r.id,
+            "sources": r.sources or {},
+            "blocks": r.blocks or {},
+            "created_at": r.created_at.isoformat() if r.created_at else None,
         } for r in rows]
     finally:
         db.close()

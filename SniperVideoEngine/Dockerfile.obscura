@@ -37,4 +37,10 @@ RUN chmod +x /usr/local/bin/obscura_entrypoint.sh
 # Porta do servidor CDP (WebSocket)
 EXPOSE 9222
 
+# Healthcheck nativo: o motor expõe /json/version via HTTP (CDP).
+# O Railway marca o serviço como healthy só quando o CDP responde —
+# evita o backend tentar usar o Obscura antes de ele estar de pé.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:9222/json/version >/dev/null || exit 1
+
 ENTRYPOINT ["/usr/local/bin/obscura_entrypoint.sh"]

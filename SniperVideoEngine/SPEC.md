@@ -192,7 +192,7 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/api/v1/obscura/grace` | Grace atual do healthcheck (`grace_s` + fonte `runtime`/`env`) — **admin** |
 | PUT | `/api/v1/obscura/grace` | Aplica nova grace em runtime **e persiste no .env** (sem reiniciar o backend) — **admin** |
 | GET | `/api/v1/obscura/proxy-check` | 🕵️ Healthcheck do proxy configurado: testa conectividade real (GET via proxy em api.ipify.org), mede latência + IP de saída — **admin** |
-| GET | `/api/v1/obscura/serp-sources` | 🔀 Fontes SERP da rodada atual + histórico de rodadas (rotacao de buscadores) — **admin** |
+| GET | `/api/v1/obscura/serp-sources` | 🔀 Fontes SERP da rodada atual + histórico de rodadas (rotacao de buscadores) **incluindo as persistidas no banco** (`persisted_runs`, sobrevivem a restarts) — **admin** |
 | POST | `/api/v1/obscura/serp-sources/reset` | Zera os contadores de fonte SERP (início de nova rodada da fábrica) — **admin** |
 | GET | `/api/v1/version` | Versão da API |
 | GET | `/api/v1/logs` | Logs recentes |
@@ -209,8 +209,10 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | **🔀 Rotação de buscadores** | Google bloqueado → fallback **round-robin** entre Bing (`obscura_bing`), DuckDuckGo (`obscura_ddg`, HTML + decode do redirect) e Ecosia (`obscura_ecosia`) — distribui carga e reduz rate-limit; fonte real de cada SERP registrada na telemetria |
 | **🕵️ Healthcheck de proxy** | Card "Proxy residencial" no painel com botão **testar** → `GET /api/v1/obscura/proxy-check` (latência + IP de saída; SOCKS avisado como não-testável via urllib) |
 | **🔀 Fontes SERP por rodada** | Seção no painel com barras por fonte (obscura/bing/ddg/ecosia/regex) + botão **🔄 Nova rodada** + histórico das últimas 20 rodadas; só conta como sucesso quando a SERP veio com URLs |
+| **💾 Rodadas persistidas no banco** | Cada `reset_serp_sources()` (início de rodada) salva o snapshot em `obscura_serp_runs` (fontes + bloqueios) — o histórico **sobrevive a restarts/deploys** e é exposto como `persisted_runs` no endpoint serp-sources |
 | **🚫 Bloqueios por fonte** | Telemetria `serp_blocks` (google/bing/ddg/ecosia) no relatório e no painel — mostra quantas vezes o Google devolveu `/sorry/` CAPTCHA e quantas o fallback salvou; proxy residencial deve zerar o bloqueio do Google |
 | **🌐 Chrome real como serviço** | `Dockerfile.chrome` sobe o Chrome real headless (CDP 9223) como serviço no Railway — o bridge tenta **Chrome primeiro** (`OBSCURA_CHROME_HOST`/`OBSCURA_CHROME_PORT`), senão Obscura; cadeia prod = local (Chrome → Google → fallback rotativo) |
+| **🩺 Healthcheck nativo nos motores** | `HEALTHCHECK` nos `Dockerfile.obscura` (curl em `:9222/json/version`) e `Dockerfile.chrome` (wget em `:9223/json/version`) — o Railway só marca o serviço healthy quando o CDP responde de verdade |
 
 ### 📊 Dashboard / Fábrica (admin)
 | Método | Rota | Descrição |
