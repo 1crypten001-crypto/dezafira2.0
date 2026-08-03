@@ -530,6 +530,21 @@
     <div class="search-results" id="searchResults"><div class="search-empty">Digite ao menos 2 caracteres...</div></div>
   </div>
 </div>
+<!-- Modal de Autenticação / Reconexão Admin -->
+<div class="search-modal" id="authModal" style="display:none;align-items:center;justify-content:center">
+  <div class="search-box" style="max-width:400px;padding:24px;background:#0b0c12;border:1px solid #1e2030;border-radius:14px">
+    <h3 style="margin-bottom:8px;font-size:18px;color:#e8edf2;font-weight:800">🔐 Sessão Expirada ou Não Autorizada</h3>
+    <p style="font-size:13px;color:#8a91a5;margin-bottom:16px">Insira seu e-mail e senha de administrador para reconectar a UI Admin:</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <input type="email" id="authEmail" placeholder="Seu e-mail de admin" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#e8edf2;font-size:13px">
+      <input type="password" id="authPassword" placeholder="Sua senha" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#e8edf2;font-size:13px" onkeydown="if(event.key==='Enter')submitAuthLogin()">
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-primary" onclick="submitAuthLogin()" id="btnAuthSubmit" style="flex:1">🔑 Entrar</button>
+        <button class="btn" onclick="closeAuthModal()" style="background:#14161f">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura"};
@@ -709,16 +724,74 @@ document.addEventListener("keydown",function(e){
 });
 
 var _DZ_TOKEN=null;
-(function(){
+function initToken(){
   try{
-    _DZ_TOKEN=localStorage.getItem("dz_panel_token")||null;
+    _DZ_TOKEN=localStorage.getItem("dz_panel_token")||localStorage.getItem("dz_token")||localStorage.getItem("token")||null;
     var qs=new URLSearchParams(location.search);
     var t=qs.get("token");
-    if(t&&t.length>10){_DZ_TOKEN=t;localStorage.setItem("dz_panel_token",t);
-      try{qs.delete("token");var nu=location.pathname+location.hash+"?"+qs.toString();history.replaceState(null,"",nu)}catch(e){}
+    if(t&&t.length>10){
+      _DZ_TOKEN=t;
+      localStorage.setItem("dz_panel_token",t);
+      localStorage.setItem("dz_token",t);
+      localStorage.setItem("token",t);
+      try{
+        qs.delete("token");
+        var nu=location.pathname+(qs.toString()?"?"+qs.toString():"")+location.hash;
+        history.replaceState(null,"",nu);
+      }catch(e){}
     }
   }catch(e){}
-})();
+}
+initToken();
+
+window.addEventListener("message",function(ev){
+  if(ev.data&&ev.data.type==="SET_TOKEN"&&ev.data.token){
+    _DZ_TOKEN=ev.data.token;
+    localStorage.setItem("dz_panel_token",ev.data.token);
+    localStorage.setItem("dz_token",ev.data.token);
+    localStorage.setItem("token",ev.data.token);
+    var p=pageFromHash()||"blogs";
+    navigate(p,true);
+  }
+});
+
+function promptAuthToken(){
+  var m=$("authModal");if(m)m.style.display="flex";
+}
+function closeAuthModal(){
+  var m=$("authModal");if(m)m.style.display="none";
+}
+async function submitAuthLogin(){
+  var email=$("authEmail").value.trim();
+  var pass=$("authPassword").value.trim();
+  if(!email||!pass){showToast("Preencha e-mail e senha");return;}
+  var btn=$("btnAuthSubmit");
+  if(btn){btn.disabled=true;btn.textContent="Autenticando...";}
+  try{
+    var res=await fetch("/api/v1/auth/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:email,password:pass})
+    });
+    var data=await res.json();
+    if(res.ok && data.token){
+      _DZ_TOKEN=data.token;
+      localStorage.setItem("dz_panel_token",data.token);
+      localStorage.setItem("dz_token",data.token);
+      localStorage.setItem("token",data.token);
+      closeAuthModal();
+      showToast("✓ Autenticado com sucesso!");
+      var p=pageFromHash()||"blogs";
+      navigate(p,true);
+    }else{
+      showToast("Erro: "+(data.detail||"Credenciais inválidas"));
+    }
+  }catch(e){
+    showToast("Erro de conexão ao autenticar");
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="🔑 Entrar";}
+  }
+}
 
 async function api(url,opts){
   try{
@@ -726,6 +799,11 @@ async function api(url,opts){
     if(_DZ_TOKEN){h["Authorization"]="Bearer "+_DZ_TOKEN;}
     if(typeof opts==="string"){opts={method:opts,body:arguments[2]?JSON.stringify(arguments[2]):undefined};}
     var r=await fetch(url,{headers:h,...opts});
+    if(r.status===401){
+      console.warn("[API] Token 401 em "+url);
+      promptAuthToken();
+      return {error:"Não autorizado (401)"};
+    }
     return await r.json();
   }catch(e){return{error:e.message}}
 }
