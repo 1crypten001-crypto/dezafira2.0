@@ -3606,25 +3606,33 @@ async def generate_blog_brand_asset(channel_id: str, payload: dict):
 
         agent = ImageGeneratorAgent()
         
-        if asset_type == "logo":
-            prompt = f"premium modern logo for blog named '{name}' about {niche}, vector style, clean dark backdrop, vibrant design element, minimal and sophisticated, high resolution"
-            img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
-            if img and img.get("image_url"):
-                brand_config["custom_logo"] = img["image_url"]
-                brand_config["logo_ai_prompt"] = img.get("expanded_prompt", prompt)
-                chan.brand_config = json.dumps(brand_config)
-                db.commit()
-                return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
-
-        elif asset_type == "favicon":
-            prompt = f"minimalist bold application icon for blog '{name}' about {niche}, square profile pic format, single striking symbol, no text, clean gradient background, high contrast"
-            img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
-            if img and img.get("image_url"):
-                brand_config["custom_favicon"] = img["image_url"]
-                brand_config["favicon_ai_prompt"] = img.get("expanded_prompt", prompt)
-                chan.brand_config = json.dumps(brand_config)
-                db.commit()
-                return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
+        if asset_type == "logo" or asset_type == "favicon":
+            from modules.brand_designer import BrandingDesignerAgent
+            brand_agent = BrandingDesignerAgent()
+            design_data = await brand_agent.generate_branding(blog_name=name, niche=niche, is_affiliate=chan.is_affiliate)
+            
+            if asset_type == "logo":
+                svg_content = design_data.get("logo_svg", "")
+                if svg_content:
+                    # Converter SVG inline em Data URI Base64 de forma limpa
+                    import base64
+                    encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("ascii")
+                    svg_data_uri = f"data:image/svg+xml;base64,{encoded_svg}"
+                    
+                    brand_config["custom_logo"] = svg_data_uri
+                    brand_config["logo_svg"] = svg_content
+                    chan.brand_config = json.dumps(brand_config)
+                    db.commit()
+                    return {"success": True, "image_url": svg_data_uri, "provider": "BrandingDesignerAgent (SVG)"}
+            
+            elif asset_type == "favicon":
+                fav_uri = design_data.get("favicon_svg", "")
+                if fav_uri:
+                    brand_config["custom_favicon"] = fav_uri
+                    brand_config["favicon_svg"] = fav_uri
+                    chan.brand_config = json.dumps(brand_config)
+                    db.commit()
+                    return {"success": True, "image_url": fav_uri, "provider": "BrandingDesignerAgent (SVG)"}
 
         elif asset_type == "bg":
             prompt = f"cinematic wide background theme for blog about {niche}, clean backdrop, atmospheric, smooth lighting, gradient textures, no text, perfect 16:9 ratio"

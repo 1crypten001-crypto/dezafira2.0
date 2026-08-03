@@ -88,10 +88,11 @@ def _apply_brand_overrides(blog_info: dict, theme_css: str) -> tuple[str, dict]:
     if custom_bg:
         css_overrides += f"""
         body {{
-            background-image: url("{custom_bg}") !important;
-            background-size: cover !important;
-            background-attachment: fixed !important;
-            background-position: center !important;
+            background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.4) 150px, var(--bg) 500px), url("{custom_bg}") !important;
+            background-size: 100% 550px !important;
+            background-repeat: no-repeat !important;
+            background-attachment: scroll !important;
+            background-position: top center !important;
         }}
         """
     
