@@ -62,8 +62,9 @@ class ImageGeneratorAgent:
         Usa o Gemini LLM para traduzir e expandir o título em um prompt
         de imagem detalhado, conceitual e fotográfico em inglês.
         """
+        style = _get_niche_style(niche, title)
         if not GEMINI_API_KEY:
-            return f"Professional high-quality blog hero image, highly detailed, realistic, beautiful composition: {title}"
+            return f"Professional high-quality blog hero image, style: {style}"
             
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
@@ -101,7 +102,7 @@ class ImageGeneratorAgent:
         except Exception as e:
             print(f"[ImageFactory] Erro ao expandir prompt via LLM: {e}")
             
-        return f"Professional high-quality blog hero image, highly detailed, realistic, beautiful composition: {title}"
+        return f"Professional high-quality blog hero image, style: {style}"
 
     async def generate_image_for_post(
         self,
