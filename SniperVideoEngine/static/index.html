@@ -54,6 +54,9 @@
   body.sidebar-collapsed .nav-item .pipeline-dot{display:none}
   body.sidebar-collapsed .sidebar-footer{display:none}
   body.sidebar-collapsed .main{margin-left:68px;padding:24px 20px}
+  body.hide-sidebar .sidebar{display:none!important}
+  body.hide-sidebar .main{margin-left:0!important;max-width:100%!important;padding:24px 40px!important}
+  body.hide-sidebar .sidebar-collapse-btn{display:none!important}
   @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
   .main{margin-left:0;padding:12px}
@@ -286,6 +289,7 @@
       <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
         <button class="menu-toggle" onclick="toggleSidebar()" title="Abrir menu" aria-label="Abrir menu">☰</button>
         <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Recuar menu" aria-label="Recuar menu">«</button>
+        <button class="btn btn-sm" id="btnBackToDashboard" onclick="navigate('dashboard')" style="display:none;align-items:center;gap:6px;background:#14161f;border-color:#1e2030;color:#e8edf2;font-weight:600"><span style="font-size:14px">←</span> Voltar ao Painel</button>
         <h2 id="pageTitle">Dashboard</h2>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
@@ -325,13 +329,10 @@
       <div class="page-header"><h2>📝 Fabrica de Blogs & 🏭 Esteira de Produção</h2><p>Gerencie canais, artigos e acompanhe a esteira de conteúdo em tempo real</p></div>
       <div class="stats-grid" id="blogStats"></div>
 
-      <div class="blog-tabs" id="blogTabs"></div>
-      <div id="blogPanels"></div>
-
-      <!-- Seção Integrada da Pipeline -->
+      <!-- Seção Integrada da Pipeline (Topo da Fábrica) -->
       <div class="section" style="margin-bottom:24px">
         <div class="section-header">
-          <h3>🏭 Esteira Única de Conteúdo (Google Hype)</h3>
+          <h3>🏭 Esteira Única de Conteúdo (Google Hype + Chrome & Obscura)</h3>
         </div>
         <div id="pipelineContent" style="background:#12141e;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-top:10px">
           <div class="macro-global-progress" id="macroGlobalProgress" style="display:none">
@@ -347,7 +348,7 @@
           </div>
           <div class="conveyor-belt">
             <div class="conveyor-track" id="macroPipelineTrack">
-              <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Produção</h3><p>5 estacoes: Fundação &rarr; Arquitetura &rarr; Produção &rarr; Refino &rarr; Entrega</p></div>
+              <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Produção</h3><p>5 estacoes: Fundação &rarr; Palavras-Chave (Chrome/Obscura) &rarr; Produção &rarr; Refino &rarr; Entrega</p></div>
             </div>
           </div>
           <!-- Painel Seu Reddit (10 Maiores Dúvidas) -->
@@ -381,12 +382,15 @@
             <div class="pipeline-log" id="macroPipelineLog"><div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div></div>
           </div>
           <div class="pipeline-history" style="margin-top:16px">
-            <div class="section-header"><h3>📜 Histórico</h3></div>
+            <div class="section-header"><h3>📜 Histórico de Produção</h3></div>
             <div class="card-table" id="macroHistory"><div class="empty">Nenhum blog</div></div>
           </div>
         </div>
       </div>
 
+      <!-- Abas e Controles dos Blogs (Parte Inferior) -->
+      <div class="blog-tabs" id="blogTabs"></div>
+      <div id="blogPanels"></div>
     </div>
 
     <div class="page" id="page-books">
@@ -428,10 +432,43 @@
       </div>
     </div>
     <div class="page" id="page-courses">
-      <div class="page-header"><h2>🎓 Cursos</h2><p>Gerencie cursos gerados pela Fabrica de Cursos</p></div>
+      <div class="page-header"><h2>🎓 Fábrica de Cursos</h2><p>Crie e gerencie cursos online completos com inteligência artificial</p></div>
       <div class="stats-grid" id="courseStats"></div>
+
+      <!-- Pipeline Visual de Cursos -->
+      <div class="section" id="coursePipelineSection" style="display:none">
+        <div class="section-header"><h3>🏭 Pipeline Ativa</h3><span class="tag tag-blue" id="coursePipelineStatus">-</span></div>
+        <div class="conveyor" id="courseConveyor">
+          <div class="stage" id="cr-fundacao"><div class="stage-icon">🔍</div><div class="stage-label">Fundação</div><div class="agents"><span class="agent-tag">Hermes</span></div><div class="progress-bar"><div class="progress-fill" id="cr-fundacao-bar"></div></div><div class="stage-msg" id="cr-fundacao-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="cr-pesquisa"><div class="stage-icon">🧠</div><div class="stage-label">Pesquisa</div><div class="agents"><span class="agent-tag">Minerador</span><span class="agent-tag">Obscura</span></div><div class="progress-bar"><div class="progress-fill" id="cr-pesquisa-bar"></div></div><div class="stage-msg" id="cr-pesquisa-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="cr-estrutura"><div class="stage-icon">📋</div><div class="stage-label">Estrutura</div><div class="agents"><span class="agent-tag">Arquiteto</span></div><div class="progress-bar"><div class="progress-fill" id="cr-estrutura-bar"></div></div><div class="stage-msg" id="cr-estrutura-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="cr-producao"><div class="stage-icon">📝</div><div class="stage-label">Produção</div><div class="agents"><span class="agent-tag">Carlão</span><span class="agent-tag">LiLi</span></div><div class="progress-bar"><div class="progress-fill" id="cr-producao-bar"></div></div><div class="stage-msg" id="cr-producao-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="cr-refino"><div class="stage-icon">🎨</div><div class="stage-label">Refino</div><div class="agents"><span class="agent-tag">Revisores</span></div><div class="progress-bar"><div class="progress-fill" id="cr-refino-bar"></div></div><div class="stage-msg" id="cr-refino-msg"></div></div>
+          <div class="connector"></div>
+          <div class="stage" id="cr-entrega"><div class="stage-icon">🚀</div><div class="stage-label">Entrega</div><div class="agents"><span class="agent-tag">Francisco</span></div><div class="progress-bar"><div class="progress-fill" id="cr-entrega-bar"></div></div><div class="stage-msg" id="cr-entrega-msg"></div></div>
+        </div>
+      </div>
+
+      <!-- Criar Novo Curso -->
       <div class="section">
-        <div class="section-header"><h3>📚 Catalogo de Cursos</h3></div>
+        <div class="section-header"><h3>✨ Criar Novo Curso</h3></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;padding:16px">
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Tópico / Nicho *</label><input id="crTopic" type="text" placeholder="ex: Marketing Digital, Python para Iniciantes" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Título do Curso (opcional)</label><input id="crTitle" type="text" placeholder="Deixe vazio para a IA gerar" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Dificuldade</label><select id="crDifficulty" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"><option value="iniciante">Iniciante</option><option value="intermediario">Intermediário</option><option value="avancado">Avançado</option></select></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Módulos</label><input id="crModules" type="number" min="2" max="10" value="4" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div><label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:4px">Aulas / Módulo</label><input id="crLessons" type="number" min="2" max="10" value="4" style="width:100%;padding:8px 12px;background:#07080b;border:1px solid #1e2030;border-radius:6px;color:#e8edf2;font-size:13px"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="startCoursePipeline()" id="crStartBtn" style="width:100%">🏭 Iniciar Fábrica de Cursos</button></div>
+        </div>
+      </div>
+
+      <!-- Catálogo de Cursos -->
+      <div class="section">
+        <div class="section-header"><h3>📚 Catálogo de Cursos</h3></div>
         <div class="card-table" id="courseList"><div class="empty">Nenhum curso cadastrado</div></div>
       </div>
     </div>
@@ -499,8 +536,8 @@ const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipel
 const STAGES=[
   {id:"fundacao",name:"Fundação",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
-  {id:"arquitetura",name:"Arquitetura",icon:"📋",agent:"Joaquim",
-    agents:[{name:"Joaquim",emoji:"🔍",role:"Pesquisador",action:"Pesquisando keywords"}]},
+  {id:"arquitetura",name:"Palavras-Chave",icon:"📋",agent:"Joaquim + Chrome + Obscura",
+    agents:[{name:"Joaquim",emoji:"🔍",role:"Pesquisador",action:"Pesquisando pautas e keywords"},{name:"Chrome Real",emoji:"🌐",role:"Buscador Google",action:"Mineração SERP/PAA"},{name:"Obscura Engine",emoji:"🕵️",role:"Scraper Rust",action:"Fallback CDP de segurança"}]},
   {id:"producao",name:"Produção",icon:"📝",agent:"Carlao + LiLi",
     agents:[{name:"Carlao",emoji:"✍️",role:"Redator",action:"Escrevendo artigos"},{name:"LiLi",emoji:"🌸",role:"Revisora de Qualidade",action:"Revisando artigos e corrigindo erros"}]},
   {id:"refino",name:"Refino",icon:"🖼️",agent:"Tatiana + Seu Zé",
@@ -532,6 +569,16 @@ function navigate(p,skipHash){
   document.querySelectorAll(".nav-item").forEach(function(x){x.classList.remove("active")});
   var n=document.querySelector('.nav-item[data-page="'+p+'"]');if(n)n.classList.add("active");
   $("pageTitle").textContent=pageTitles[p]||p;
+
+  var isFactory = (p==="blogs" || p==="books" || p==="courses");
+  if(isFactory){
+    document.body.classList.add("hide-sidebar");
+    var bk=$("btnBackToDashboard");if(bk)bk.style.display="inline-flex";
+  }else{
+    document.body.classList.remove("hide-sidebar");
+    var bk=$("btnBackToDashboard");if(bk)bk.style.display="none";
+  }
+
   if(p==="dashboard"){loadDashboard();loadObscuraCard();}
   else if(p==="blogs"){loadBlogs(); renderPipeline(); loadHistory();}
   else if(p==="books")loadBooks();
@@ -2252,6 +2299,56 @@ function viewEbook(bookId){
   var u="/api/v1/ebooks/"+bookId;
   if(_DZ_TOKEN){u+="?token="+encodeURIComponent(_DZ_TOKEN);}
   window.open(u,"_blank");
+}
+
+async function startCoursePipeline(){
+  var topic=$("crTopic").value.trim();
+  if(!topic){alert("Informe o tópico/nicho do curso");return;}
+  var btn=$("crStartBtn");
+  btn.disabled=true;btn.textContent="⏳ Iniciando...";
+  try{
+    var resp=await api("/api/v1/pipeline/run-course-factory","POST",{
+      topic:topic,
+      course_title:$("crTitle").value.trim(),
+      difficulty:$("crDifficulty").value,
+      target_modules:parseInt($("crModules").value||4),
+      lessons_per_module:parseInt($("crLessons").value||4),
+    });
+    var tid=resp.task_id;
+    $("coursePipelineSection").style.display="block";
+    $("coursePipelineStatus").textContent="Rodando...";
+    startCoursePolling(tid);
+  }catch(e){
+    btn.disabled=false;btn.textContent="🏭 Iniciar Fábrica de Cursos";
+    alert("Erro ao iniciar curso: "+e.message);
+  }
+}
+
+function startCoursePolling(tid){
+  var stages=["fundacao","pesquisa","estrutura","producao","refino","entrega"];
+  var interval=setInterval(async function(){
+    try{
+      var data=await api("/api/v1/pipeline/course-factory/status/"+tid);
+      if(data.macro_stages){
+        stages.forEach(function(s){
+          var st=data.macro_stages[s];
+          if(st){
+            var el=$("cr-"+s),bar=$("cr-"+s+"-bar"),msg=$("cr-"+s+"-msg");
+            if(el)el.className="stage "+st.status;
+            if(bar)bar.style.width=st.progress+"%";
+            if(msg)msg.textContent=st.message||"";
+          }
+        });
+      }
+      if(data.status==="completed"||data.status==="failed"){
+        clearInterval(interval);
+        $("coursePipelineStatus").textContent=data.status==="completed"?"✅ Concluída":"❌ Falhou";
+        $("coursePipelineStatus").className="tag "+(data.status==="completed"?"tag-green":"tag-red");
+        $("crStartBtn").disabled=false;$("crStartBtn").textContent="🏭 Iniciar Fábrica de Cursos";
+        loadCourses();
+      }
+    }catch(e){console.log("Poll course:",e);}
+  },3000);
 }
 
 async function loadCourses(){
