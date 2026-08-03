@@ -1836,6 +1836,34 @@ async def rag_index():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# LIMPEZA DE BLOGS ANTIGOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/factory/cleanup-old-blogs")
+async def cleanup_old_blogs(_admin=Depends(require_admin)):
+    """Deleta todos os blogs antigos mantendo apenas o último criado."""
+    from modules.database import get_db, blog_channels, blog_posts, blog_sections
+    db = next(get_db())
+    try:
+        channels = db.execute(blog_channels.select().order_by(blog_channels.c.created_at.desc())).fetchall()
+        if len(channels) <= 1:
+            return {"message": "Apenas 1 ou 0 blogs encontrados. Nenhuma exclusão feita.", "kept": [c.id for c in channels]}
+        
+        kept_channel = channels[0]
+        deleted_count = 0
+        for c in channels[1:]:
+            db.execute(blog_posts.delete().where(blog_posts.c.channel_id == c.id))
+            db.execute(blog_sections.delete().where(blog_sections.c.channel_id == c.id))
+            db.execute(blog_channels.delete().where(blog_channels.c.id == c.id))
+            deleted_count += 1
+        db.commit()
+        return {"message": f"{deleted_count} blogs antigos deletados.", "kept": kept_channel.id, "deleted": deleted_count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # FABRICA DE EBOOKS — PIPELINE + CRUD + CHECKOUT
 # ═══════════════════════════════════════════════════════════════════════════════
 
