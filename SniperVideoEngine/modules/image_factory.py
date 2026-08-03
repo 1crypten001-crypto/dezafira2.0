@@ -206,35 +206,33 @@ class ImageGeneratorAgent:
 
     async def _gemini_imagen(self, prompt: str, width: int, height: int) -> Optional[dict]:
         """
-        Gera imagem via Google Imagen 3 (imagen-3.0-generate-002) usando endpoint predict.
+        Gera imagem via Google Imagen 3 (imagen-3.0-generate-002) usando a API de compatibilidade OpenAI.
         Retorna a imagem como data URI base64.
         """
         try:
             url = (
-                f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"imagen-3.0-generate-002:predict"
+                f"https://generativelanguage.googleapis.com/v1beta/openai/images/generations"
                 f"?key={GEMINI_API_KEY}"
             )
-            # Escolhe o aspect ratio mais próximo
-            ratio = "16:9" if width > height else "3:4"
+            # Determina o melhor tamanho suportado (quadrado, retrato ou paisagem)
+            size = "1792x1024" if width > height else "1024x1792"
             if abs((width/height) - 1.0) < 0.15:
-                ratio = "1:1"
+                size = "1024x1024"
                 
             payload = {
-                "instances": [{"prompt": prompt[:500]}],
-                "parameters": {
-                    "sampleCount": 1,
-                    "outputMimeType": "image/jpeg",
-                    "aspectRatio": ratio
-                }
+                "model": "imagen-3.0-generate-002",
+                "prompt": prompt[:500],
+                "n": 1,
+                "size": size,
+                "response_format": "b64_json"
             }
             async with httpx.AsyncClient(timeout=90.0) as client:
                 r = await client.post(url, json=payload)
                 if r.status_code == 200:
                     data = r.json()
-                    predictions = data.get("predictions", [])
-                    if predictions and len(predictions) > 0:
-                        b64 = predictions[0].get("bytesBase64Encoded", "")
+                    images = data.get("data", [])
+                    if images and len(images) > 0:
+                        b64 = images[0].get("b64_json", "")
                         if b64:
                             data_uri = f"data:image/jpeg;base64,{b64}"
                             return {
