@@ -109,8 +109,32 @@ async def healthz():
     # Sequencial levaria até ~15s (3 x timeout 5s) dentro do budget do
     # healthcheck do Railway; em paralelo o pior caso é ~5s. O Chrome é
     # sondado via /json/version (o mesmo endpoint que o _pick usa).
+    async def _probe_obscura():
+        try:
+            o = await asyncio.wait_for(get_obscura_status(), timeout=5)
+        except asyncio.TimeoutError:
+            o = {"online": False, "error": "TimeoutError: sonda pendurou > 5s"}
+        except Exception as e:
+            o = {"online": False, "error": f"{type(e).__name__}: {e}"[:200]}
+        # Shape consistente com o get_obscura_status (o painel le esses campos)
+        if not isinstance(o, dict):
+            o = {"online": False, "error": "resposta inválida"}
+        o.setdefault("ws_url", "")
+        o.setdefault("targets", 0)
+        o.setdefault("host", "")
+        o.setdefault("port", 0)
+        o.setdefault("error", "")
+        return o
+
     async def _probe_chrome():
-        c = await get_chrome_status()
+        try:
+            c = await asyncio.wait_for(get_chrome_status(), timeout=5)
+        except asyncio.TimeoutError:
+            c = {"online": False, "ws_url": "", "targets": 0, "browser": "",
+                 "error": "TimeoutError: sonda pendurou > 5s"}
+        except Exception as e:
+            c = {"online": False, "ws_url": "", "targets": 0, "browser": "",
+                 "error": f"{type(e).__name__}: {e}"[:200]}
         if not isinstance(c, dict):
             return {"online": False, "ws_url": "", "targets": 0, "browser": "", "error": "resposta inválida"}
         c.setdefault("ws_url", "")
@@ -120,22 +144,17 @@ async def healthz():
         return c
 
     async def _probe_picked():
-        _pe_host, _pe_port = await _pick_bridge_host_port()
-        return f"{_pe_host}:{_pe_port}"
+        try:
+            _pe_host, _pe_port = await asyncio.wait_for(_pick_bridge_host_port(), timeout=5)
+            return f"{_pe_host}:{_pe_port}"
+        except Exception as e:
+            return f"erro: {type(e).__name__}: {e}"[:120]
 
-    try:
-        ping, chrome, picked_engine = await asyncio.wait_for(
-            asyncio.gather(
-                get_obscura_status(),
-                _probe_chrome(),
-                _probe_picked(),
-            ),
-            timeout=8,
-        )
-    except Exception as e:
-        ping = {"online": False, "error": str(e)[:200]}
-        chrome = {"online": False, "ws_url": "", "targets": 0, "browser": "", "error": str(e)[:200]}
-        picked_engine = ""
+    ping, chrome, picked_engine = await asyncio.gather(
+        _probe_obscura(),
+        _probe_chrome(),
+        _probe_picked(),
+    )
 
     online = bool(ping.get("online"))
     now = _t.time()
