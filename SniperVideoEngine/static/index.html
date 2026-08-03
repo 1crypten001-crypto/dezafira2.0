@@ -337,6 +337,7 @@
       <div class="nav-section" style="margin-top:8px">Fabricas</div>
       <a class="nav-item" data-page="blogs" title="Blogs & Pipeline" href="#blogs" onclick="navigate('blogs')"><span class="icon">📝</span><span class="nav-label">Blogs & Pipeline</span> <span class="badge" id="blogCount">-</span></a>
       <a class="nav-item" data-page="books" title="Fabrica de Ebooks" href="#books" onclick="navigate('books')"><span class="icon">📚</span><span class="nav-label">Fabrica de Ebooks</span> <span class="badge" id="bookCount">-</span></a>
+      <a class="nav-item" data-page="marketing" title="Marketing Digital" href="#marketing" onclick="navigate('marketing')"><span class="icon">📢</span><span class="nav-label">Marketing Digital</span></a>
       <div class="nav-section" style="margin-top:8px">Conteudo</div>
       <a class="nav-item" data-page="courses" title="Cursos" href="#courses" onclick="navigate('courses')"><span class="icon">🎓</span><span class="nav-label">Cursos</span> <span class="badge" id="courseCount">-</span></a>
       <a class="nav-item" data-page="images" title="Imagens" href="#images" onclick="navigate('images')"><span class="icon">🖼️</span><span class="nav-label">Imagens</span></a>
@@ -595,6 +596,64 @@
       <div class="page-header"><h2>🕵️ Obscura — Motor Headless</h2><p>Infraestrutura central de scraping do ecossistema: status, telemetria e historico de chamadas de todos os agentes e fabricas</p></div>
       <div id="obscuraContent"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Consultando o motor Obscura...</div></div>
     </div>
+
+    <!-- PÁGINA DE MARKETING DIGITAL (SABRI SUBY ESTEIRA) -->
+    <div class="page" id="page-marketing">
+      <div class="page-header">
+        <h2>📢 Máquina de Marketing Digital (Aceleração de Vendas)</h2>
+        <p>Gere campanhas completas, criativos de anúncios e réguas de e-mails em segundos baseados em dados de buscas reais</p>
+      </div>
+      
+      <!-- Entrada de Nicho -->
+      <div class="pipeline-input-area" style="background:#0b0c12;border:1px solid #1e2030;border-radius:14px;padding:20px;display:flex;gap:16px;align-items:center;margin-bottom:24px">
+        <div style="flex:1">
+          <label style="display:block;font-size:12px;color:#8a91a5;margin-bottom:6px;font-weight:600">Nicho do Produto/Serviço ou Tema da Campanha</label>
+          <input type="text" id="marketingNiche" placeholder="Ex: Curso de Confeitaria, Mentoria de Finanças..." style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff" />
+        </div>
+        <button class="btn btn-primary" onclick="startMarketingCampaign()" id="btnStartMarketing" style="margin-top:18px;padding:10px 24px">🚀 Iniciar Funil</button>
+      </div>
+
+      <!-- Esteira de Produção de Marketing -->
+      <div class="conveyor-belt" style="margin-bottom:24px" id="marketingConveyor">
+        <div class="conveyor-track" id="marketingPipelineTrack">
+          <!-- Estágios renderizados dinamicamente pelo JS -->
+        </div>
+      </div>
+
+      <!-- Área de Visualização do Output Gerado -->
+      <div id="marketingOutputPanel" style="display:none;background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 id="marketingOutputTitle" style="color:#a5b4fc;margin:0;font-size:15px;font-weight:700">Output da Fase</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" onclick="copyMarketingOutput()" style="background:#14161f">📋 Copiar Conteúdo</button>
+            <button class="btn btn-sm btn-primary" id="btnTestSmtp" style="display:none" onclick="openSmtpTestModal()">✉️ Disparar E-mail Teste</button>
+          </div>
+        </div>
+        <div id="marketingOutputContent" style="color:#e8edf2;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:monospace;background:#07080b;padding:16px;border-radius:8px;border:1px solid #14161f;max-height:480px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Modal Rápido de Teste de Disparo de E-mail (SMTP) -->
+      <div id="smtpTestModal" style="display:none;position:fixed;inset:0;background:rgba(7,8,11,.82);backdrop-filter:blur(6px);z-index:450;align-items:center;justify-content:center;padding:16px">
+        <div style="width:100%;max-width:440px;background:#0b0c12;border:1px solid #1e2030;border-radius:14px;padding:24px">
+          <h3 style="margin-bottom:8px;font-size:16px;color:#e8edf2;font-weight:800">✉️ Disparar E-mail de Teste</h3>
+          <p style="font-size:12px;color:#8a91a5;margin-bottom:16px">Insira o e-mail de destino. O disparo usará as variáveis de SMTP do Railway gratuitas.</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="display:block;font-size:11px;color:#8a91a5;margin-bottom:4px">Enviar para:</label>
+              <input type="email" id="smtpDestEmail" placeholder="destinatario@email.com" style="width:100%;padding:10px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px" />
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#8a91a5;margin-bottom:4px">Assunto:</label>
+              <input type="text" id="smtpSubject" value="Dezafira Marketing — Chica dos Correios" style="width:100%;padding:10px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px" />
+            </div>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button class="btn btn-primary" onclick="sendMarketingTestEmail()" id="btnSubmitSmtp" style="flex:1">✉️ Enviar Agora</button>
+              <button class="btn" onclick="document.getElementById('smtpTestModal').style.display='none'" style="background:#14161f">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 <!-- Busca global (Ctrl+K) -->
@@ -622,7 +681,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura"};
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura",marketing:"Marketing Digital"};
 const STAGES=[
   {id:"fundacao",name:"Fundação",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
@@ -2955,6 +3014,246 @@ window.sendHermes=function(){
       if(el&&v&&v.version)el.textContent='v'+v.version+(v.build?' · build '+v.build:'');
     }).catch(function(){});
   }catch(e){}
+})();
+
+// ─── MÁQUINA DE MARKETING DIGITAL (SABRI SUBY ESTEIRA) JS ───
+const MARKETING_STAGES = [
+  { id: 1, name: "Avatar de Cliente", icon: "👤", agent: "Seu Tião", role: "Caçador de Avatares", desc: "Define o perfil de comprador ideal com base no Obscura" },
+  { id: 2, name: "Iscas Digitais (HVCO)", icon: "🍯", agent: "Dona Benta", role: "Criadora de Iscas", desc: "Estrutura ofertas gratuitas de alto valor para capturar leads" },
+  { id: 3, name: "Anúncios AIDA", icon: "📢", agent: "Tonho da Propaganda", role: "Copiloto de Criativos", desc: "Escreve copys persuasivas de anúncios em Atenção, Interesse, Desejo e Ação" },
+  { id: 4, name: "Landing Page", icon: "📄", agent: "Zé do Traço", role: "Arquiteto de Conversão", desc: "Escreve a estrutura e títulos persuasivos para a página de vendas" },
+  { id: 5, name: "Automação de E-mails", icon: "✉️", agent: "Chica dos Correios", role: "Redatora de E-mails", desc: "Escreve a régua de 4 e-mails de relacionamento e quebra de objeções" },
+  { id: 6, name: "Oferta Irrecusável", icon: "🤝", agent: "Seu Valdir", role: "Fechador de Ofertas", desc: "Estrutura bônus, ancoragem de preço e reversão total de risco" }
+];
+
+var currentMarketingCampaignId = null;
+var currentMarketingNiche = "";
+var marketingStageContents = {};
+
+function loadMarketing() {
+  renderMarketingStages();
+}
+
+function renderMarketingStages(activeStageIndex = 0, stageStatuses = {}) {
+  var track = $("marketingPipelineTrack");
+  if (!track) return;
+
+  track.innerHTML = MARKETING_STAGES.map(function(s, idx) {
+    var isCurrent = idx === activeStageIndex;
+    var statusClass = stageStatuses[s.id] || (idx < activeStageIndex ? "completed" : "idle");
+    var connectorClass = idx < MARKETING_STAGES.length - 1 ? (statusClass === "completed" ? "cc-glow lit" : "cc-glow") : "";
+
+    var checkHtml = statusClass === "completed" ? '<div class="cs-check" style="display:flex">✓</div>' : '';
+    
+    // Indicador e botão de ação
+    var statusText = "Aguardando";
+    var statusIcon = "⏳";
+    if (statusClass === "active") {
+      statusText = "Trabalhando...";
+      statusIcon = "🔄";
+    } else if (statusClass === "completed") {
+      statusText = "Concluído!";
+      statusIcon = "✓";
+    }
+
+    var connectorHtml = idx < MARKETING_STAGES.length - 1 ? 
+      '<div class="conveyor-connector"><div class="cc-base"></div><div class="cc-glow ' + connectorClass + '" style="width:' + (statusClass === "completed" ? "100%" : "0%") + '"></div></div>' : '';
+
+    var runBtnHtml = '';
+    if (currentMarketingCampaignId) {
+      if (statusClass === "completed") {
+        runBtnHtml = '<button class="btn btn-sm btn-primary" onclick="viewMarketingStageContent(' + s.id + ')" style="margin-top:8px;font-size:10px;padding:2px 6px">👁️ Ver Output</button>';
+      } else if (isCurrent) {
+        runBtnHtml = '<button class="btn btn-sm" onclick="runMarketingStage(' + s.id + ', ' + idx + ')" style="margin-top:8px;font-size:10px;padding:2px 6px;background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3)">⚡ Rodar Agente</button>';
+      }
+    }
+
+    return '<div class="conveyor-stage-wrapper">' +
+      '<div class="conveyor-stage ' + statusClass + '" id="m_stage_' + s.id + '">' +
+        '<div class="cs-border" style="' + (statusClass === "active" ? "display:block" : "display:none") + '"></div>' +
+        checkHtml +
+        '<div class="cs-agent-avatar" style="font-size:20px">' + s.icon + '</div>' +
+        '<div class="cs-name">' + s.name + '</div>' +
+        '<div style="font-size:10px;color:#8a91a5;font-weight:600;margin-top:2px">Agente: ' + s.agent + ' (' + s.role + ')</div>' +
+        '<div class="cs-agent-action" style="margin-top:6px;font-size:11px">' + statusIcon + ' ' + statusText + '</div>' +
+        runBtnHtml +
+      '</div>' +
+      connectorHtml +
+    '</div>';
+  }).join("");
+}
+
+async function startMarketingCampaign() {
+  var nicheInput = $("marketingNiche");
+  if (!nicheInput) return;
+  var niche = nicheInput.value.trim();
+  if (!niche) {
+    showToast("⚠️ Insira o nicho/produto da sua campanha.");
+    return;
+  }
+
+  var btn = $("btnStartMarketing");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Iniciando..."; }
+
+  try {
+    var res = await api("/api/v1/marketing/start", {
+      method: "POST",
+      body: JSON.stringify({ niche: niche })
+    });
+    if (res && res.success) {
+      currentMarketingCampaignId = res.campaign_id;
+      currentMarketingNiche = res.niche;
+      marketingStageContents = {};
+      
+      // Ocultar painel de outputs antigo
+      var op = $("marketingOutputPanel");
+      if (op) op.style.display = "none";
+
+      showToast("🚀 Campanha de Marketing Iniciada com sucesso! Rodando Fase 1.");
+      
+      // Executa a primeira fase automaticamente
+      await runMarketingStage(1, 0);
+    } else {
+      showToast("Erro ao iniciar campanha: " + (res.error || "erro"));
+    }
+  } catch(e) {
+    showToast("Erro de rede: " + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "🚀 Iniciar Funil"; }
+  }
+}
+
+async function runMarketingStage(stage, idx) {
+  var agent = MARKETING_STAGES.find(function(s){ return s.id === stage; });
+  if (!agent) return;
+
+  showToast("⏳ Agente " + agent.agent + " está analisando o funil...");
+  
+  var stageStatuses = {};
+  for (var i = 1; i <= MARKETING_STAGES.length; i++) {
+    if (i < stage) stageStatuses[i] = "completed";
+    else if (i === stage) stageStatuses[i] = "active";
+    else stageStatuses[i] = "idle";
+  }
+  renderMarketingStages(idx, stageStatuses);
+
+  try {
+    var res = await api("/api/v1/marketing/stage", {
+      method: "POST",
+      body: JSON.stringify({
+        campaign_id: currentMarketingCampaignId,
+        stage: stage,
+        niche: currentMarketingNiche
+      })
+    });
+
+    if (res && res.success) {
+      marketingStageContents[stage] = res.content;
+      stageStatuses[stage] = "completed";
+      
+      viewMarketingStageContent(stage);
+
+      // Avança para o próximo ou completa tudo
+      if (idx + 1 < MARKETING_STAGES.length) {
+        renderMarketingStages(idx + 1, stageStatuses);
+      } else {
+        renderMarketingStages(MARKETING_STAGES.length, stageStatuses);
+        showToast("🎉 Funil Completo gerado com sucesso!");
+      }
+    } else {
+      stageStatuses[stage] = "failed";
+      renderMarketingStages(idx, stageStatuses);
+      showToast("❌ Erro na fase do agente: " + (res.error || "falha de geração"));
+    }
+  } catch(e) {
+    stageStatuses[stage] = "failed";
+    renderMarketingStages(idx, stageStatuses);
+    showToast("Erro de rede: " + e.message);
+  }
+}
+
+function viewMarketingStageContent(stage) {
+  var agent = MARKETING_STAGES.find(function(s){ return s.id === stage; });
+  var content = marketingStageContents[stage];
+  var panel = $("marketingOutputPanel");
+  var title = $("marketingOutputTitle");
+  var text = $("marketingOutputContent");
+  var emailBtn = $("btnTestSmtp");
+
+  if (!panel || !title || !text || !content) return;
+
+  title.textContent = "Output do Agente: " + agent.agent + " — " + agent.name;
+  text.textContent = content;
+  panel.style.display = "block";
+
+  // Mostrar botão SMTP apenas se for a fase 5 (Chica dos Correios)
+  if (emailBtn) {
+    emailBtn.style.display = stage === 5 ? "inline-flex" : "none";
+  }
+}
+
+function copyMarketingOutput() {
+  var text = $("marketingOutputContent");
+  if (!text || !text.textContent) return;
+  navigator.clipboard.writeText(text.textContent);
+  showToast("✓ Copiado para a área de transferência!");
+}
+
+function openSmtpTestModal() {
+  var modal = $("smtpTestModal");
+  if (modal) modal.style.display = "flex";
+}
+
+async function sendMarketingTestEmail() {
+  var emailInput = $("smtpDestEmail");
+  var subjectInput = $("smtpSubject");
+  var textContent = $("marketingOutputContent");
+
+  if (!emailInput || !textContent) return;
+
+  var email = emailInput.value.trim();
+  var subject = subjectInput ? subjectInput.value.trim() : "Dezafira Marketing";
+  var body = "<h2>Sequência de E-mails Gerada pela Chica dos Correios</h2><pre style='white-space:pre-wrap;font-family:sans-serif;color:#333;line-height:1.5'>" + escapeHtml(textContent.textContent) + "</pre>";
+
+  if (!email) {
+    showToast("⚠️ Digite um e-mail válido.");
+    return;
+  }
+
+  var btn = $("btnSubmitSmtp");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Enviando..."; }
+
+  try {
+    var res = await api("/api/v1/marketing/send-test-email", {
+      method: "POST",
+      body: JSON.stringify({
+        to_email: email,
+        subject: subject,
+        body: body
+      })
+    });
+    if (res && res.success) {
+      showToast("✅ E-mail de teste enviado com sucesso!");
+      document.getElementById("smtpTestModal").style.display = "none";
+    } else {
+      showToast("❌ Erro ao enviar: " + (res.error || "falha SMTP"));
+    }
+  } catch(e) {
+    showToast("Erro de rede: " + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "✉️ Enviar Agora"; }
+  }
+}
+
+// Injeta chamada de inicialização do Marketing no navigate() do index.html
+(function() {
+  var oldNav = navigate;
+  navigate = function(p, skipHash) {
+    oldNav(p, skipHash);
+    if (p === "marketing") {
+      loadMarketing();
+    }
+  };
 })();
 </script>
 </body>

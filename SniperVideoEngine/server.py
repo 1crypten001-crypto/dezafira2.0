@@ -6077,3 +6077,57 @@ async def admin_delete_combo(combo_id: str, user=Depends(require_admin)):
     if not ok:
         raise HTTPException(status_code=404, detail="Combo não encontrado")
     return {"message": "Combo removido"}
+
+
+# ─── MÁQUINA DE MARKETING DIGITAL (SABRI SUBY AGENTS) ───────────────────
+
+# Instância em memória para guardar o estado da campanha ativa (Fases 1 a 6)
+_marketing_pipelines: Dict[str, Any] = {}
+
+@app.post("/api/v1/marketing/start")
+async def start_marketing_campaign(payload: dict, _admin=Depends(require_admin)):
+    """Inicia uma nova esteira de marketing para um determinado nicho."""
+    niche = payload.get("niche", "").strip()
+    if not niche:
+        raise HTTPException(status_code=400, detail="Nicho é obrigatório")
+
+    from modules.marketing_pipeline import MarketingPipeline
+    campaign_id = str(uuid.uuid4().hex[:12])
+    _marketing_pipelines[campaign_id] = MarketingPipeline()
+    return {"success": True, "campaign_id": campaign_id, "niche": niche}
+
+@app.post("/api/v1/marketing/stage")
+async def run_marketing_stage_endpoint(payload: dict, _admin=Depends(require_admin)):
+    """Executa uma fase da esteira de marketing de forma sequencial."""
+    campaign_id = payload.get("campaign_id")
+    stage = payload.get("stage")
+    niche = payload.get("niche", "")
+    
+    if not campaign_id or stage is None:
+        raise HTTPException(status_code=400, detail="campaign_id e stage são obrigatórios")
+
+    # Recupera ou inicializa a pipeline correspondente
+    from modules.marketing_pipeline import MarketingPipeline
+    if campaign_id not in _marketing_pipelines:
+        _marketing_pipelines[campaign_id] = MarketingPipeline()
+
+    pipeline = _marketing_pipelines[campaign_id]
+    result = await pipeline.run_stage(int(stage), niche)
+    return result
+
+@app.post("/api/v1/marketing/send-test-email")
+async def send_marketing_test_email(payload: dict, _admin=Depends(require_admin)):
+    """Rota de teste SMTP para envio rápido de e-mail de teste."""
+    to_email = payload.get("to_email", "").strip()
+    subject = payload.get("subject", "Dezafira Marketing — Teste SMTP").strip()
+    body = payload.get("body", "<h1>Olá!</h1><p>Esta é uma mensagem de teste SMTP da Chica dos Correios.</p>").strip()
+
+    if not to_email:
+        raise HTTPException(status_code=400, detail="E-mail destinatário é obrigatório")
+
+    from modules.marketing_pipeline import MarketingPipeline
+    success = MarketingPipeline.send_smtp_email(to_email, subject, body)
+    if success:
+        return {"success": True, "message": f"E-mail de teste enviado com sucesso para {to_email}!"}
+    raise HTTPException(status_code=500, detail="Falha no envio do e-mail. Verifique os logs e as credenciais SMTP no Railway.")
+
