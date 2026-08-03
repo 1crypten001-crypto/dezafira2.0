@@ -1072,17 +1072,97 @@ async function suggestBlogIdea(){
       method: "POST",
       body: JSON.stringify({ is_affiliate: isAffiliate, is_discover: isDiscover })
     });
-    if(res && res.name && res.niche){
-      $("macroBlogName").value = res.name;
-      $("macroNiche").value = res.niche;
-      var sel=$("macroNicheSelect");
-      if(sel){
-        var found=false;
-        for(var oi=0;oi<sel.options.length;oi++){ if(sel.options[oi].value===res.niche){ sel.selectedIndex=oi; found=true; break; } }
-        if(!found){ sel.selectedIndex=sel.options.length-1; }
+    
+    if(res && Array.isArray(res.suggestions) && res.suggestions.length > 0){
+      // Garantir painel inserido dinamicamente
+      var panelNew = $("panel_new");
+      var sugPanel = $("hermesSuggestionsPanel");
+      if(!sugPanel && panelNew){
+        sugPanel = document.createElement("div");
+        sugPanel.id = "hermesSuggestionsPanel";
+        sugPanel.style.display = "none";
+        sugPanel.style.marginTop = "16px";
+        sugPanel.style.background = "rgba(99,102,241,0.02)";
+        sugPanel.style.border = "1px solid rgba(99,102,241,0.15)";
+        sugPanel.style.borderRadius = "12px";
+        sugPanel.style.overflow = "hidden";
+        
+        sugPanel.innerHTML = 
+          '<div onclick="toggleSuggestionsCollapse()" style="padding:14px 20px;background:rgba(99,102,241,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(99,102,241,0.1);user-select:none">' +
+            '<span style="font-size:13px;font-weight:700;color:#a5b4fc;display:flex;align-items:center;gap:8px">💡 Sugestões de Blogs do Seu Hermes <span style="font-size:10px;padding:2px 6px;background:rgba(34,211,238,0.15);color:#22d3ee;border-radius:6px;font-weight:600">Fase 1</span></span>' +
+            '<span id="suggestionsArrow" style="font-size:12px;color:#8a91a5">▼</span>' +
+          '</div>' +
+          '<div id="suggestionsContent" style="padding:20px;display:none;flex-direction:column;gap:16px">' +
+          '</div>';
+        
+        var formDiv = panelNew.children[1];
+        panelNew.insertBefore(sugPanel, formDiv);
       }
-      renderMacroBlueprint(res);
-      showToast("✓ Seu Hermes montou o blueprint!");
+      
+      // Renderizar sugestões
+      var contentDiv = $("suggestionsContent");
+      if(contentDiv){
+        var searched = Array.isArray(res.searched_terms) ? res.searched_terms : [];
+        var searchedTermsHtml = '';
+        if(searched.length){
+          searchedTermsHtml = '<div style="padding:10px 14px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:8px;font-size:11px;color:#a5f3fc;line-height:1.4;margin-bottom:8px">'+
+            '🕵️ <b style="color:#22d3ee">Obscura Engine:</b> Sugestões baseadas nas buscas reais em alta no Google: '+
+            '<span style="font-weight:600;color:#e2e8f0">'+searched.slice(0,10).map(escapeHtml).join(' &bull; ')+'</span>'+
+          '</div>';
+        }
+        
+        var listHtml = searchedTermsHtml + '<div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Selecione o Nome e o Subnicho para cada nicho abaixo e clique em aplicar para preencher o formulário oficial.</div>';
+        
+        res.suggestions.forEach(function(sug, idx){
+          var subList = Array.isArray(sug.subniches) ? sug.subniches : [];
+          var nameList = Array.isArray(sug.names) ? sug.names : [];
+          
+          listHtml += '<div style="background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:8px">' +
+              '<span style="font-size:13px;font-weight:700;color:#e8edf2">📌 Nicho: ' + escapeHtml(sug.niche) + '</span>' +
+              '<button onclick="applyHermesSelection(' + idx + ')" class="btn btn-sm" style="background:#10b981;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">Aplicar Seleção</button>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px">' +
+              // Coluna Nomes
+              '<div>' +
+                '<div style="font-size:11px;font-weight:600;color:#8a91a5;margin-bottom:6px">🏷️ Sugestões de Nomes:</div>' +
+                '<div style="display:flex;flex-direction:column;gap:6px">' +
+                  nameList.map(function(n, nIdx){
+                    var checked = nIdx === 0 ? 'checked' : '';
+                    return '<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#e8edf2;cursor:pointer">' +
+                      '<input type="radio" name="name_choice_' + idx + '" value="' + escapeHtml(n) + '" ' + checked + ' style="accent-color:#10b981" />' +
+                      escapeHtml(n) +
+                    '</label>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+              // Coluna Subnichos
+              '<div>' +
+                '<div style="font-size:11px;font-weight:600;color:#8a91a5;margin-bottom:6px">🎯 Sugestões de Subnichos:</div>' +
+                '<div style="display:flex;flex-direction:column;gap:6px">' +
+                  subList.map(function(sub, sIdx){
+                    var checked = sIdx === 0 ? 'checked' : '';
+                    return '<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#e8edf2;cursor:pointer">' +
+                      '<input type="radio" name="subniche_choice_' + idx + '" value="' + escapeHtml(sub) + '" ' + checked + ' style="accent-color:#10b981" />' +
+                      escapeHtml(sub) +
+                    '</label>';
+                  }).join('') +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            // Campo oculto para guardar o nicho
+            '<input type="hidden" id="niche_value_' + idx + '" value="' + escapeHtml(sug.niche) + '" />' +
+          '</div>';
+        });
+        
+        contentDiv.innerHTML = listHtml;
+        
+        // Exibir e expandir
+        sugPanel.style.display = "block";
+        contentDiv.style.display = "flex";
+        $("suggestionsArrow").innerHTML = "▲";
+        showToast("✓ Seu Hermes gerou 10 nichos baseados no Obscura!");
+      }
     } else if(res && res.error){
       showToast("Erro ao sugerir: " + res.error);
     }
@@ -1094,6 +1174,54 @@ async function suggestBlogIdea(){
       btn.disabled = false;
       btn.innerHTML = "🪄 Sugerir Ideia (Seu Hermes)";
     }
+  }
+}
+
+function toggleSuggestionsCollapse(){
+  var contentDiv = $("suggestionsContent");
+  var arrow = $("suggestionsArrow");
+  if(!contentDiv || !arrow) return;
+  if(contentDiv.style.display === "none"){
+    contentDiv.style.display = "flex";
+    arrow.innerHTML = "▲";
+  } else {
+    contentDiv.style.display = "none";
+    arrow.innerHTML = "▼";
+  }
+}
+
+function applyHermesSelection(idx){
+  var nameRadio = document.querySelector('input[name="name_choice_' + idx + '"]:checked');
+  var subnicheRadio = document.querySelector('input[name="subniche_choice_' + idx + '"]:checked');
+  
+  if(!nameRadio || !subnicheRadio){
+    showToast("⚠️ Selecione um Nome e um Subnicho.");
+    return;
+  }
+  
+  var nameVal = nameRadio.value;
+  var subnicheVal = subnicheRadio.value;
+  
+  $("macroBlogName").value = nameVal;
+  $("macroNiche").value = subnicheVal;
+  
+  var sel = $("macroNicheSelect");
+  if(sel) {
+    sel.value = "outro";
+  }
+  
+  // Recolhe as sugestões de ideias para focar na criação
+  var contentDiv = $("suggestionsContent");
+  if(contentDiv) contentDiv.style.display = "none";
+  var arrow = $("suggestionsArrow");
+  if(arrow) arrow.innerHTML = "▼";
+  
+  showToast("✓ Seleção aplicada ao formulário oficial!");
+  
+  var macroNameInput = $("macroBlogName");
+  if(macroNameInput){
+    macroNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    macroNameInput.focus();
   }
 }
 

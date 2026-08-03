@@ -5230,71 +5230,64 @@ async def run_blog_factory_frontend(payload: dict, _admin=Depends(require_admin)
 @app.post("/api/v1/pipeline/suggest-blog-idea")
 async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
     """
-    Usa o LLM para sugerir um Nome de Blog criativo e um Nicho lucrativo.
-    Se is_affiliate for True, foca em produtos físicos e reviews de afiliados.
+    Usa o LLM para sugerir uma lista de 10 nichos lucrativos, cada um contendo
+    3 opcoes de nomes de blog e 3 opcoes de subnichos.
     """
     is_affiliate = bool(payload.get("is_affiliate", False))
     is_discover = bool(payload.get("is_discover", False))
     from modules.blog_writer import _call_llm
     
-    # ─── Pré-pesquisa com Obscura ───
+    # ─── Pré-pesquisa com Obscura em Múltiplas Sementes ───
     import random
     from services.obscura_bridge import get_google_suggestions
     
-    seeds = ["curiosidades do mundo", "saude e bem estar", "tecnologia e inovacao", "financas pessoais", "viagens baratas", "casa e decoracao", "maternidade real", "pet care", "receitas faceis", "fenomenos misteriosos", "misterios historicos", "gadgets inteligentes"]
-    selected_seed = random.choice(seeds)
+    seeds = [
+        "curiosidades do mundo", "saude e bem estar", "tecnologia e inovacao", 
+        "financas pessoais", "viagens baratas", "casa e decoracao", 
+        "maternidade real", "pet care", "receitas faceis", 
+        "fenomenos misteriosos", "misterios historicos", "gadgets inteligentes"
+    ]
+    selected_seeds = random.sample(seeds, min(3, len(seeds)))
     google_terms = []
-    try:
-        google_terms = await get_google_suggestions(selected_seed, "pt")
-    except Exception as e_sug:
-        print(f"[Seu Hermes] Falha ao pre-pesquisar termos via Obscura: {e_sug}")
-        
+    for seed in selected_seeds:
+        try:
+            terms = await get_google_suggestions(seed, "pt")
+            if terms:
+                google_terms.extend(terms)
+        except Exception as e_sug:
+            print(f"[Seu Hermes] Falha ao pre-pesquisar termos via Obscura para '{seed}': {e_sug}")
+            
+    # Remover duplicados
+    seen = set()
+    google_terms = [x for x in google_terms if not (x in seen or seen.add(x))]
+    
     google_context = ""
     if google_terms:
         google_context = (
             f"\nIMPORTANTE: O Google detectou que as pessoas estao buscando ativamente estes termos hoje:\n"
-            f"{', '.join(google_terms[:8])}\n"
-            f"Voce DEVE se inspirar obrigatoriamente nessas buscas reais para propor o NOME do blog (que deve ser conectado a essa tendencia de forma criativa), "
-            f"o sub-nicho exato e propor os topicos de artigos recomendados baseado nisso."
+            f"{', '.join(google_terms[:25])}\n"
+            f"Voce DEVE se inspirar obrigatoriamente nessas buscas reais para propor os nichos, os nomes de blog e os subnichos."
         )
     
-    if is_affiliate and is_discover:
-        system = "Você é o Seu Hermes, o inteligente orquestrador focado em tráfego massivo e vendas de e-commerce."
-        prompt = (
-            "Sugira uma ideia única e MUITO chocante/curiosa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
-            "O blog deve atrair tráfego através do Google Discover (curiosidade extrema) e converter em vendas.\n"
-            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (viral e atraente)", "niche": "Micro-nicho curioso de produtos inovadores", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
-            + google_context
-        )
-    elif is_affiliate:
-        system = "Você é o Seu Hermes, o inteligente orquestrador e estrategista de e-commerce e afiliados."
-        prompt = (
-            "Sugira uma ideia única e lucrativa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
-            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
-            + google_context
-        )
-    elif is_discover:
-        system = "Você é o Seu Hermes, o editor-chefe focado em tráfego viral do Google Discover."
-        prompt = (
-            "Sugira uma ideia única de blog voltado para conteúdo informativo viral (monetização via AdSense) focado no Google Discover.\n"
-            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho altamente bizarro, chocante ou de tendências extremas", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "discover"}\n'
-            + google_context
-        )
-    else:
-        system = "Você é o Seu Hermes, o inteligente orquestrador e editor-chefe de blogs focados em AdSense."
-        prompt = (
-            "Sugira uma ideia única de blog voltado para conteúdo informativo (monetização via AdSense) com alto potencial de buscas e engajamento.\n"
-            "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
-            '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho específico com alta curiosidade do público", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "normal"}\n'
-            + google_context
-        )
+    system = "Você é o Seu Hermes, o inteligente orquestrador, estrategista de tráfego (SEO e Discover) e editor-chefe de blogs."
+    prompt = (
+        "Sugira uma lista com exatamente 10 nichos de blogs altamente lucrativos e com alto potencial de busca na internet hoje.\n"
+        "Para cada nicho, forneça 3 sugestões criativas de nomes para o blog e 3 sugestões de subnichos específicos e focados.\n"
+        "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) no seguinte formato:\n"
+        "{\n"
+        '  "suggestions": [\n'
+        "    {\n"
+        '      "niche": "Nome do nicho principal (ex: Saúde & Dores)",\n'
+        '      "names": ["Opção Nome 1", "Opção Nome 2", "Opção Nome 3"],\n'
+        '      "subniches": ["Subnicho 1", "Subnicho 2", "Subnicho 3"]\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        + google_context
+    )
         
     try:
-        raw = await _call_llm(system, prompt, temperature=0.9, max_tokens=1600)
-        # Limpar possíveis blocos markdown do retorno
+        raw = await _call_llm(system, prompt, temperature=0.9, max_tokens=2000)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
@@ -5305,33 +5298,68 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
         import json
         data = json.loads(cleaned)
         return {
-            "name": data.get("name", ""),
-            "niche": data.get("niche", ""),
-            "topics": data.get("topics", []) or [],
-            "content_format": data.get("content_format", ""),
-            "colors": data.get("colors", []) or [],
-            "monetization_mode": data.get("monetization_mode", ""),
+            "suggestions": data.get("suggestions", []) or [],
             "searched_terms": google_terms or []
         }
     except Exception as e:
-        print(f"[Seu Hermes] Erro ao gerar sugestão de blog: {e}")
-        # Fallbacks estáticos caso a IA falhe
-        import random
-        if is_affiliate:
-            ideas = [
-                {"name": "AchadosGamer", "niche": "Acessórios e mouses gamer custo-benefício"},
-                {"name": "LarInteligente", "niche": "Dispositivos de casa inteligente e automação alexa"},
-                {"name": "CozinhaPro", "niche": "Utensílios culinários modernos e panelas elétricas"},
-                {"name": "EstiloSmart", "niche": "Relógios inteligentes e wearables de saúde"}
-            ]
-        else:
-            ideas = [
-                {"name": "CuriosidadesCósmicas", "niche": "Mistérios do universo e astrofísica para leigos"},
-                {"name": "EcoVida", "niche": "Práticas de jardinagem urbana e compostagem caseira"},
-                {"name": "SegredosFinanceiros", "niche": "Educação financeira básica e investimentos em renda fixa"},
-                {"name": "MenteSaudável", "niche": "Hábitos de produtividade pessoal e psicologia comportamental"}
-            ]
-        return random.choice(ideas)
+        print(f"[Seu Hermes] Erro ao gerar sugestões de blog: {e}")
+        # Fallback estruturado com 10 nichos de alta qualidade
+        fallbacks = [
+            {
+                "niche": "Mistérios & Fenômenos",
+                "names": ["Mundo Oculto", "Portal dos Mistérios", "Além do Visível"],
+                "subniches": ["Fenômenos da Natureza Inexplicáveis", "Mistérios Históricos Não Resolvidos", "Astronomia de Fronteira"]
+            },
+            {
+                "niche": "Finanças Pessoais",
+                "names": ["Poupar e Multiplicar", "Caminho da Riqueza", "Carteira Forte"],
+                "subniches": ["Investimento para Iniciantes", "Renda Extra Passiva", "Economia Doméstica Inteligente"]
+            },
+            {
+                "niche": "Saúde & Bem-Estar",
+                "names": ["Vida Plena", "Equilíbrio Diário", "Corpo e Mente"],
+                "subniches": ["Emagrecimento Saudável", "Alimentação Anti-inflamatória", "Rotina de Longevidade"]
+            },
+            {
+                "niche": "Tecnologia & Gadgets",
+                "names": ["Futuro Tech", "Conexão Inteligente", "Manual Geek"],
+                "subniches": ["Dispositivos de Casa Inteligente", "Inteligência Artificial no Dia a Dia", "Dicas de Celular e Computador"]
+            },
+            {
+                "niche": "Casa & Organização",
+                "names": ["Meu Lar Doce Lar", "Organize Decor", "Espaço Harmonioso"],
+                "subniches": ["Decoração Minimalista", "Limpeza e Organização Prática", "Projetos Faça Você Mesmo (DIY)"]
+            },
+            {
+                "niche": "Viagens Inteligentes",
+                "names": ["Roteiro Econômico", "Viajante de Cauda Longa", "Partiu Mundo"],
+                "subniches": ["Viagem de Baixo Custo", "Destinos Escondidos no Brasil", "Dicas de Milhas e Passagens"]
+            },
+            {
+                "niche": "Maternidade & Paternidade",
+                "names": ["Ninho Acolhedor", "Mãe Realidade", "Guia dos Pais"],
+                "subniches": ["Desenvolvimento Infantil Primeiro Ano", "Alimentação Saudável para Crianças", "Educação Emocional Infantil"]
+            },
+            {
+                "niche": "Pets & Cuidado",
+                "names": ["Amigo de Quatro Patas", "Guia do Cão", "Universo Felino"],
+                "subniches": ["Adestramento Caseiro", "Nutrição e Saúde Animal", "Dicas para Gatos de Apartamento"]
+            },
+            {
+                "niche": "Culinária Prática",
+                "names": ["Sabor Rápido", "Cozinha sem Complicação", "Chef do Dia a Dia"],
+                "subniches": ["Receitas de Airfryer", "Marmitas Semanais Saudáveis", "Doces e Sobremesas Fáceis"]
+            },
+            {
+                "niche": "Produtividade & Foco",
+                "names": ["Foco Ativo", "Mente Eficiente", "Mestre do Tempo"],
+                "subniches": ["Gestão do Tempo", "Hábitos de Alta Performance", "Minimalismo Prático"]
+            }
+        ]
+        return {
+            "suggestions": fallbacks,
+            "searched_terms": google_terms or []
+        }
 
 @app.post("/api/v1/pipeline/run-sync")
 async def run_sync_pipeline(payload: dict):
