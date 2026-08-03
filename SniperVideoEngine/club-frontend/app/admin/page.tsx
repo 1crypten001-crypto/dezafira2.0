@@ -11,7 +11,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
-  const [tab, setTab] = useState<"stats" | "users" | "combos" | "fabrica-blog" | "fabrica-ebook" | "fabrica-curso" | "trilhas" | "analytics">("stats");
+  const [tab, setTab] = useState<"stats" | "users" | "combos" | "fabrica-blog" | "fabrica-ebook" | "fabrica-curso" | "trilhas" | "analytics" | "marketing">("stats");
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -49,6 +49,7 @@ export default function AdminPage() {
             { id: "fabrica-blog", label: "Fabrica Blog" },
             { id: "fabrica-ebook", label: "Fabrica Ebook" },
             { id: "fabrica-curso", label: "Fabrica Curso" },
+            { id: "marketing", label: "Fábrica Marketing" },
             { id: "trilhas", label: "Trilhas" },
             { id: "users", label: "Usuarios" },
             { id: "combos", label: "Combos" },
@@ -148,6 +149,14 @@ export default function AdminPage() {
             <h2 className="text-2xl font-bold mb-2">Analytics</h2>
             <p className="text-[var(--text-dim)] mb-4">Metricas reais do sistema</p>
             <a href="/admin/analytics" className="btn-primary inline-block">Acessar</a>
+          </div>
+        )}
+
+        {tab === "marketing" && (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold mb-2">Fábrica de Marketing Digital</h2>
+            <p className="text-[var(--text-dim)] mb-4">Crie funis previsíveis baseados no framework de Sabri Suby</p>
+            <a href="/admin/fabrica-blog#marketing" className="btn-primary inline-block">Acessar</a>
           </div>
         )}
       </main>
