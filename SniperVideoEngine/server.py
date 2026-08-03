@@ -3635,7 +3635,7 @@ async def generate_blog_brand_asset(channel_id: str, payload: dict):
                     return {"success": True, "image_url": fav_uri, "provider": "BrandingDesignerAgent (SVG)"}
 
         elif asset_type == "bg":
-            prompt = f"cinematic wide background theme for blog about {niche}, clean backdrop, atmospheric, smooth lighting, gradient textures, no text, perfect 16:9 ratio"
+            prompt = f"luxurious ultra-minimalist smooth abstract background, flowing organic gradient vector textures, theme of {niche}, subtle atmospheric lighting, extremely clean backdrop, no objects, no people, no text, elegant digital art style, soft color palette"
             img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=1920, height=1080)
             if img and img.get("image_url"):
                 chan.banner_url = img["image_url"] # salva tbm no banner_url do canal principal

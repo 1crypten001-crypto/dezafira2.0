@@ -527,9 +527,9 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
     logo_svg = brand_config.get("logo_svg") if (brand_config and brand_config.get("logo_svg")) else get_logo_svg(blog_niche)
     custom_logo = brand_config.get("custom_logo") if brand_config else None
     if custom_logo:
-        logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:180px; object-fit:contain; margin-bottom:12px;" alt="{blog_name}" />'
+        logo_markup = f'<img class="custom-logo" src="{custom_logo}" style="height:36px; max-width:280px; object-fit:contain; margin-bottom:12px;" alt="{blog_name}" />'
     else:
-        logo_markup = f'<span class="logo-icon">{_safe_logo_el(logo_svg, img_style="height:36px; max-width:180px; object-fit:contain; margin-bottom:12px;")}</span><strong style="display:block;margin-top:4px;">{blog_name}</strong>'
+        logo_markup = f'<span class="logo-icon">{_safe_logo_el(logo_svg, img_style="height:36px; max-width:280px; object-fit:contain; margin-bottom:12px;")}</span><strong style="display:block;margin-top:4px;">{blog_name}</strong>'
 
     categories = _get_categories(blog_niche)
     cat_links = "".join(f'<a href="/blog/{slug}?cat={c.lower()}">{c}</a>' for c in categories[:4])
