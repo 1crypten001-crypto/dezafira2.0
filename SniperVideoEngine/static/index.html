@@ -753,10 +753,16 @@ window.addEventListener("hashchange",function(){
   var p=pageFromHash();
   if(p)navigate(p,true);
 });
-(function(){
-  var p=pageFromHash();
-  if(p)navigate(p,true);
-})();
+function initHashRoute() {
+  var p=pageFromHash() || "blogs";
+  navigate(p,true);
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initHashRoute);
+} else {
+  initHashRoute();
+}
+window.addEventListener("load", initHashRoute);
 var mqMobile=window.matchMedia('(max-width: 768px)');
 function isMobile(){return mqMobile.matches}
 function setOverlay(show){
