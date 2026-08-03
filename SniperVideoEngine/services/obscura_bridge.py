@@ -883,6 +883,7 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
     estiver setada, default = OBSCURA_HOST — suspeita da queda atual).
     """
     import urllib.request as _urllib
+    import urllib.error as _urlerr
     host = host or OBSCURA_CHROME_HOST
     port = port or OBSCURA_CHROME_PORT
     ws_url = f"ws://{host}:{port}/devtools/browser"
@@ -900,7 +901,7 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
             "port": port,
             "error": "",
         }
-    except _urllib.error.HTTPError as e:
+    except _urlerr.HTTPError as e:
         # HTTP 500 do Chrome (ex.: CDP em estado ruim) — captura o corpo da
         # resposta pra ver o que o Chrome devolveu de verdade, em vez de só
         # "HTTP Error 500".
