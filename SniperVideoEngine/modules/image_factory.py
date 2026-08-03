@@ -24,6 +24,7 @@ load_dotenv()
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 # Prompt de estilo visual por nicho
 NICHE_STYLE_PROMPTS = {
@@ -129,26 +130,33 @@ class ImageGeneratorAgent:
                 self.last_provider = "gemini"
                 return result
 
-        # === 2. FLUX via Pollinations.ai (IA gratuita) ===
+        # === 2. OpenRouter Flux (Pago / Estável) ===
+        if OPENROUTER_API_KEY:
+            result = await self._openrouter_flux(expanded_prompt, width, height)
+            if result:
+                self.last_provider = "openrouter"
+                return result
+
+        # === 3. FLUX via Pollinations.ai (IA gratuita) ===
         result = await self._flux_pollinations(expanded_prompt, width, height)
         if result:
             self.last_provider = "flux"
             return result
 
-        # === 3. Pexels (busca de fotos) ===
+        # === 4. Pexels (busca de fotos) ===
         if PEXELS_API_KEY:
             result = await self._search_pexels(search_query, width, height)
             if result:
                 self.last_provider = "pexels"
                 return result
 
-        # === 4. Unsplash (busca de fotos) ===
+        # === 5. Unsplash (busca de fotos) ===
         result = await self._search_unsplash(search_query, width, height)
         if result:
             self.last_provider = "unsplash"
             return result
 
-        # === 5. SVG Placeholder (NUNCA falha) ===
+        # === 6. SVG Placeholder (NUNCA falha) ===
         self.last_provider = "placeholder"
         return {
             "image_url": self._generate_svg_placeholder(prompt_idea, width, height),
@@ -333,6 +341,44 @@ class ImageGeneratorAgent:
         words = [w for w in text.split()[:8] if w.lower() not in stopwords]
         return " ".join(words[:5]) or text
 
+    async def _openrouter_flux(self, prompt: str, width: int, height: int) -> Optional[dict]:
+        """
+        Gera imagem via FLUX no OpenRouter (estável e pago, usando OPENROUTER_API_KEY).
+        """
+        if not OPENROUTER_API_KEY:
+            return None
+        try:
+            url = "https://openrouter.ai/api/v1/images"
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://dezafira.com.br",
+                "X-Title": "Dezafira Blog Factory"
+            }
+            
+            payload = {
+                "model": "black-forest-labs/flux.2-flex",
+                "prompt": prompt[:500]
+            }
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                r = await client.post(url, headers=headers, json=payload)
+                if r.status_code == 200:
+                    data = r.json()
+                    images = data.get("data", [])
+                    if images and len(images) > 0:
+                        img_url = images[0].get("url", "")
+                        if img_url:
+                            return {
+                                "image_url": img_url,
+                                "alt_text": prompt[:150],
+                                "provider": "openrouter",
+                                "credit": "Gerada por FLUX (OpenRouter)",
+                            }
+                print(f"[ImageFactory/OpenRouter] HTTP {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            print(f"[ImageFactory/OpenRouter] Erro: {e}")
+        return None
+
     def get_attribution_html(self, result: dict) -> str:
         provider = result.get("provider", "")
         credit = result.get("credit", "")
@@ -340,6 +386,8 @@ class ImageGeneratorAgent:
             return f'<small style="font-size:10px;color:#7a6b5a">{credit}</small>'
         if provider == "flux":
             return '<small style="font-size:10px;color:#7a6b5a">⚡ Imagem gerada por IA (FLUX)</small>'
+        if provider == "openrouter":
+            return '<small style="font-size:10px;color:#7a6b5a">⚡ Imagem gerada por IA (FLUX via OpenRouter)</small>'
         if provider == "gemini":
             return '<small style="font-size:10px;color:#7a6b5a">🎨 Imagem gerada por IA (Gemini)</small>'
         return ""
