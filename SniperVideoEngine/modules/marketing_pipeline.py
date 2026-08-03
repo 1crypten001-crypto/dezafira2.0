@@ -45,21 +45,19 @@ class MarketingPipeline:
 
     async def _run_stage_1(self, niche: str) -> dict:
         # FASE 1: Seu Tião (O Caçador de Avatares) - Usa Obscura + LLM
-        print(f"[Seu Tião] Buscando buscas ativas no Google/Reddit para o nicho '{niche}'...")
+        print(f"[Seu Tião] Buscando buscas ativas no Google para o nicho '{niche}'...")
         suggests = []
-        reddit_qs = []
         try:
-            from services.obscura_bridge import get_google_suggestions, get_reddit_questions
+            from services.obscura_bridge import get_google_suggestions
             suggests = await get_google_suggestions(niche, "PT")
-            reddit_qs = await get_reddit_questions(niche, "PT")
         except Exception as e:
             print(f"[Seu Tião] Aviso ao minerar com Obscura: {e}")
 
         if not suggests:
-            suggests = [f"{niche} dicas", f"{niche} guia", f"{niche} como fazer"]
+            suggests = [f"{niche} dicas", f"{niche} guia", f"{niche} como fazer", f"{niche} preço", f"{niche} funciona"]
         
         self.state["google_suggests"] = suggests
-        self.state["reddit_questions"] = reddit_qs
+        self.state["reddit_questions"] = []
 
         system_prompt = (
             "Você é o Seu Tião, um Caçador de Avatares de marketing muito perspicaz, observador e com linguagem simples brasileira.\n"
@@ -68,7 +66,6 @@ class MarketingPipeline:
         user_prompt = f"""
         Nicho: {niche}
         Dúvidas e buscas do público: {', '.join(suggests)}
-        Dores adicionais: {', '.join(reddit_qs[:5])}
 
         Crie um perfil estruturado do nosso Dream Buyer (Avatar de Cliente) contendo:
         1. As 3 maiores dores dele.
@@ -84,7 +81,7 @@ class MarketingPipeline:
             "success": True, 
             "content": response, 
             "google_suggests": suggests,
-            "reddit_questions": reddit_qs
+            "reddit_questions": []
         }
 
     async def _run_stage_2(self) -> dict:
