@@ -258,6 +258,60 @@
   .blog-panel.collapsed .section {
     display:none !important;
   }
+  .substage-led {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 800;
+    background: #14161f;
+    border: 1px solid #1e2030;
+    color: #5c6370;
+    transition: all 0.25s ease;
+  }
+  .substage-led.active-a {
+    background: rgba(6,182,212,0.15);
+    border-color: #06b6d4;
+    color: #06b6d4;
+    box-shadow: 0 0 8px rgba(6,182,212,0.5);
+    animation: pulseGlowCyan 1.2s infinite alternate;
+  }
+  .substage-led.active-b {
+    background: rgba(16,185,129,0.15);
+    border-color: #10b981;
+    color: #10b981;
+    box-shadow: 0 0 8px rgba(16,185,129,0.5);
+    animation: pulseGlowGreen 1.2s infinite alternate;
+  }
+  .substage-led.active-c {
+    background: rgba(139,92,246,0.15);
+    border-color: #8b5cf6;
+    color: #8b5cf6;
+    box-shadow: 0 0 8px rgba(139,92,246,0.5);
+    animation: pulseGlowPurple 1.2s infinite alternate;
+  }
+  .substage-led.done {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #fff !important;
+    box-shadow: 0 0 4px rgba(16,185,129,0.3) !important;
+    animation: none !important;
+  }
+  @keyframes pulseGlowCyan {
+    0% { box-shadow: 0 0 2px rgba(6,182,212,0.3); }
+    100% { box-shadow: 0 0 10px rgba(6,182,212,0.7); }
+  }
+  @keyframes pulseGlowGreen {
+    0% { box-shadow: 0 0 2px rgba(16,185,129,0.3); }
+    100% { box-shadow: 0 0 10px rgba(16,185,129,0.7); }
+  }
+  @keyframes pulseGlowPurple {
+    0% { box-shadow: 0 0 2px rgba(139,92,246,0.3); }
+    100% { box-shadow: 0 0 10px rgba(139,92,246,0.7); }
+  }
   .blog-panel .panel-header::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--panel-color,#6366f1)}
   .blog-panel .panel-header .ph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
   .blog-panel .panel-header .ph-logo{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
@@ -834,9 +888,18 @@ function renderPipeline(){
     var c='';if(i<STAGES.length-1)c='<div class="conveyor-connector"><div class="cc-base"></div><div class="cc-glow" id="cg_'+s.id+'"></div><div class="cc-dot" id="cd_'+s.id+'"></div></div>';
     var av=s.agents? s.agents.map(function(a){return '<span title="'+a.name+': '+a.action+'" style="display:inline-block;margin:0 1px">'+a.emoji+'</span>';}).join(''):s.icon;
     var tp='<div class="agent-tooltip">'+(s.agents? s.agents.map(function(a){return a.name+' • '+a.role;}).join('<br>'):s.agent)+'</div>';
+    var subStagesHtml = '';
+    if(s.id === "arquitetura"){
+      subStagesHtml = '<div class="conveyor-substages" style="display:flex;justify-content:center;gap:6px;margin:4px 0 8px 0">'+
+        '<span id="sub_a" class="substage-led" title="Fase A — Auto-Suggest (Google Cauda Longa)">A</span>'+
+        '<span id="sub_b" class="substage-led" title="Fase B — SERP Analyzer (Dificuldade de Ranking)">B</span>'+
+        '<span id="sub_c" class="substage-led" title="Fase C — Dores Reais (Reddit & Sentimento)">C</span>'+
+      '</div>';
+    }
     return '<div class="conveyor-stage-wrapper"><div class="conveyor-stage idle" id="st_'+s.id+'"><div class="cs-border" style="display:none"></div><div class="cs-check" style="display:none">✓</div>'+
       '<div class="cs-agent-avatar">'+av+'<span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span></div>'+
       '<div class="cs-name">'+s.name+'</div>'+
+      subStagesHtml+
       '<div class="cs-agent-action" id="ac_'+s.id+'">⏳ <span id="al_'+s.id+'">Aguardando</span> <span class="cs-agent-gear">⚙</span></div>'+
       '<div class="cs-progress"><div class="cs-progress-bar" id="cp_'+s.id+'"></div></div>'+
       '<div class="cs-status idle" id="cs_'+s.id+'">⏳</div>'+
@@ -853,6 +916,32 @@ function updateStage(sid,status,prog,msg,data){
   if(ck){ck.style.display=status==="completed"?"flex":"none";if(status==="completed")ck.style.animation="checkPop .4s cubic-bezier(.34,1.56,.64,1)"}
   if(pr){pr.className="cs-progress-bar "+status;if(status==="active"&&prog>0)pr.style.width=prog+"%"}
   if(ms)ms.textContent=msg||"";
+  
+  if(sid === "arquitetura"){
+    var sa = $("sub_a"), sb = $("sub_b"), sc = $("sub_c");
+    if(sa && sb && sc){
+      if(status === "idle"){
+        sa.className = "substage-led"; sb.className = "substage-led"; sc.className = "substage-led";
+      } else if(status === "completed"){
+        sa.className = "substage-led done"; sb.className = "substage-led done"; sc.className = "substage-led done";
+      } else if(status === "active"){
+        var mText = String(msg || "");
+        if(mText.indexOf("[Fase A]") !== -1){
+          sa.className = "substage-led active-a";
+        }
+        if(mText.indexOf("[Fase B]") !== -1){
+          sa.className = "substage-led done";
+          sb.className = "substage-led active-b";
+        }
+        if(mText.indexOf("[Fase C]") !== -1){
+          sa.className = "substage-led done";
+          sb.className = "substage-led done";
+          sc.className = "substage-led active-c";
+        }
+      }
+    }
+  }
+
   // Update agent action label
   if(al){
     var actions={idle:"Aguardando",active:"Trabalhando...",completed:"Concluido!",failed:"Erro"};
@@ -873,6 +962,7 @@ function updateStage(sid,status,prog,msg,data){
     // ─── Renderiza Fase A: Auto-Suggest ───
     var suggests = data.google_suggests || (data.data?.state?.google_suggests) || (data.data?.google_suggests);
     if(suggests && suggests.length){
+      var sa = $("sub_a"); if(sa) sa.className = "substage-led done";
       var sw = $("googleSuggestWrapper");
       var sl = $("googleSuggestList");
       if(sw && sl){
@@ -886,6 +976,7 @@ function updateStage(sid,status,prog,msg,data){
     // ─── Renderiza Fase B: Dificuldade SERP com Fóruns ───
     var diffTable = data.difficulty_table || (data.data?.state?.difficulty_table) || (data.data?.difficulty_table);
     if(diffTable && diffTable.length){
+      var sb = $("sub_b"); if(sb) sb.className = "substage-led done";
       var dw = $("serpDifficultyWrapper");
       var dl = $("serpDifficultyList");
       if(dw && dl){
@@ -909,6 +1000,7 @@ function updateStage(sid,status,prog,msg,data){
     // ─── Renderiza Fase C: Dores e Dúvidas Reais ───
     var questions = data.reddit_questions || (data.data?.state?.reddit_questions) || (data.data?.reddit_questions);
     if(questions && questions.length){
+      var sc = $("sub_c"); if(sc) sc.className = "substage-led done";
       var qw = $("realPainsWrapper");
       var ql = $("realPainsList");
       if(qw && ql){
