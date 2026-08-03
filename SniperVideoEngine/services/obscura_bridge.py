@@ -1154,3 +1154,58 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
     else:
         obscura_telemetry.log_serp_source("regex_fallback")
     return data
+
+
+async def get_google_suggestions(keyword: str, lang: str = "pt") -> list:
+    """
+    Busca sugestões de autocomplete do Google para descobrir termos cauda longa quentes.
+    Bate na API de suggest do Google e retorna uma lista limpa de strings.
+    """
+    import urllib.parse
+    import httpx
+    import json
+    
+    url = f"http://suggestqueries.google.com/complete/search?client=chrome&hl={'pt-BR' if lang == 'pt' else 'en'}&q={urllib.parse.quote(keyword)}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(url)
+            if r.status_code == 200:
+                data = json.loads(r.text)
+                if isinstance(data, list) and len(data) > 1:
+                    suggestions = data[1]
+                    if isinstance(suggestions, list):
+                        return [str(s).strip() for s in suggestions[:10]]
+    except Exception as e:
+        logger.warning(f"[Obscura Suggest] Erro ao buscar auto-suggest para '{keyword}': {e}")
+    return []
+
+
+async def analyze_serp_difficulty_with_forums(keyword: str, lang: str = "pt") -> dict:
+    """
+    Pesquisa a keyword no Google real e analisa a presença de fóruns (Reddit, Quora, etc.)
+    para definir se o termo é uma fruta baixa (Low Hanging Fruit).
+    """
+    # Usa o get_serp_with_fallback que já roda o Obscura/Chrome com tratamento de cache e auto-cura!
+    serp = await get_serp_with_fallback(keyword, lang=lang)
+    urls = serp.get("urls", [])
+    
+    forums = ["reddit.com", "quora.com", "facebook.com", "twitter.com", "linkedin.com", "medium.com", "github.com", "forum"]
+    found_forums = []
+    for url in urls:
+        url_lower = url.lower()
+        for f in forums:
+            if f in url_lower:
+                found_forums.append(url)
+                break
+                
+    has_forums = len(found_forums) > 0
+    difficulty = "Fácil" if has_forums else ("Média" if len(urls) < 5 else "Difícil")
+    
+    return {
+        "keyword": keyword,
+        "difficulty": difficulty,
+        "has_forums": has_forums,
+        "forums_found": found_forums[:3],
+        "urls": urls[:5]
+    }
+

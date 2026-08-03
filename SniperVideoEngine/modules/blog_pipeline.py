@@ -806,38 +806,48 @@ class BlogMacroPipeline:
             from modules.keyword_miner import research_keywords, find_low_hanging_fruits
             from modules.database import create_db_blog_section
 
-            # 1. Pesquisa de discussões do Reddit (Seu Reddit)
-            self._update_macro(sid, "active", 10,
-                "🤖 Agente Seu Reddit pesquisando dores e dúvidas reais dos usuários...")
+            # ─── FASE A: Descoberta de Cauda Longa (Auto-Suggest) ───
+            self._update_macro(sid, "active", 8,
+                "🔎 [Fase A] Buscando Auto-Suggest no Google com Obscura...")
+            try:
+                from services.obscura_bridge import get_google_suggestions
+                suggests = await get_google_suggestions(niche, self.state.language)
+                if not suggests:
+                    suggests = [f"{niche} dicas", f"{niche} guia completo", f"{niche} passo a passo"]
+                self._update_macro(sid, "active", 10,
+                    f"✓ [Fase A] Encontradas {len(suggests)} sugestões cauda longa!",
+                    data={"google_suggests": suggests})
+            except Exception as e_sug:
+                print(f"[Arquitetura] Erro no Auto-Suggest: {e_sug}")
+                suggests = [niche]
+
+            # ─── FASE B: Analisar Dificuldade (SERP Analyzer & Fóruns) ───
+            self._update_macro(sid, "active", 12,
+                "📊 [Fase B] Analisando dificuldade e presença de Fóruns na SERP...")
+            difficulty_results = []
+            try:
+                from services.obscura_bridge import analyze_serp_difficulty_with_forums
+                # Analisa as 3 principais sugestões para não travar a esteira por muito tempo
+                for kw in suggests[:3]:
+                    res_diff = await analyze_serp_difficulty_with_forums(kw, self.state.language)
+                    difficulty_results.append(res_diff)
+                self._update_macro(sid, "active", 16,
+                    "✓ [Fase B] Análise de dificuldade concluída com sucesso!",
+                    data={"difficulty_table": difficulty_results})
+            except Exception as e_diff:
+                print(f"[Arquitetura] Erro ao analisar dificuldade: {e_diff}")
+
+            # ─── FASE C: Mapear Dores Reais (Reddit / PAA / LLM) ───
+            self._update_macro(sid, "active", 18,
+                "🤖 [Fase C] Extraindo as maiores dores de fóruns reais e PAA...")
             try:
                 reddit_qs = await get_reddit_questions(niche, self.state.language)
                 self.state.reddit_questions = reddit_qs
-                self._update_macro(sid, "active", 12,
-                    f"✓ Seu Reddit encontrou {len(reddit_qs)} dúvidas no Reddit!",
+                self._update_macro(sid, "active", 22,
+                    f"✓ [Fase C] Encontradas {len(reddit_qs)} dúvidas humanas reais!",
                     data={"reddit_questions": reddit_qs})
             except Exception as e_red:
-                print(f"[Arquitetura] Erro ao obter dúvidas do Reddit: {e_red}")
-
-            # 1.2 Pesquisa de dores reais nas BUSCAS do YouTube (Seu YouTube)
-            self._update_macro(sid, "active", 14,
-                "🔎 Agente Seu YouTube descobrindo o que as pessoas pesquisam no nicho...")
-            try:
-                from modules.keyword_miner import research_youtube_pains
-                from research.engine import validate_youtube_demand
-                yt_res = await research_youtube_pains(niche, self.state.language, max_pains=40)
-                yt_pains = yt_res.get("pains", [])
-                # Valida demanda (prova de views) nas top dores
-                try:
-                    yt_pains = await validate_youtube_demand(yt_pains, limit=10)
-                except Exception as e_vd:
-                    print(f"[Arquitetura] Erro na validacao de demanda YouTube: {e_vd}")
-                self.state.youtube_search_pains = yt_pains
-                proven = len([p for p in yt_pains if p.get("max_views")])
-                self._update_macro(sid, "active", 16,
-                    f"✓ Seu YouTube encontrou {len(yt_pains)} dores reais de busca ({proven} com demanda provada)!",
-                    data={"youtube_search_pains": yt_pains})
-            except Exception as e_yt:
-                print(f"[Arquitetura] Erro ao obter dores do YouTube: {e_yt}")
+                print(f"[Arquitetura] Erro nas dores: {e_red}")
 
             # 2. Keyword research geral
             self._update_macro(sid, "active", 15,

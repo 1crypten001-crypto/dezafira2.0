@@ -351,23 +351,34 @@
               <div class="pipeline-empty"><div class="big-icon">🏗️</div><h3>Esteira de Produção</h3><p>5 estacoes: Fundação &rarr; Palavras-Chave (Chrome/Obscura) &rarr; Produção &rarr; Refino &rarr; Entrega</p></div>
             </div>
           </div>
-          <!-- Painel Seu Reddit (10 Maiores Dúvidas) -->
-          <div id="redditQuestionsWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(99,102,241,.04) 100%);border:1px solid rgba(99,102,241,.15);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-              <span style="font-size:18px">🤖</span>
-              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Seu Reddit — 10 Maiores Dúvidas e Dores Reais do Público</h4>
-            </div>
-            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Tópicos e dúvidas reais minerados em fóruns públicos do Reddit sobre este nicho:</div>
-            <ol id="redditQuestionsList" style="margin:0;padding-left:20px;color:#a5b4fc;font-size:13px;line-height:1.8;font-weight:500"></ol>
-          </div>
-          <!-- Painel Seu YouTube (Dores Reais de Busca) -->
-          <div id="youtubePainsWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(245,158,11,.05) 100%);border:1px solid rgba(245,158,11,.18);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+          <!-- Fase A: Auto-Suggest -->
+          <div id="googleSuggestWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(6,182,212,.05) 100%);border:1px solid rgba(6,182,212,.18);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
               <span style="font-size:18px">🔎</span>
-              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Seu YouTube — Dores Reais de Busca do Público</h4>
+              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Fase A — Termos Cauda Longa (Google Auto-Suggest com Obscura)</h4>
             </div>
-            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">O que as pessoas realmente digitam no YouTube sobre este nicho — cada item é uma busca real, com prova de demanda (views dos vídeos que já respondem isso):</div>
-            <ol id="youtubePainsList" style="margin:0;padding-left:20px;color:#fbbf24;font-size:13px;line-height:1.8;font-weight:500"></ol>
+            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Sugestões quentes buscadas ativamente pelos usuários na barra de autocomplete do Google:</div>
+            <div id="googleSuggestList" style="display:flex;flex-wrap:wrap;gap:8px;color:#06b6d4;font-size:12px;font-weight:600"></div>
+          </div>
+
+          <!-- Fase B: Dificuldade SERP com Fóruns -->
+          <div id="serpDifficultyWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(16,185,129,.05) 100%);border:1px solid rgba(16,185,129,.18);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:18px">📊</span>
+              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Fase B — Validação de Dificuldade (Google SERP Analyzer)</h4>
+            </div>
+            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Análise de concorrência com base na presença de fóruns (Reddit/Quora) nos primeiros resultados:</div>
+            <div id="serpDifficultyList" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+
+          <!-- Fase C: Dores e Dúvidas Reais -->
+          <div id="realPainsWrapper" style="display:none;background:linear-gradient(135deg,#0b0c12 0%,rgba(139,92,246,.05) 100%);border:1px solid rgba(139,92,246,.18);border-radius:14px;padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span style="font-size:18px">🤖</span>
+              <h4 style="margin:0;color:#e8edf2;font-size:14px;font-weight:700">Fase C — 10 Maiores Dores e Curiosidades Reais do Público (Fóruns & YouTube)</h4>
+            </div>
+            <div style="font-size:12px;color:#8a91a5;margin-bottom:12px">Perguntas, dúvidas e frustrações reais sintetizadas a partir do sentimento dos usuários:</div>
+            <ol id="realPainsList" style="margin:0;padding-left:20px;color:#c4b5fd;font-size:13px;line-height:1.8;font-weight:500"></ol>
           </div>
           <div class="macro-current-article" id="macroCurrentArticle" style="display:none">
             <div class="macro-current-header">
@@ -850,28 +861,50 @@ function updateStage(sid,status,prog,msg,data){
     });
   }
   if(data){
+    // ─── Renderiza Fase A: Auto-Suggest ───
+    var suggests = data.google_suggests || (data.data?.state?.google_suggests) || (data.data?.google_suggests);
+    if(suggests && suggests.length){
+      var sw = $("googleSuggestWrapper");
+      var sl = $("googleSuggestList");
+      if(sw && sl){
+        sl.innerHTML = suggests.map(function(s){
+          return '<span style="background:rgba(6,182,212,0.12);color:#06b6d4;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600">🔎 ' + escapeHtml(s) + '</span>';
+        }).join('');
+        sw.style.display = "block";
+      }
+    }
+
+    // ─── Renderiza Fase B: Dificuldade SERP com Fóruns ───
+    var diffTable = data.difficulty_table || (data.data?.state?.difficulty_table) || (data.data?.difficulty_table);
+    if(diffTable && diffTable.length){
+      var dw = $("serpDifficultyWrapper");
+      var dl = $("serpDifficultyList");
+      if(dw && dl){
+        dl.innerHTML = diffTable.map(function(item){
+          var badgeColor = item.difficulty === "Fácil" ? "#10b981" : (item.difficulty === "Média" ? "#fbbf24" : "#ef4444");
+          var badgeBg = item.difficulty === "Fácil" ? "rgba(16,185,129,0.12)" : (item.difficulty === "Média" ? "rgba(251,191,36,0.12)" : "rgba(239,68,68,0.12)");
+          var forumText = item.has_forums ? '✅ Fóruns no topo (Oportunidade!)' : '❌ Apenas portais autoritativos';
+          var forumColor = item.has_forums ? '#10b981' : '#8a91a5';
+          return '<div style="background:#0d0e14;border:1px solid #1e2030;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+            '<div style="font-weight:600;font-size:12px;color:#e8edf2">'+escapeHtml(item.keyword)+'</div>'+
+            '<div style="display:flex;gap:8px;align-items:center">'+
+              '<span style="background:'+badgeBg+';color:'+badgeColor+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">'+item.difficulty+'</span>'+
+              '<span style="font-size:11px;color:'+forumColor+'">'+forumText+'</span>'+
+            '</div>'+
+          '</div>';
+        }).join('');
+        dw.style.display = "block";
+      }
+    }
+
+    // ─── Renderiza Fase C: Dores e Dúvidas Reais ───
     var questions = data.reddit_questions || (data.data?.state?.reddit_questions) || (data.data?.reddit_questions);
     if(questions && questions.length){
-      var qw = $("redditQuestionsWrapper");
-      var ql = $("redditQuestionsList");
+      var qw = $("realPainsWrapper");
+      var ql = $("realPainsList");
       if(qw && ql){
         ql.innerHTML = questions.map(function(q){ return '<li>' + escapeHtml(q) + '</li>'; }).join('');
         qw.style.display = "block";
-      }
-    }
-    // Painel Seu YouTube — dores reais de busca (com prova de views)
-    var ypains = data.youtube_search_pains || (data.data?.state?.youtube_search_pains) || (data.data?.youtube_search_pains);
-    if(ypains && ypains.length){
-      var yw = $("youtubePainsWrapper");
-      var yl = $("youtubePainsList");
-      if(yw && yl){
-        yl.innerHTML = ypains.map(function(p){
-          var txt = (p && p.text) ? p.text : String(p);
-          var views = (p && p.views_evidence) ? p.views_evidence : '';
-          var viewsHtml = views ? ' <span style="color:#8a91a5;font-size:11px;font-weight:600">(' + escapeHtml(views) + ' views)</span>' : '';
-          return '<li>' + escapeHtml(txt) + viewsHtml + '</li>';
-        }).join('');
-        yw.style.display = "block";
       }
     }
     if(data.target_articles!==undefined&&data.target_articles>0){ms.target=parseInt(data.target_articles)||ms.target;$("macroTargetLabel").textContent=ms.target+" artigos";}
@@ -1035,8 +1068,9 @@ function resetMacroPipeline(){
   $("macroPipelineLog").innerHTML='<div class="load-log" style="color:#3b4050;padding:8px;text-align:center">Aguardando...</div>';
   var gp=$("macroGlobalProgress");if(gp)gp.style.display="none";
   $("macroCurrentArticle").style.display="none";
-  var qw = $("redditQuestionsWrapper"); if(qw) qw.style.display = "none";
-  var yw = $("youtubePainsWrapper"); if(yw) yw.style.display = "none";
+  var sw = $("googleSuggestWrapper"); if(sw) sw.style.display = "none";
+  var dw = $("serpDifficultyWrapper"); if(dw) dw.style.display = "none";
+  var rw = $("realPainsWrapper"); if(rw) rw.style.display = "none";
   renderPipeline();
 }
 
