@@ -1091,7 +1091,10 @@ async function suggestBlogIdea(){
         sugPanel.innerHTML = 
           '<div onclick="toggleSuggestionsCollapse()" style="padding:14px 20px;background:rgba(99,102,241,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(99,102,241,0.1);user-select:none">' +
             '<span style="font-size:13px;font-weight:700;color:#a5b4fc;display:flex;align-items:center;gap:8px">💡 Sugestões de Blogs do Seu Hermes <span style="font-size:10px;padding:2px 6px;background:rgba(34,211,238,0.15);color:#22d3ee;border-radius:6px;font-weight:600">Fase 1</span></span>' +
-            '<span id="suggestionsArrow" style="font-size:12px;color:#8a91a5">▼</span>' +
+            '<div style="display:flex;align-items:center;gap:10px" onclick="event.stopPropagation()">' +
+              '<button onclick="suggestBlogIdea()" title="Gerar 10 novas ideias" style="font-size:11px;padding:3px 10px;background:rgba(34,211,238,0.12);color:#22d3ee;border:1px solid rgba(34,211,238,0.25);border-radius:6px;cursor:pointer;font-weight:600">🔄 Renovar Ideias</button>' +
+              '<span id="suggestionsArrow" style="font-size:12px;color:#8a91a5" onclick="toggleSuggestionsCollapse()">▼</span>' +
+            '</div>' +
           '</div>' +
           '<div id="suggestionsContent" style="padding:20px;display:none;flex-direction:column;gap:16px">' +
           '</div>';
@@ -1189,6 +1192,18 @@ function toggleSuggestionsCollapse(){
     contentDiv.style.display = "none";
     arrow.innerHTML = "▼";
   }
+}
+
+function handleSuggestButton(){
+  // Se o painel existe e tem conteúdo → apenas faz toggle (abre/fecha)
+  var panel = $("hermesSuggestionsPanel");
+  var content = $("suggestionsContent");
+  if(panel && content && content.innerHTML.trim() !== ""){
+    toggleSuggestionsCollapse();
+    return;
+  }
+  // Caso contrário → gera novas ideias (primeira vez)
+  suggestBlogIdea();
 }
 
 function applyHermesSelection(idx){
@@ -1386,7 +1401,7 @@ async function loadDashboard(){
   var newBlogHtml = '<div class="blog-panel" id="panel_new">' +
     '<div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
       '<div><h3>🏗️ Criar Novo Blog do Zero</h3><div style="font-size:12px;color:#5c6370">Configure o nome, nicho, quantidade de artigos e o modo de monetização do blog</div></div>' +
-      '<div><button class="btn btn-sm" id="btnSuggestBlog" onclick="suggestBlogIdea()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-weight:700;padding:6px 14px">🪄 Sugerir Ideia (Seu Hermes)</button></div>' +
+      '<div><button class="btn btn-sm" id="btnSuggestBlog" onclick="handleSuggestButton()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-weight:700;padding:6px 14px">🪄 Sugerir Ideia (Seu Hermes)</button></div>' +
     '</div>' +
     '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:24px;margin-top:16px;display:flex;flex-direction:column;gap:16px">' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px">' +
@@ -1576,18 +1591,30 @@ async function loadDashboard(){
           '<div>'+
             '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Upload do Logo (PNG, JPG ou SVG) — 512×512 px</label>'+
             '<input type="file" id="brand_logo_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'logo\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:6px;display:flex;gap:6px;align-items:center">'+
+              '<button onclick="generateBrandAsset(\''+c.id+'\',\'logo\')" id="btn_gen_logo_'+c.id+'" style="font-size:11px;padding:3px 8px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer;white-space:nowrap">🔄 Regenerar com IA</button>'+
+              '<span id="brand_logo_gen_status_'+c.id+'" style="font-size:11px;color:#8a91a5"></span>'+
+            '</div>'+
             '<div id="brand_logo_preview_'+c.id+'" style="margin-top:6px;display:none;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;padding:6px;text-align:center"></div>'+
             '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_logo_status_'+c.id+'">Nenhum logo customizado.</div>'+
           '</div>'+
           '<div>'+
             '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Upload do Favicon (PNG, ICO ou SVG) — 512×512 px</label>'+
             '<input type="file" id="brand_favicon_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'favicon\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:6px;display:flex;gap:6px;align-items:center">'+
+              '<button onclick="generateBrandAsset(\''+c.id+'\',\'favicon\')" id="btn_gen_favicon_'+c.id+'" style="font-size:11px;padding:3px 8px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer;white-space:nowrap">🔄 Regenerar com IA</button>'+
+              '<span id="brand_favicon_gen_status_'+c.id+'" style="font-size:11px;color:#8a91a5"></span>'+
+            '</div>'+
             '<div id="brand_favicon_preview_'+c.id+'" style="margin-top:6px;display:none;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;padding:6px;text-align:center"></div>'+
             '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_favicon_status_'+c.id+'">Nenhum favicon customizado.</div>'+
           '</div>'+
           '<div>'+
             '<label style="font-size:11px;color:#8a91a5;display:block;margin-bottom:4px">Imagem de Fundo do Site (Background) — 1920×1080 px</label>'+
             '<input type="file" id="brand_bg_file_'+c.id+'" accept="image/*" onchange="uploadBrandFile(\''+c.id+'\', \'bg\')" style="font-size:12px;color:#8a91a5;width:100%;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;padding:4px" />'+
+            '<div style="margin-top:6px;display:flex;gap:6px;align-items:center">'+
+              '<button onclick="generateBrandAsset(\''+c.id+'\',\'bg\')" id="btn_gen_bg_'+c.id+'" style="font-size:11px;padding:3px 8px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer;white-space:nowrap">🔄 Regenerar com IA</button>'+
+              '<span id="brand_bg_gen_status_'+c.id+'" style="font-size:11px;color:#8a91a5"></span>'+
+            '</div>'+
             '<div id="brand_bg_preview_'+c.id+'" style="margin-top:6px;display:none;background:#0d0e14;border:1px solid #1e2030;border-radius:8px;padding:6px;text-align:center"></div>'+
             '<div style="margin-top:4px;font-size:11px;color:#34d399" id="brand_bg_status_'+c.id+'">Nenhum fundo customizado.</div>'+
           '</div>'+
@@ -1603,19 +1630,27 @@ async function loadDashboard(){
           var postsWithPrompts = blogPosts.filter(function(p) { return p.image_prompt; });
           if (!postsWithPrompts.length) return '';
           return '<div style="margin-top:16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;">' +
-            '<h5 style="margin:0 0 10px 0;font-size:12px;color:#a5b4fc">🖼️ Prompts de Imagem dos Artigos — para usar no Midjourney / DALL-E / ChatGPT</h5>' +
-            '<p style="font-size:11px;color:#8a91a5;margin:0 0 10px 0">Copie o prompt, gere a imagem na IA de sua preferência e faça upload pelo botão 🖼️ no artigo.</p>' +
+            '<h5 style="margin:0 0 10px 0;font-size:12px;color:#a5b4fc">🖼️ Prompts de Imagem dos Artigos — Midjourney / DALL-E / ChatGPT</h5>' +
+            '<p style="font-size:11px;color:#8a91a5;margin:0 0 10px 0">Copie o prompt, gere na IA externa e faça upload — ou clique em 🔄 para gerar com nossa IA.</p>' +
             postsWithPrompts.map(function(p) {
-              return '<div style="margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:10px">' +
-                '<div style="font-size:11px;font-weight:700;color:#e8edf2;margin-bottom:4px">📄 ' + escapeHtml((p.title || '').substring(0, 60)) + '</div>' +
-                '<div style="display:flex;gap:6px;align-items:flex-start">' +
-                  '<textarea readonly onclick="this.select()" style="flex:1;height:52px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#34d399;font-size:11px;font-family:monospace;padding:6px;outline:none;resize:none;cursor:pointer" title="Clique para selecionar tudo">' + escapeHtml(p.image_prompt || '') + '</textarea>' +
-                  '<button class="btn btn-sm" onclick="navigator.clipboard.writeText(\'' + (p.image_prompt || '').replace(/'/g, "\\'") + '\');showToast(\'✓ Prompt copiado!\')" style="white-space:nowrap;background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-size:11px;padding:4px 8px">📋 Copiar</button>' +
+              var safeId = (p.id||'').replace(/'/g,"\\'");
+              var safeTitle = escapeHtml((p.title || '').substring(0, 55));
+              var safePrompt = (p.image_prompt || '').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+              return '<div style="margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:12px">' +
+                '<div style="font-size:11px;font-weight:700;color:#e8edf2;margin-bottom:6px">📄 ' + safeTitle + '</div>' +
+                '<div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap">' +
+                  '<textarea readonly onclick="this.select()" style="flex:1;min-width:180px;height:52px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#34d399;font-size:11px;font-family:monospace;padding:6px;outline:none;resize:none;cursor:pointer" title="Clique para selecionar tudo">' + escapeHtml(p.image_prompt || '') + '</textarea>' +
+                  '<div style="display:flex;flex-direction:column;gap:4px">' +
+                    '<button onclick="navigator.clipboard.writeText(\'' + safePrompt + '\');showToast(\'✓ Prompt copiado!\')" style="font-size:11px;padding:3px 8px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer;white-space:nowrap">📋 Copiar</button>' +
+                    '<button id="btn_regen_img_'+safeId+'" onclick="regeneratePostImage(\'' + safeId + '\',\'' + escapeHtml((p.title||'').replace(/'/g,"\\'")) + '\')" style="font-size:11px;padding:3px 8px;background:rgba(6,182,212,0.15);color:#22d3ee;border:1px solid rgba(6,182,212,0.3);border-radius:6px;cursor:pointer;white-space:nowrap">🔄 Regen IA</button>' +
+                    '<button onclick="uploadArticleImage(\'' + safeId + '\',this)" style="font-size:11px;padding:3px 8px;background:rgba(52,211,153,0.12);color:#34d399;border:1px solid rgba(52,211,153,0.25);border-radius:6px;cursor:pointer;white-space:nowrap">📤 Upload</button>' +
+                  '</div>' +
                 '</div>' +
               '</div>';
             }).join('') +
           '</div>';
         })()+
+
         '<div style="margin-top:12px;text-align:right;display:flex;justify-content:space-between;align-items:center">'+
           '<button class="btn btn-sm" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3)" onclick="clearBrandingCustomizations(\''+c.id+'\',\''+safeSlug+'\')">Limpar Customizações</button>'+
           '<button class="btn btn-sm btn-primary" onclick="saveBrandingSettings(\''+c.id+'\',\''+safeSlug+'\')">Salvar Customizações</button>'+
@@ -2566,6 +2601,84 @@ async function regeneratePostImage(postId,title){
     }
   }catch(e){showToast("Erro: "+e.message);}
 }
+
+// Gera logo, favicon ou fundo do blog via IA (Flux → SVG fallback)
+async function generateBrandAsset(channelId, type){
+  var typeLabels = {logo:"Logo", favicon:"Favicon", bg:"Fundo do Site"};
+  var label = typeLabels[type] || type;
+  var btn = document.getElementById("btn_gen_"+type+"_"+channelId);
+  var statusEl = document.getElementById("brand_"+type+"_gen_status_"+channelId);
+  if(btn){ btn.disabled=true; btn.textContent="⏳ Gerando..."; }
+  if(statusEl){ statusEl.textContent="Aguarde, gerando com IA..."; statusEl.style.color="#a5b4fc"; }
+  try{
+    var res = await api("/api/v1/blog/"+encodeURIComponent(channelId)+"/generate-brand-asset", {
+      method: "POST",
+      body: JSON.stringify({type: type})
+    });
+    if(res && res.success){
+      var imgUrl = res.image_url;
+      var previewEl = document.getElementById("brand_"+type+"_preview_"+channelId);
+      if(previewEl && imgUrl){
+        previewEl.style.display = "block";
+        if(type === "bg"){
+          previewEl.innerHTML = '<img src="'+imgUrl+'" style="max-width:100%;border-radius:6px;max-height:120px;object-fit:cover" />';
+        } else {
+          previewEl.innerHTML = '<img src="'+imgUrl+'" style="max-height:80px;border-radius:6px" />';
+        }
+      }
+      if(statusEl){ statusEl.textContent = "✅ Gerado via "+( res.provider||"IA")+"! Clique em Salvar para confirmar."; statusEl.style.color="#34d399"; }
+      // Guardar base64 no dataset do file input para poder salvar junto
+      var fileInput = document.getElementById("brand_"+type+"_file_"+channelId);
+      if(fileInput && imgUrl){ fileInput.dataset.base64 = imgUrl; fileInput.dataset.aiGenerated = "true"; }
+      showToast("✅ "+label+" gerado com IA! Clique em 'Salvar Customizações'.");
+    } else {
+      if(statusEl){ statusEl.textContent = "Falha: "+(res&&res.error||"erro desconhecido"); statusEl.style.color="#f87171"; }
+      showToast("Erro ao gerar "+label+": "+(res&&res.error||"erro"));
+    }
+  } catch(e){
+    if(statusEl){ statusEl.textContent = "Erro de rede."; statusEl.style.color="#f87171"; }
+    showToast("Erro: "+e.message);
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent="🔄 Regenerar com IA"; }
+  }
+}
+
+// Upload manual de imagem para um artigo específico
+function uploadArticleImage(postId, btnEl){
+  var input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = async function(){
+    var file = input.files[0];
+    if(!file) return;
+    if(file.size > 5*1024*1024){ showToast("⚠️ Imagem muito grande. Máximo: 5MB."); return; }
+    if(btnEl){ btnEl.disabled=true; btnEl.textContent="⏳ Enviando..."; }
+    showToast("📤 Enviando imagem...");
+    try{
+      var reader = new FileReader();
+      reader.onload = async function(e){
+        var dataUri = e.target.result;
+        var res = await api("/api/v1/blog/post/"+encodeURIComponent(postId)+"/upload-image", {
+          method: "POST",
+          body: JSON.stringify({image_data: dataUri, filename: file.name})
+        });
+        if(res && res.success){
+          showToast("✅ Imagem do artigo atualizada!");
+          loadBlogs();
+        } else {
+          showToast("Erro ao fazer upload: "+(res&&res.error||"falha desconhecida"));
+        }
+        if(btnEl){ btnEl.disabled=false; btnEl.textContent="📤 Upload"; }
+      };
+      reader.readAsDataURL(file);
+    } catch(e){
+      showToast("Erro: "+e.message);
+      if(btnEl){ btnEl.disabled=false; btnEl.textContent="📤 Upload"; }
+    }
+  };
+  input.click();
+}
+
 
 async function regenerateBatchReproved(){
   var limit=parseInt((document.getElementById("liliBatchLimit")||{}).value||"10");

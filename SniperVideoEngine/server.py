@@ -3564,6 +3564,93 @@ async def update_blog_modes(slug: str, payload: dict):
         db.close()
 
 
+@app.post("/api/v1/blog/{channel_id}/generate-brand-asset")
+async def generate_blog_brand_asset(channel_id: str, payload: dict):
+    """Gera Logo, Favicon ou Imagem de Fundo (Background) com IA (Flux) para o blog."""
+    from modules.database import SessionLocal, BlogChannel
+    from modules.image_factory import ImageGeneratorAgent
+    import json
+    
+    asset_type = payload.get("type")
+    if asset_type not in ("logo", "favicon", "bg"):
+        raise HTTPException(status_code=400, detail="Tipo de asset invalido. Escolha 'logo', 'favicon' ou 'bg'.")
+
+    db = SessionLocal()
+    try:
+        chan = db.query(BlogChannel).filter(BlogChannel.id == channel_id).first()
+        if not chan:
+            raise HTTPException(status_code=404, detail="Blog nao encontrado")
+
+        name = chan.name
+        niche = chan.nicho or "Geral"
+
+        # Carregar config de branding atual
+        brand_config = {}
+        if chan.brand_config:
+            try:
+                brand_config = json.loads(chan.brand_config)
+            except Exception:
+                brand_config = {}
+
+        agent = ImageGeneratorAgent()
+        
+        if asset_type == "logo":
+            prompt = f"premium modern logo for blog named '{name}' about {niche}, vector style, clean dark backdrop, vibrant design element, minimal and sophisticated, high resolution"
+            img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
+            if img and img.get("image_url"):
+                brand_config["logo_url"] = img["image_url"]
+                brand_config["logo_ai_prompt"] = img.get("expanded_prompt", prompt)
+                chan.brand_config = json.dumps(brand_config)
+                db.commit()
+                return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
+
+        elif asset_type == "favicon":
+            prompt = f"minimalist bold application icon for blog '{name}' about {niche}, square profile pic format, single striking symbol, no text, clean gradient background, high contrast"
+            img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
+            if img and img.get("image_url"):
+                brand_config["favicon_url"] = img["image_url"]
+                brand_config["favicon_ai_prompt"] = img.get("expanded_prompt", prompt)
+                chan.brand_config = json.dumps(brand_config)
+                db.commit()
+                return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
+
+        elif asset_type == "bg":
+            prompt = f"cinematic wide background theme for blog about {niche}, clean backdrop, atmospheric, smooth lighting, gradient textures, no text, perfect 16:9 ratio"
+            img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=1920, height=1080)
+            if img and img.get("image_url"):
+                chan.banner_url = img["image_url"] # salva tbm no banner_url do canal principal
+                brand_config["bg_image_url"] = img["image_url"]
+                brand_config["bg_ai_prompt"] = img.get("expanded_prompt", prompt)
+                chan.brand_config = json.dumps(brand_config)
+                db.commit()
+                return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
+
+        return {"success": False, "error": "Nao foi possivel gerar a imagem com IA"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/blog/post/{post_id}/upload-image")
+async def upload_blog_post_image(post_id: str, payload: dict):
+    """Upload manual de imagem (Base64) para um post de artigo específico."""
+    from modules.database import update_db_blog_post
+    image_data = payload.get("image_data")
+    if not image_data:
+        raise HTTPException(status_code=400, detail="image_data (Base64) é obrigatorio")
+
+    success = update_db_blog_post(
+        post_id,
+        featured_image_url=image_data,
+        image_provider="user_upload"
+    )
+    if success:
+        return {"success": True, "image_url": image_data}
+    raise HTTPException(status_code=404, detail="Artigo nao encontrado")
+
+
 @app.get("/api/v1/affiliate/clicks")
 async def get_affiliate_clicks_stats(channel_id: str = ""):
     """Retorna dados de estatisticas de cliques em links de afiliados."""
