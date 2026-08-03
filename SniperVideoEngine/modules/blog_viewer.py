@@ -281,9 +281,19 @@ body.mode-discover .featured-image{aspect-ratio:16/9;max-height:none}
 .empty-state p,.error-state p{font-size:14px}
 .blog-stats{font-size:12px;color:var(--text-light,#94a3b8);margin-top:8px}
 
-/* ─── ADMIN LINK ─── */
-.admin-link{position:fixed;bottom:20px;right:20px;width:40px;height:40px;background:var(--dark,#0f172a);border:1px solid rgba(255,255,255,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:16px;z-index:99;transition:all .15s ease}
-.admin-link:hover{background:var(--primary);color:#fff}
+/* ─── ADMIN LINK (REMOVIDO) ─── */
+.admin-link{display:none!important}
+
+/* ─── HERO SHADOW CONTRAST ─── */
+.hero-brand-col h1 {
+    text-shadow: 0 2px 14px rgba(0,0,0,0.85) !important;
+}
+.hero-brand-col p {
+    text-shadow: 0 1px 6px rgba(0,0,0,0.85) !important;
+}
+.hero-badge {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+}
 
 /* ─── TABLE OF CONTENTS (SUMÁRIO AEVO-STYLE) ─── */
 .table-of-contents{background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid var(--primary, #4f46e5);border-radius:10px;padding:18px 20px;margin:24px 0 32px;box-shadow:var(--shadow,0 4px 15px rgba(0,0,0,.04))}
@@ -553,8 +563,7 @@ def _get_footer_html(slug: str, blog_name: str, blog_niche: str = "", year: str 
   <div class="footer-bottom">
     <p>&copy; {year} {blog_name} &mdash; Todos os direitos reservados</p>
   </div>
-</footer>
-<a href="/" class="admin-link">&#9881; Admin</a>"""
+</footer>"""
 
 
 # ─── PAGE GENERATORS v2 ──────────────────────────────────────────────
@@ -568,8 +577,7 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
     theme_css = generate_theme_css(blog_info.get("nicho", ""), blog_name)
     theme_css, brand_config = _apply_brand_overrides(blog_info, theme_css)
     placeholder_icon = theme.get("placeholder_icon", "&#128214;")
-    subdomain = blog_info.get("subdomain", "")
-    subdomain_html = f'<a href="https://{subdomain}.dezafira.com.br" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(var(--primary-rgb),0.08);border:1px solid rgba(var(--primary-rgb),0.15);border-radius:20px;font-size:.8rem;color:var(--primary);text-decoration:none;font-weight:600">&#127760; {subdomain}.dezafira.com.br</a>' if subdomain else ""
+    subdomain_html = ""
 
     # Hero — artigo mais recente em destaque no formato Split-Screen
     hero_html = ""
@@ -591,7 +599,6 @@ def generate_blog_list(slug: str, blog_info: dict, posts: list) -> str:
           <span class="hero-badge">★ Artigo em Destaque</span>
           <h1>{blog_name}</h1>
           <p>Artigos, estudos e reflexões sobre {blog_niche.lower()}.</p>
-          {subdomain_html}
         </div>
         <div class="hero-featured-col">
           <a href="/blog/{slug}?post={esc(top["id"])}" class="hero-featured">
