@@ -206,13 +206,13 @@ class ImageGeneratorAgent:
 
     async def _gemini_imagen(self, prompt: str, width: int, height: int) -> Optional[dict]:
         """
-        Gera imagem via Google Imagen 3 (imagen-3.0-generate-002).
+        Gera imagem via Google Imagen 3 (imagen-3.0-generate-002) usando endpoint predict.
         Retorna a imagem como data URI base64.
         """
         try:
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"imagen-3.0-generate-002:generateImages"
+                f"imagen-3.0-generate-002:predict"
                 f"?key={GEMINI_API_KEY}"
             )
             # Escolhe o aspect ratio mais próximo
@@ -221,18 +221,20 @@ class ImageGeneratorAgent:
                 ratio = "1:1"
                 
             payload = {
-                "prompt": prompt[:500],
-                "numberOfImages": 1,
-                "outputMimeType": "image/jpeg",
-                "aspectRatio": ratio
+                "instances": [{"prompt": prompt[:500]}],
+                "parameters": {
+                    "sampleCount": 1,
+                    "outputMimeType": "image/jpeg",
+                    "aspectRatio": ratio
+                }
             }
             async with httpx.AsyncClient(timeout=90.0) as client:
                 r = await client.post(url, json=payload)
                 if r.status_code == 200:
                     data = r.json()
-                    images = data.get("generatedImages", [])
-                    if images and len(images) > 0:
-                        b64 = images[0].get("image", {}).get("imageBytes", "")
+                    predictions = data.get("predictions", [])
+                    if predictions and len(predictions) > 0:
+                        b64 = predictions[0].get("bytesBase64Encoded", "")
                         if b64:
                             data_uri = f"data:image/jpeg;base64,{b64}"
                             return {
