@@ -20,7 +20,8 @@ export default function FabricaBlogPage() {
       const token = api.getToken();
       const base = process.env.NEXT_PUBLIC_API_URL || "";
       const origin = base.replace(/\/api\/v1\/?$/, "");
-      setPanelUrl(`${origin}/?token=${encodeURIComponent(token || "")}#blogs`);
+      const hash = typeof window !== "undefined" && window.location.hash === "#marketing" ? "#marketing" : "#blogs";
+      setPanelUrl(`${origin}/?token=${encodeURIComponent(token || "")}${hash}`);
     }
   }, [user]);
 
