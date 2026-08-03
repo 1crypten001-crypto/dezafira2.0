@@ -44,22 +44,18 @@ RUN set -eux; \
     fi; \
     echo "[Dockerfile] Baixando Obscura de: $URL"; \
     curl -sL --retry 3 --retry-delay 2 --connect-timeout 10 -o /tmp/obscura.tar.gz "$URL" || \
-      (echo "ERRO: Falha ao baixar Obscura ${OBSCURA_VERSION}. Verifique a URL: $URL" >&2 && exit 1); \
-    # Valida que o arquivo baixado é um tar.gz válido (não uma página de erro 404)
-    if ! file /tmp/obscura.tar.gz | grep -qE "(gzip|tar)"; then \
-        echo "ERRO: Arquivo baixado não é um tar.gz válido (possível 404 ou redirect)" >&2; \
-        cat /tmp/obscura.tar.gz | head -c 200 >&2; \
-        exit 1; \
-    fi; \
+      (echo "ERRO: Falha ao baixar Obscura ${OBSCURA_VERSION}" >&2 && exit 1); \
+    # Valida com tar -tzf (list-only): falha se o arquivo for HTML/404 em vez de tar.gz
+    tar -tzf /tmp/obscura.tar.gz > /dev/null || \
+      (echo "ERRO: Arquivo baixado nao e um tar.gz valido (possivel 404 ou redirect)" >&2 && exit 1); \
     mkdir -p /opt/obscura; \
     tar xzf /tmp/obscura.tar.gz -C /opt/obscura; \
     find /opt/obscura -type f -exec chmod +x {} \;; \
     rm -f /tmp/obscura.tar.gz; \
-    # Confirma que o binário existe e é executável
     BIN=$(find /opt/obscura -type f -executable | head -1); \
-    test -n "$BIN" || (echo "ERRO: Binário do Obscura não encontrado após extração" >&2 && exit 1); \
+    test -n "$BIN" || (echo "ERRO: Binario do Obscura nao encontrado apos extracao" >&2 && exit 1); \
     echo "[Dockerfile] Obscura instalado em: $BIN"; \
-    "$BIN" --version 2>&1 || echo "[Dockerfile] --version não suportado (ok)"
+    "$BIN" --version 2>&1 || echo "[Dockerfile] --version nao suportado (ok)"
 
 # Entrypoint na mesma pasta do Dockerfile (contexto de build = esta pasta)
 COPY entrypoint.sh /usr/local/bin/obscura_entrypoint.sh
