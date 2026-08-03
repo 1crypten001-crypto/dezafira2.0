@@ -141,20 +141,23 @@ class ObscuraBridge:
         """
         try:
             import urllib.request
+            # Chrome 136+ recusa Host com hostname (anti DNS-rebinding)
+            ip = await asyncio.to_thread(_resolve_ip, self.host)
             with urllib.request.urlopen(
-                f"http://{self.host}:{self.port}/json/version", timeout=3
+                f"http://{ip}:{self.port}/json/version", timeout=3
             ) as r:
                 info = json.loads(r.read().decode("utf-8", "ignore"))
                 ws = info.get("webSocketDebuggerUrl")
                 if ws:
                     # O Chrome real anuncia ws://127.0.0.1:9223/... mesmo quando o
                     # serviço está remoto (Railway) — reescreve o host para o
-                    # self.host real, senão o backend conectar-se-ia a si mesmo.
+                    # IP real (Host header valido pro Chrome), senão o backend
+                    # conectar-se-ia a si mesmo ou seria recusado por hostname.
                     from urllib.parse import urlsplit, urlunsplit
                     parts = urlsplit(str(ws))
                     if parts.hostname and parts.hostname not in ("127.0.0.1", "localhost", "::1"):
                         return str(ws)
-                    rewritten = urlunsplit((parts.scheme, f"{self.host}:{self.port}",
+                    rewritten = urlunsplit((parts.scheme, f"{ip}:{self.port}",
                                             parts.path, parts.query, parts.fragment))
                     return rewritten
         except Exception:
@@ -831,6 +834,26 @@ def _err_detail(e: Exception, host: str, port: int) -> str:
     return f"{msg} @ {host}:{port}"
 
 
+def _resolve_ip(host: str) -> str:
+    """Resolve hostname -> IPv4. O Chrome 136+ tem proteção anti DNS-rebinding:
+    o servidor DevTools recusa requisições com header Host que não seja IP ou
+    localhost (erro "Host header is specified and is not an IP address or
+    localhost"). Por isso sondamos e conectamos VIA IP, não via hostname.
+
+    Preferimos IPv4 porque o socat do serviço Chrome binda em 0.0.0.0 (o
+    tráfego IPv6 da rede privada do Railway não chegaria nele). Se a resolução
+    falhar, devolve o host original (o erro seguinte fica visível no healthz).
+    """
+    import socket as _socket
+    try:
+        infos = _socket.getaddrinfo(host, None, _socket.AF_INET)
+        if infos:
+            return infos[0][4][0]
+    except Exception:
+        pass
+    return host
+
+
 async def get_obscura_status(host: str = None, port: int = None) -> dict:
     """Verifica se o Obscura está rodando e retorna status detalhado.
     Retorna {online, ws_url, targets, host, port, error} — host/port são os
@@ -886,9 +909,13 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
     import urllib.error as _urlerr
     host = host or OBSCURA_CHROME_HOST
     port = port or OBSCURA_CHROME_PORT
+    # Chrome 136+ recusa Host com hostname (anti DNS-rebinding). getaddrinfo e
+    # bloqueante e sem timeout — roda em thread pra nao travar o event loop
+    # (o wait_for(5s) da sonda nao consegue interromper chamada bloqueante).
+    ip = await asyncio.to_thread(_resolve_ip, host)
     ws_url = f"ws://{host}:{port}/devtools/browser"
     try:
-        with _urllib.urlopen(f"http://{host}:{port}/json/version", timeout=3) as r:
+        with _urllib.urlopen(f"http://{ip}:{port}/json/version", timeout=3) as r:
             info = json.loads(r.read().decode("utf-8", "ignore"))
         online = bool(info.get("webSocketDebuggerUrl"))
         targets = 1 if online else 0
@@ -1013,8 +1040,10 @@ async def _pick_bridge_host_port() -> tuple:
     for host, port in candidates:
         try:
             import urllib.request
+            # Chrome 136+ recusa Host com hostname (anti DNS-rebinding)
+            ip = await asyncio.to_thread(_resolve_ip, host)
             with urllib.request.urlopen(
-                f"http://{host}:{port}/json/version", timeout=2
+                f"http://{ip}:{port}/json/version", timeout=2
             ) as r:
                 info = json.loads(r.read().decode("utf-8", "ignore"))
                 if info.get("webSocketDebuggerUrl"):
