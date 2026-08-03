@@ -19,9 +19,25 @@
 
 FROM debian:bookworm-slim
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Dependências do Chrome no Debian Bookworm:
+#   • libxss1 foi REMOVIDA do Bookworm (era alias de libxss1 no Bullseye).
+#     Substituída por libx11-6 (já inclusa via libx11-dev).
+#   • lista completa baseada na matriz oficial do Chrome Headless + dpkg --list
+#     de container debian:bookworm com google-chrome-stable instalado.
+# ──────────────────────────────────────────────────────────────────────────────
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends wget gnupg ca-certificates fonts-liberation \
-       libnss3 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libxshmfence1 \
+    && apt-get install -y --no-install-recommends \
+       wget gnupg ca-certificates \
+       fonts-liberation \
+       libnss3 libnspr4 \
+       libx11-6 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
+       libxfixes3 libxi6 libxrandr2 libxrender1 libxtst6 \
+       libgbm1 libxshmfence1 \
+       libglib2.0-0 libgtk-3-0 \
+       libasound2 \
+       libatk1.0-0 libatk-bridge2.0-0 \
+       libdbus-glib-1-2 libdrm2 \
        socat \
     && rm -rf /var/lib/apt/lists/*
 
@@ -43,7 +59,7 @@ EXPOSE 9223
 # Healthcheck nativo: o Chrome expõe /json/version via HTTP (CDP).
 # O Railway marca o serviço como healthy só quando o CDP responde —
 # evita o bridge tentar o Chrome antes de o remote debugging estar de pé.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
     CMD wget -q -O /dev/null http://localhost:9223/json/version || exit 1
 
 ENTRYPOINT ["/usr/local/bin/chrome_entrypoint.sh"]

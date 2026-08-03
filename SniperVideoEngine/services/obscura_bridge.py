@@ -89,8 +89,12 @@ def _next_fallback_engine() -> str:
     return engine
 
 # Cache: porta do motor já resolvida (evita sondar /json/version a cada SERP)
+# TTL de 60s: re-sonda periodicamente para detectar o Chrome quando ele subir
+# depois do backend (comum no Railway). Sem TTL, o cache ficaria preso no Obscura
+# para sempre se o Chrome não estivesse de pé no primeiro boot do backend.
 _PICKED_PORT = {"value": None}
-_PICKED_HOST_PORT = {"value": None}  # (host, porta) do motor escolhido
+_PICKED_HOST_PORT = {"value": None, "ts": 0.0}  # (host, porta) do motor escolhido
+_PICKED_HOST_PORT_TTL = float(os.getenv("OBSCURA_PICK_TTL", "60"))  # segundos
 
 
 class ObscuraNotAvailableError(Exception):
@@ -1029,10 +1033,17 @@ async def _pick_bridge_host_port() -> tuple:
     OBSCURA_PORT). O Chrome pode estar em host separado (Railway: serviço
     chrome.railway.internal); o Obscura segue no OBSCURA_HOST.
 
-    Cache global: só re-sonda se o motor escolhido parar de responder.
+    Cache com TTL (_PICKED_HOST_PORT_TTL, default 60s): re-sonda periodicamente
+    para detectar o Chrome quando ele subir depois do backend (startup race
+    condition comum no Railway). Sem TTL, o cache ficaria preso no Obscura
+    para sempre se o Chrome não estivesse de pé no primeiro boot.
     """
-    if _PICKED_HOST_PORT["value"] is not None:
-        return _PICKED_HOST_PORT["value"]
+    import time as _time
+    now = _time.time()
+    cached = _PICKED_HOST_PORT["value"]
+    if cached is not None and (now - _PICKED_HOST_PORT["ts"]) < _PICKED_HOST_PORT_TTL:
+        return cached
+
     candidates = [
         (OBSCURA_CHROME_HOST, OBSCURA_CHROME_PORT),  # Chrome real primeiro
         (OBSCURA_HOST, OBSCURA_PORT),                # Obscura como fallback
@@ -1048,10 +1059,18 @@ async def _pick_bridge_host_port() -> tuple:
                 info = json.loads(r.read().decode("utf-8", "ignore"))
                 if info.get("webSocketDebuggerUrl"):
                     _PICKED_HOST_PORT["value"] = (host, port)
+                    _PICKED_HOST_PORT["ts"] = _time.time()
+                    chosen = "Chrome" if port == OBSCURA_CHROME_PORT else "Obscura"
+                    logger.info(f"[Obscura] Motor escolhido: {chosen} ({host}:{port})")
                     return host, port
         except Exception:
             continue
+
+    # Nenhum motor respondeu — usa Obscura como último recurso e
+    # invalida o cache (ts=0) para re-sondar mais cedo na próxima chamada.
+    logger.warning("[Obscura] Nenhum motor disponível — fallback Obscura (cache invalidado)")
     _PICKED_HOST_PORT["value"] = (OBSCURA_HOST, OBSCURA_PORT)
+    _PICKED_HOST_PORT["ts"] = _time.time() - (_PICKED_HOST_PORT_TTL * 0.75)  # re-sonda em 15s
     return OBSCURA_HOST, OBSCURA_PORT
 
 
@@ -1062,6 +1081,10 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
 
     Esta é a função principal usada pelo KeywordMiner (PAA + dificuldade SERP).
     Prefere o Chrome real (desbloqueia o Google); senão o Obscura (Bing).
+
+    Quando a conexão falha (motor caiu depois do boot), invalida o cache de
+    motor escolhido para que _pick_bridge_host_port() re-sonda na próxima
+    chamada e potencialmente mude para o outro motor.
     """
     from services.obscura_service import obscura_telemetry
     import time as _t
@@ -1084,13 +1107,21 @@ async def get_serp_with_fallback(keyword: str, lang: str = "pt") -> dict:
             error = "" if ok else "serp vazio"
         else:
             error = "nao conectado"
+            # Motor não conectou → invalida o cache para re-sondar na próxima rodada.
+            # Permite auto-cura: se o Chrome caiu e o Obscura está de pé (ou vice-versa),
+            # a próxima chamada descobre o motor alternativo sem precisar reiniciar o backend.
+            logger.warning(f"[Obscura] Motor {host}:{port} não conectou — invalidando cache de motor")
+            _PICKED_HOST_PORT["value"] = None
     except Exception as e:
         logger.warning(f"[Obscura] Fallback acionado: {e}")
         error = str(e)[:200]
+        # Falha de conexão → invalida cache para auto-cura
+        _PICKED_HOST_PORT["value"] = None
         try:
             await bridge.disconnect()
         except Exception:
             pass
+
 
     if not ok:
         data = {
