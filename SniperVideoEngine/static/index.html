@@ -719,7 +719,7 @@ function navigate(p,skipHash){
   var n=document.querySelector('.nav-item[data-page="'+p+'"]');if(n)n.classList.add("active");
   $("pageTitle").textContent=pageTitles[p]||p;
 
-  var isFactory = (p==="blogs" || p==="books" || p==="courses");
+  var isFactory = (p==="blogs" || p==="books" || p==="courses" || p==="marketing");
   if(isFactory){
     document.body.classList.add("hide-sidebar");
     var bk=$("btnBackToDashboard");if(bk)bk.style.display="inline-flex";
@@ -732,6 +732,7 @@ function navigate(p,skipHash){
   else if(p==="blogs"){loadBlogs(); renderPipeline(); loadHistory();}
   else if(p==="books")loadBooks();
   else if(p==="courses")loadCourses();
+  else if(p==="marketing")loadMarketing();
   else if(p==="images")loadImages();
   else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
