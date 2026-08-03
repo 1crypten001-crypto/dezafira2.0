@@ -3598,7 +3598,7 @@ async def generate_blog_brand_asset(channel_id: str, payload: dict):
             prompt = f"premium modern logo for blog named '{name}' about {niche}, vector style, clean dark backdrop, vibrant design element, minimal and sophisticated, high resolution"
             img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
             if img and img.get("image_url"):
-                brand_config["logo_url"] = img["image_url"]
+                brand_config["custom_logo"] = img["image_url"]
                 brand_config["logo_ai_prompt"] = img.get("expanded_prompt", prompt)
                 chan.brand_config = json.dumps(brand_config)
                 db.commit()
@@ -3608,7 +3608,7 @@ async def generate_blog_brand_asset(channel_id: str, payload: dict):
             prompt = f"minimalist bold application icon for blog '{name}' about {niche}, square profile pic format, single striking symbol, no text, clean gradient background, high contrast"
             img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=512, height=512)
             if img and img.get("image_url"):
-                brand_config["favicon_url"] = img["image_url"]
+                brand_config["custom_favicon"] = img["image_url"]
                 brand_config["favicon_ai_prompt"] = img.get("expanded_prompt", prompt)
                 chan.brand_config = json.dumps(brand_config)
                 db.commit()
@@ -3619,7 +3619,7 @@ async def generate_blog_brand_asset(channel_id: str, payload: dict):
             img = await agent.generate_image_for_post(prompt_idea=prompt, niche=niche, width=1920, height=1080)
             if img and img.get("image_url"):
                 chan.banner_url = img["image_url"] # salva tbm no banner_url do canal principal
-                brand_config["bg_image_url"] = img["image_url"]
+                brand_config["custom_bg"] = img["image_url"]
                 brand_config["bg_ai_prompt"] = img.get("expanded_prompt", prompt)
                 chan.brand_config = json.dumps(brand_config)
                 db.commit()
