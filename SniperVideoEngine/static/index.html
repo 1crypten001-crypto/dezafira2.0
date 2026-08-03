@@ -464,6 +464,7 @@
       </div>
 
       <!-- Cards Contínuos dos Blogs (Parte Inferior) -->
+      <div id="newBlogContainer"></div>
       <div id="blogPanels"></div>
     </div>
 
@@ -1382,7 +1383,7 @@ async function loadDashboard(){
   $("blogStats").innerHTML=stats;
 
   // Build panels (Criar Novo Blog sempre fixado no topo)
-  var panelsHtml = '<div class="blog-panel" id="panel_new">' +
+  var newBlogHtml = '<div class="blog-panel" id="panel_new">' +
     '<div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
       '<div><h3>🏗️ Criar Novo Blog do Zero</h3><div style="font-size:12px;color:#5c6370">Configure o nome, nicho, quantidade de artigos e o modo de monetização do blog</div></div>' +
       '<div><button class="btn btn-sm" id="btnSuggestBlog" onclick="suggestBlogIdea()" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);font-weight:700;padding:6px 14px">🪄 Sugerir Ideia (Seu Hermes)</button></div>' +
@@ -1441,6 +1442,11 @@ async function loadDashboard(){
     '</div>' +
   '</div>';
 
+  if (!document.getElementById("panel_new") && $("newBlogContainer")) {
+    $("newBlogContainer").innerHTML = newBlogHtml;
+  }
+
+  var panelsHtml = '';
   panelsHtml += chs.map(function(c,i){
     var blogName = c.name || "Sem Nome";
     var blogPosts=(c.recent_posts && c.recent_posts.length)?c.recent_posts:posts.filter(function(p){return p.channel_id===c.id});
