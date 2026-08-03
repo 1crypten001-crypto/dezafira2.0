@@ -900,6 +900,24 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
             "port": port,
             "error": "",
         }
+    except _urllib.error.HTTPError as e:
+        # HTTP 500 do Chrome (ex.: CDP em estado ruim) — captura o corpo da
+        # resposta pra ver o que o Chrome devolveu de verdade, em vez de só
+        # "HTTP Error 500".
+        try:
+            body = e.read().decode("utf-8", "ignore").strip()[:120] or ""
+        except Exception:
+            body = ""
+        suffix = f" | body: {body}" if body else ""
+        return {
+            "online": False,
+            "ws_url": ws_url,
+            "targets": 0,
+            "browser": "",
+            "host": host,
+            "port": port,
+            "error": _err_detail(e, host, port) + suffix,
+        }
     except Exception as e:
         return {
             "online": False,
