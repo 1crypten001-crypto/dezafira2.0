@@ -111,9 +111,11 @@ async def healthz():
     # sondado via /json/version (o mesmo endpoint que o _pick usa).
     async def _probe_obscura():
         try:
-            o = await asyncio.wait_for(get_obscura_status(), timeout=5)
+            # O Obscura e sondado via WebSocket + CDP (mais pesado que o HTTP
+            # do Chrome) — budget maior pra nao cortar a sonda no meio.
+            o = await asyncio.wait_for(get_obscura_status(), timeout=12)
         except asyncio.TimeoutError:
-            o = {"online": False, "error": "TimeoutError: sonda pendurou > 5s"}
+            o = {"online": False, "error": "TimeoutError: sonda pendurou > 12s"}
         except Exception as e:
             o = {"online": False, "error": f"{type(e).__name__}: {e}"[:200]}
         # Shape consistente com o get_obscura_status (o painel le esses campos)
@@ -156,7 +158,10 @@ async def healthz():
         _probe_picked(),
     )
 
-    online = bool(ping.get("online"))
+    # O bridge usa o motor escolhido (_pick_bridge_host_port: Chrome primeiro,
+    # Obscura fallback). Healthz ok se QUALQUER motor estiver online — se o
+    # Chrome responde, as SERPs/PAA funcionam mesmo com o Obscura lento.
+    online = bool(ping.get("online")) or bool(chrome.get("online"))
     now = _t.time()
     if online:
         _HEALTH_STATE["down_since"] = None
