@@ -3132,7 +3132,7 @@ async function startMarketingCampaign() {
 
 async function runMarketingStage(stage, idx) {
   var agent = MARKETING_STAGES.find(function(s){ return s.id === stage; });
-  if (!agent) return;
+  if (!agent) return false;
 
   showToast("⏳ Agente " + agent.agent + " está analisando o funil...");
   
@@ -3160,22 +3160,28 @@ async function runMarketingStage(stage, idx) {
       
       viewMarketingStageContent(stage);
 
-      // Avança para o próximo ou completa tudo
+      // Avança para o próximo automaticamente de forma sequencial com sutil delay de interface
       if (idx + 1 < MARKETING_STAGES.length) {
         renderMarketingStages(idx + 1, stageStatuses);
+        setTimeout(function() {
+          runMarketingStage(MARKETING_STAGES[idx + 1].id, idx + 1);
+        }, 1200);
       } else {
         renderMarketingStages(MARKETING_STAGES.length, stageStatuses);
         showToast("🎉 Funil Completo gerado com sucesso!");
       }
+      return true;
     } else {
       stageStatuses[stage] = "failed";
       renderMarketingStages(idx, stageStatuses);
       showToast("❌ Erro na fase do agente: " + (res.error || "falha de geração"));
+      return false;
     }
   } catch(e) {
     stageStatuses[stage] = "failed";
     renderMarketingStages(idx, stageStatuses);
     showToast("Erro de rede: " + e.message);
+    return false;
   }
 }
 
