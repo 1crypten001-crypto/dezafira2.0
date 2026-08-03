@@ -1116,18 +1116,25 @@ class BlogMacroPipeline:
                                 keywords=article_result.get("keywords", ""),
                                 topic=article_result.get("topic", ""),
                                 is_discover=getattr(self.state, "is_discover", False),
+                                niche=self.state.niche,
                             )
-                            if img.get("image_url"):
-                                update_db_blog_post(post_id, featured_image_url=img["image_url"])
-                                print(f"[Pipeline] Imagem gerada para artigo {post_id[:12]}... ({img.get('provider')})")
+                            # Salva image_url SEMPRE (mesmo placeholder) — nunca bloqueia
+                            img_url = img.get("image_url", "")
+                            img_prompt = img.get("expanded_prompt", "")
+                            update_db_blog_post(
+                                post_id,
+                                featured_image_url=img_url,
+                                image_provider=img.get("provider", "placeholder"),
+                                image_prompt=img_prompt,
+                            )
+                            provider = img.get('provider', 'placeholder')
+                            if provider == "placeholder":
+                                print(f"[Pipeline] ⚠️ Artigo {post_id[:12]}... recebeu SVG placeholder. "
+                                      f"Prompt salvo para geração manual: {img_prompt[:80]}...")
                             else:
-                                print(f"[Pipeline] BLOQUEADO: Artigo {post_id[:12]}... sem imagem. Artigo nao contado.")
-                                article_result["success"] = False
-                                continue
+                                print(f"[Pipeline] Imagem gerada para artigo {post_id[:12]}... ({provider})")
                         except Exception as e_img:
-                            print(f"[Pipeline] BLOQUEADO: Falha ao gerar imagem: {e_img}. Artigo nao contado.")
-                            article_result["success"] = False
-                            continue
+                            print(f"[Pipeline] Aviso ao gerar imagem: {e_img}. Artigo salvo sem imagem.")
 
                     # ─── LILI: Revisar artigo recém-gerado (BLOQUEANTE) ────
                     if post_id:

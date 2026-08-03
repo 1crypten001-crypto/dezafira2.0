@@ -221,6 +221,7 @@ class BlogPost(Base):
     lili_score = Column(Integer, nullable=True)
     lili_approved = Column(Boolean, nullable=True)
     lili_reviewed_at = Column(DateTime, nullable=True)
+    image_prompt = Column(Text, nullable=True)  # Prompt elaborado para geração de imagem manual
 
 
 class AffiliateClick(Base):
@@ -781,6 +782,7 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_score INTEGER;", "blog_posts.lili_score")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_approved BOOLEAN;", "blog_posts.lili_approved")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_reviewed_at TIMESTAMP;", "blog_posts.lili_reviewed_at")
+        _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS image_prompt TEXT;", "blog_posts.image_prompt")
 
         # Migrações do Modo Afiliado no blog_channels
         _migrate_add_column(conn, "ALTER TABLE blog_channels ADD COLUMN IF NOT EXISTS is_affiliate BOOLEAN DEFAULT FALSE;", "blog_channels.is_affiliate")
@@ -1340,6 +1342,7 @@ def get_db_blog_posts(channel_id: str = None, limit: int = 50) -> list:
                 "author": getattr(p, "author", "Equipe Dezafira"),
                 "lili_score": getattr(p, "lili_score", None),
                 "lili_approved": getattr(p, "lili_approved", None),
+                "image_prompt": getattr(p, "image_prompt", None),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             } for p in posts
@@ -1372,6 +1375,7 @@ def get_db_blog_post(post_id: str) -> dict:
                 "author": getattr(p, "author", "Equipe Dezafira"),
                 "lili_score": getattr(p, "lili_score", None),
                 "lili_approved": getattr(p, "lili_approved", None),
+                "image_prompt": getattr(p, "image_prompt", None),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
                 "published_at": p.published_at.isoformat() if p.published_at else None,
             }

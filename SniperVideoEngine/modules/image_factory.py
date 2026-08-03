@@ -115,9 +115,10 @@ class ImageGeneratorAgent:
     ) -> dict:
         """
         Gera imagem para um post, com cascata completa de provedores.
+        NUNCA bloqueia a pipeline — sempre retorna ao menos o SVG placeholder.
 
         Returns:
-            dict com image_url, provider, alt_text, credit
+            dict com image_url, provider, alt_text, credit, expanded_prompt
         """
         print(f"[ImageFactory] Expandindo prompt para: '{prompt_idea}' (Nicho: {niche})")
         expanded_prompt = await self._expand_prompt_with_llm(prompt_idea, niche)
@@ -128,6 +129,7 @@ class ImageGeneratorAgent:
             result = await self._gemini_imagen(expanded_prompt, width, height)
             if result:
                 self.last_provider = "gemini"
+                result["expanded_prompt"] = expanded_prompt
                 return result
 
         # === 2. OpenRouter Flux (Pago / Estável) ===
@@ -135,12 +137,14 @@ class ImageGeneratorAgent:
             result = await self._openrouter_flux(expanded_prompt, width, height)
             if result:
                 self.last_provider = "openrouter"
+                result["expanded_prompt"] = expanded_prompt
                 return result
 
-        # === 3. FLUX via Pollinations.ai (IA gratuita) ===
+        # === 3. FLUX via Pollinations.ai (IA gratuita, com retry) ===
         result = await self._flux_pollinations(expanded_prompt, width, height)
         if result:
             self.last_provider = "flux"
+            result["expanded_prompt"] = expanded_prompt
             return result
 
         # === 4. Pexels (busca de fotos) ===
@@ -148,28 +152,34 @@ class ImageGeneratorAgent:
             result = await self._search_pexels(search_query, width, height)
             if result:
                 self.last_provider = "pexels"
+                result["expanded_prompt"] = expanded_prompt
                 return result
 
         # === 5. Unsplash (busca de fotos) ===
         result = await self._search_unsplash(search_query, width, height)
         if result:
             self.last_provider = "unsplash"
+            result["expanded_prompt"] = expanded_prompt
             return result
 
-        # === 6. SVG Placeholder (NUNCA falha) ===
+        # === 6. SVG Placeholder (NUNCA falha — prompt fica salvo para uso manual) ===
+        # O expanded_prompt é salvo no post para que o usuário possa gerar a imagem
+        # manualmente via Midjourney, DALL-E ou ChatGPT e fazer upload no Branding.
         self.last_provider = "placeholder"
+        print(f"[ImageFactory] ⚠️ Todos provedores falharam. Usando SVG placeholder. Prompt salvo para uso manual.")
         return {
             "image_url": self._generate_svg_placeholder(prompt_idea, width, height),
             "alt_text": prompt_idea,
             "provider": "placeholder",
-            "credit": "Dezafira",
+            "credit": "Dezafira (imagem pendente de criação manual)",
+            "expanded_prompt": expanded_prompt,  # Salvo para exibir no Branding
         }
 
     # ── método legado para compatibilidade ──────────────────────────────────
     async def generate(self, prompt: str, style: str = "blog", width: int = 1200, height: int = 630) -> dict:
         return await self.generate_image_for_post(prompt_idea=prompt, width=width, height=height)
 
-    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "", is_discover: bool = False) -> dict:
+    async def generate_for_article(self, title: str, keywords: str = "", topic: str = "", is_discover: bool = False, niche: str = "") -> dict:
         combined = title
         if keywords:
             combined += " - Keywords: " + " ".join(keywords.split(",")[:3])
@@ -177,7 +187,7 @@ class ImageGeneratorAgent:
         width = 1200
         height = 675 if is_discover else 630
         
-        niche_info = "Google Discover Viral" if is_discover else "Blog Post"
+        niche_info = niche or ("Google Discover Viral" if is_discover else "Blog Post")
         return await self.generate_image_for_post(prompt_idea=combined, niche=niche_info, width=width, height=height)
 
     # ── PROVEDOR 1: FLUX via Pollinations.ai ────────────────────────────────
@@ -185,30 +195,34 @@ class ImageGeneratorAgent:
     async def _flux_pollinations(self, prompt: str, width: int, height: int) -> Optional[dict]:
         """
         Gera imagem via FLUX no Pollinations.ai (gratuito, sem chave).
-        Endpoint: https://image.pollinations.ai/prompt/{encoded_prompt}?width=W&height=H&model=flux
+        Tem 3 tentativas com timeout de 30s cada para não travar o Railway.
         """
-        try:
-            import urllib.parse
-            clean_prompt = re.sub(r"[^\w\s,.-]", "", prompt)[:500]
-            encoded = urllib.parse.quote(clean_prompt)
-            # Usa um seed aleatório para variar a imagem gerada
-            seed = random.randint(1, 999999)
-            url = (
-                f"https://image.pollinations.ai/prompt/{encoded}"
-                f"?width={width}&height={height}&model=flux&seed={seed}&nologo=true"
-            )
-            async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-                r = await client.get(url)
-                if r.status_code == 200 and "image" in r.headers.get("content-type", ""):
-                    return {
-                        "image_url": str(r.url),
-                        "alt_text": clean_prompt[:150],
-                        "provider": "flux",
-                        "credit": "Gerada por FLUX (Pollinations.ai)",
-                    }
-                print(f"[ImageFactory/Flux] HTTP {r.status_code}")
-        except Exception as e:
-            print(f"[ImageFactory/Flux] Erro: {e}")
+        import urllib.parse
+        clean_prompt = re.sub(r"[^\w\s,.-]", "", prompt)[:500]
+        encoded = urllib.parse.quote(clean_prompt)
+        
+        for attempt in range(3):
+            try:
+                seed = random.randint(1, 999999)
+                url = (
+                    f"https://image.pollinations.ai/prompt/{encoded}"
+                    f"?width={width}&height={height}&model=flux&seed={seed}&nologo=true"
+                )
+                async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                    r = await client.get(url)
+                    if r.status_code == 200 and "image" in r.headers.get("content-type", ""):
+                        print(f"[ImageFactory/Flux] ✅ Imagem gerada na tentativa {attempt+1}")
+                        return {
+                            "image_url": str(r.url),
+                            "alt_text": clean_prompt[:150],
+                            "provider": "flux",
+                            "credit": "Gerada por FLUX (Pollinations.ai)",
+                        }
+                    print(f"[ImageFactory/Flux] Tentativa {attempt+1}: HTTP {r.status_code}")
+            except Exception as e:
+                print(f"[ImageFactory/Flux] Tentativa {attempt+1} erro: {e}")
+            if attempt < 2:
+                await asyncio.sleep(2)  # Espera 2s entre tentativas
         return None
 
     # ── PROVEDOR 2: Gemini Imagen ────────────────────────────────────────────
