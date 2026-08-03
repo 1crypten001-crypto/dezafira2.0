@@ -5311,6 +5311,7 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
             "content_format": data.get("content_format", ""),
             "colors": data.get("colors", []) or [],
             "monetization_mode": data.get("monetization_mode", ""),
+            "searched_terms": google_terms or []
         }
     except Exception as e:
         print(f"[Seu Hermes] Erro ao gerar sugestão de blog: {e}")

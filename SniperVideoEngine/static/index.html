@@ -1057,9 +1057,15 @@ async function suggestBlogIdea(){
   var btn = $("btnSuggestBlog");
   var isAffiliate = $("macroMonetizationMode").value === "affiliate";
   var isDiscover = $("macroDiscoverStrategy") ? $("macroDiscoverStrategy").checked : false;
+  var loadingInterval = null;
   if(btn){
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;margin-right:6px"></span> Pensando...';
+    btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;margin-right:6px"></span> 🕵️ Obscura Minerando Google...';
+    loadingInterval = setTimeout(function(){
+      if(btn && btn.disabled) {
+        btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;margin-right:6px"></span> 🧠 Seu Hermes montando Blueprint...';
+      }
+    }, 2500);
   }
   try {
     var res = await api("/api/v1/pipeline/suggest-blog-idea", {
@@ -1083,6 +1089,7 @@ async function suggestBlogIdea(){
   } catch(e) {
     showToast("Erro de rede ao sugerir ideia.");
   } finally {
+    if(loadingInterval) clearTimeout(loadingInterval);
     if(btn){
       btn.disabled = false;
       btn.innerHTML = "🪄 Sugerir Ideia (Seu Hermes)";
@@ -1105,12 +1112,23 @@ function renderMacroBlueprint(res){
   if(!res)return;
   var topics = Array.isArray(res.topics) ? res.topics : [];
   var colors = Array.isArray(res.colors) ? res.colors : [];
+  var searched = Array.isArray(res.searched_terms) ? res.searched_terms : [];
+  
   var colorsHtml='';
   if(colors.length){
     colorsHtml = colors.map(function(col){
       return '<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:'+col+';border:1px solid rgba(255,255,255,0.3);vertical-align:middle;margin-right:4px" title="'+col+'"></span>';
     }).join('');
   }
+  
+  var searchedTermsHtml = '';
+  if(searched.length){
+    searchedTermsHtml = '<div style="margin-top:8px;padding:8px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:8px;font-size:11px;color:#a5f3fc;line-height:1.4">'+
+      '🕵️ <b style="color:#22d3ee">Obscura Engine:</b> Sugestões baseadas nas buscas reais em alta no Google: '+
+      '<span style="font-weight:600;color:#e2e8f0">'+searched.slice(0,5).map(escapeHtml).join(' &bull; ')+'</span>'+
+    '</div>';
+  }
+
   var topicsHtml='';
   if(topics.length){
     topicsHtml = '<div style="margin-top:10px;font-size:12px;color:#8a91a5">📚 <b style="color:#e8edf2">Primeiros artigos sugeridos:</b></div>'+
@@ -1123,7 +1141,8 @@ function renderMacroBlueprint(res){
   var monoHtml=res.monetization_mode?'<div style="font-size:12px;color:#8a91a5;margin-top:6px">💎 Monetização: <b style="color:#e8edf2">'+(monoMap[res.monetization_mode]||res.monetization_mode)+'</b></div>':'';
   bp.style.display='block';
   bp.innerHTML='<div style="font-size:13px;font-weight:700;color:#a5b4fc;margin-bottom:8px">🧠 Blueprint do Seu Hermes</div>'+
-    '<div style="font-size:13px;color:#e8edf2;font-weight:700">'+escapeHtml(res.name)+'</div>'+
+    searchedTermsHtml+
+    '<div style="font-size:13px;color:#e8edf2;font-weight:700;margin-top:10px">'+escapeHtml(res.name)+'</div>'+
     '<div style="font-size:12px;color:#8a91a5;margin-top:2px">'+escapeHtml(res.niche)+'</div>'+
     (colorsHtml?'<div style="margin-top:8px;font-size:12px;color:#8a91a5">🎨 Paleta: '+colorsHtml+'</div>':'')+
     formatHtml+monoHtml+topicsHtml+
