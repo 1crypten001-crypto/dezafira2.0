@@ -1212,11 +1212,12 @@ async function loadDashboard(){
   '</div>';
 
   panelsHtml += chs.map(function(c,i){
+    var blogName = c.name || "Sem Nome";
     var blogPosts=(c.recent_posts && c.recent_posts.length)?c.recent_posts:posts.filter(function(p){return p.channel_id===c.id});
-    var blogUrl=blogSlug(c.name);
+    var blogUrl=blogSlug(blogName);
     var pri=c.brand_primary||'#6366f1';
-    var init=(c.name||'B')[0];
-    var subTxt='';
+    var init=blogName[0] || 'B';
+    var safeSlug=(c.name || 'blog').toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"");
     var withImgC=c.posts_with_images||0;
     var withoutImgC=c.posts_without_images||0;
     var totalC=c.post_count||(withImgC+withoutImgC)||0;
@@ -1303,7 +1304,7 @@ async function loadDashboard(){
           '<button class="btn btn-sm btn-success" style="background:#059669;border-color:#059669;color:#fff" onclick="generateForBlogHype(\''+c.id+'\',\''+escapeHtml(c.nicho)+'\', document.getElementById(\'hype_qty_'+c.id+'\').value)">🔥 Criar por Tendência</button>'+
           '<button class="btn btn-sm" onclick="liliReviewAllForBlog(\''+c.id+'\')">🌸 Revisar Todos</button>'+
           '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);padding:4px 10px;border-radius:8px" title="Ativar/desativar Modo Viral (Google Discover)">'+
-            '<input type="checkbox" id="disc_active_'+c.id+'" '+(c.is_discover?'checked':'')+' onchange="saveDiscoverQuick(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')" style="accent-color:#8b5cf6;width:14px;height:14px" /> 🚀 Discover'+
+            '<input type="checkbox" id="disc_active_'+c.id+'" '+(c.is_discover?'checked':'')+' onchange="saveDiscoverQuick(\''+c.id+'\',\''+safeSlug+'\')" style="accent-color:#8b5cf6;width:14px;height:14px" /> 🚀 Discover'+
           '</label>'+
           '<button class="btn btn-sm" onclick="toggleAffiliateSettings(\''+c.id+'\')">⚙️ Afiliação</button>'+
           '<button class="btn btn-sm" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3)" onclick="toggleBrandingSettings(\''+c.id+'\')">🎨 Branding</button>'+
@@ -1328,7 +1329,7 @@ async function loadDashboard(){
           '</div>'+
         '</div>'+
         '<div style="margin-top:12px;text-align:right">'+
-          '<button class="btn btn-sm btn-primary" onclick="saveAffiliateSettings(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Salvar Configurações</button>'+
+          '<button class="btn btn-sm btn-primary" onclick="saveAffiliateSettings(\''+c.id+'\',\''+safeSlug+'\')">Salvar Configurações</button>'+
         '</div>'+
       '</div>'+
       '<div id="branding_container_'+c.id+'" class="branding-container" style="display:none;margin-top:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:16px">'+
@@ -1360,8 +1361,8 @@ async function loadDashboard(){
           '<div><div style="font-size:11px;color:#8a91a5;font-weight:700;margin-bottom:2px">🖼️ Fundo do site — 1920×1080 px (16:9)</div><textarea readonly style="width:100%;height:52px;background:#0d0e14;border:1px solid #1e2030;border-radius:6px;color:#34d399;font-size:11px;font-family:monospace;padding:6px;outline:none;resize:none" id="brand_prompt_bg_'+c.id+'"></textarea></div>'+
         '</div>'+
         '<div style="margin-top:12px;text-align:right;display:flex;justify-content:space-between;align-items:center">'+
-          '<button class="btn btn-sm" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3)" onclick="clearBrandingCustomizations(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Limpar Customizações</button>'+
-          '<button class="btn btn-sm btn-primary" onclick="saveBrandingSettings(\''+c.id+'\',\''+c.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-+$/,"").replace(/^-+/,"")+'\')">Salvar Customizações</button>'+
+          '<button class="btn btn-sm" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3)" onclick="clearBrandingCustomizations(\''+c.id+'\',\''+safeSlug+'\')">Limpar Customizações</button>'+
+          '<button class="btn btn-sm btn-primary" onclick="saveBrandingSettings(\''+c.id+'\',\''+safeSlug+'\')">Salvar Customizações</button>'+
         '</div>'+
       '</div>'+
       '<div class="section"><div class="section-header"><h3>📄 Artigos ('+blogPosts.length+' recentes)</h3></div><div class="card-table">'+postsList+'</div></div>'+
