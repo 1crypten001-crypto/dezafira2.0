@@ -593,7 +593,16 @@
       </div>
     </div>
     <div class="page" id="page-obscura">
-      <div class="page-header"><h2>🕵️ Obscura — Motor Headless</h2><p>Infraestrutura central de scraping do ecossistema: status, telemetria e historico de chamadas de todos os agentes e fabricas</p></div>
+      <div class="page-header"><h2>🕵️ Obscura & Serviços MCP</h2><p>Status, telemetria e integridade dos conectores de Model Context Protocol e raspagem headless</p></div>
+      
+      <!-- Status dos Servidores MCP -->
+      <div class="section" style="margin-bottom:24px">
+        <div class="section-header"><h3>📡 Status dos Servidores MCP (Model Context Protocol)</h3></div>
+        <div class="stats-grid" id="mcpStatusGrid">
+          <div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando status dos MCPs...</div>
+        </div>
+      </div>
+
       <div id="obscuraContent"><div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Consultando o motor Obscura...</div></div>
     </div>
 
@@ -2357,6 +2366,27 @@ async function loadObscura(){
   var badge=$("obscuraBadge"),wrap=$("obscuraContent");
   if(!wrap)return;
   if(badge)badge.textContent="…";
+
+  // Buscar e renderizar status dos servidores MCP
+  try {
+    var mcpGrid = $("mcpStatusGrid");
+    if (mcpGrid) {
+      var mcpData = await api("/api/v1/mcp/status");
+      if (mcpData && mcpData.success && mcpData.servers) {
+        var s = mcpData.servers;
+        mcpGrid.innerHTML = 
+          '<div class="stat-card"><div class="label">🧠 MCP Memory (Graph)</div><div class="value" style="font-size:16px;color:'+(s.memory.online ? '#34d399' : '#f87171')+'">'+(s.memory.online ? '🟢 Conectado' : '🔴 Offline')+'</div><div class="sub">'+(s.memory.nodes || 0)+' nós indexados · '+s.memory.ping_ms+'ms</div></div>' +
+          '<div class="stat-card"><div class="label">📁 MCP Filesystem</div><div class="value" style="font-size:16px;color:'+(s.filesystem.online ? '#34d399' : '#f87171')+'">'+(s.filesystem.online ? '🟢 Conectado' : '🔴 Offline')+'</div><div class="sub" style="font-size:10px">Root: '+escapeHtml(s.filesystem.root_dir)+' · '+s.filesystem.free_space_gb+' GB livres</div></div>' +
+          '<div class="stat-card"><div class="label">🔎 MCP Brave/Exa Search</div><div class="value" style="font-size:16px;color:'+(s.brave_search.online ? '#34d399' : '#f87171')+'">'+(s.brave_search.online ? '🟢 Conectado' : '🔴 Offline')+'</div><div class="sub">'+s.brave_search.calls_today+'/'+s.brave_search.limit+' consultas ('+s.brave_search.provider+')</div></div>' +
+          '<div class="stat-card"><div class="label">📝 MCP WordPress Publisher</div><div class="value" style="font-size:16px;color:'+(s.wordpress.online ? '#34d399' : '#f87171')+'">'+(s.wordpress.online ? '🟢 Conectado' : '🔴 Não Configurado')+'</div><div class="sub">'+s.wordpress.last_push+' ('+s.wordpress.blogs_count+' blog)</div></div>';
+      } else {
+        mcpGrid.innerHTML = '<div class="empty">Erro ao coletar status dos MCPs.</div>';
+      }
+    }
+  } catch(e_mcp) {
+    console.error("MCP Status error:", e_mcp);
+  }
+
   wrap.innerHTML='<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Consultando o motor Obscura...</div>';
   try{
     var d=await api("/api/v1/obscura/status");
@@ -2583,13 +2613,18 @@ async function loadLili(){
     var issuesTag=scoreVal!==null&&scoreVal<70?'<span class="tag" style="background:rgba(239,68,68,.15);color:#f87171;font-size:10px">Reprovado</span>':(scoreVal!==null?'<span class="tag" style="background:rgba(34,197,94,.15);color:#4ade80;font-size:10px">Aprovado</span>':'');
     var blogName=r.channel_name?escapeHtml(r.channel_name):'';
     var artUrl='/blog/'+(r.channel_name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'')+'?post='+r.id;
-    var actions='<div style="display:flex;gap:4px">';
+    var actions='<div style="display:flex;gap:4px;flex-wrap:wrap">';
     if(scoreVal!==null&&scoreVal<70){
       actions+='<button class="btn btn-sm" style="background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="regenerateBlogPost(\''+r.id+'\',\''+escapeHtml(r.title||"").replace(/'/g,"\\'")+'\')" title="Regenerar artigo">🔄</button>';
     }
     actions+='<button class="btn btn-sm" style="background:#0891b2;border-color:#0891b2;color:#fff" onclick="regeneratePostImage(\''+r.id+'\',\''+escapeHtml(r.title||"").replace(/'/g,"\\'")+'\')" title="Gerar nova imagem">🖼️</button>';
     actions+='<button class="btn btn-sm" onclick="liliCorrectArticle(\''+r.id+'\')" title="Corrigir automaticamente">🛠️</button>';
-    actions+='<button class="btn btn-sm" onclick="window.open(\''+artUrl+'\')" title="Ver artigo">🔗</button></div>';
+    actions+='<button class="btn btn-sm" onclick="window.open(\''+artUrl+'\')" title="Ver artigo">🔗</button>';
+    // Botão de publicação no WordPress — aparece apenas para posts aprovados
+    if(scoreVal!==null && scoreVal>=70){
+      actions+='<button class="btn btn-sm" style="background:#21759b;border-color:#21759b;color:#fff;font-weight:700" onclick="publishToWordPress(\''+r.id+'\')" title="Enviar para WordPress como rascunho">🚀 WP</button>';
+    }
+    actions+='</div>';
 
     html+='<div class="lili-article-row">'+
       '<div><div class="lili-article-title">'+rankBadge+' '+escapeHtml(r.title||"")+'</div>'+
@@ -2627,6 +2662,30 @@ async function liliCorrectArticle(postId){
     loadLili();
   }catch(e){
     showToast("Erro ao corrigir: "+e.message);
+  }
+}
+
+async function publishToWordPress(postId) {
+  if (!postId) return;
+  if (!confirm('Enviar este artigo para o WordPress como rascunho? Verifique as credenciais WP_URL, WP_USER e WP_APP_PASS no Railway antes de continuar.')) return;
+  showToast("⏳ Enviando para o WordPress...");
+  try {
+    var res = await api("/api/v1/blog/post/" + postId + "/publish-wordpress", { method: "POST" });
+    if (res && res.success) {
+      showToast("✅ Post enviado com sucesso ao WordPress como rascunho!");
+      if (res.link) {
+        setTimeout(function() {
+          if (confirm("Rascunho criado!\n\nAbrir no WordPress para revisar?")) {
+            window.open(res.link.replace("/dezafira-", "/wp-admin/post.php?post=").replace(/\/[^\/]+\/?$/, "") || res.link, "_blank");
+          }
+        }, 500);
+      }
+    } else {
+      var err = (res && res.detail) || (res && res.error) || "Erro desconhecido";
+      showToast("❌ Erro: " + err);
+    }
+  } catch (e) {
+    showToast("❌ Erro de rede: " + e.message);
   }
 }
 

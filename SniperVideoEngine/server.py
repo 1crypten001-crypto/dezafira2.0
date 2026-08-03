@@ -6131,3 +6131,107 @@ async def send_marketing_test_email(payload: dict, _admin=Depends(require_admin)
         return {"success": True, "message": f"E-mail de teste enviado com sucesso para {to_email}!"}
     raise HTTPException(status_code=500, detail="Falha no envio do e-mail. Verifique os logs e as credenciais SMTP no Railway.")
 
+
+# ─── SERVIDORES MCP (TELEMETRIA E MONITORAÇÃO) ──────────────────────────
+
+@app.get("/api/v1/mcp/status")
+async def get_mcp_status_endpoint(_admin=Depends(require_admin)):
+    """Rota para verificar o estado dos servidores MCP."""
+    try:
+        from modules.mcp_client import MCPClient
+        status_data = MCPClient.get_status()
+        return {"success": True, "servers": status_data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/v1/blog/post/{post_id}/publish-wordpress")
+async def publish_to_wordpress_endpoint(post_id: str, _admin=Depends(require_admin)):
+    """Publica um post aprovado nativamente no WordPress via REST API."""
+    from modules.database import get_db_blog_post
+    
+    post = get_db_blog_post(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+
+    wp_url = os.getenv("WP_URL", "").strip().rstrip("/")
+    wp_user = os.getenv("WP_USER", "").strip()
+    wp_pass = os.getenv("WP_APP_PASS", "").strip()
+
+    if not wp_url or not wp_user or not wp_pass:
+        raise HTTPException(
+            status_code=400, 
+            detail="Credenciais do WordPress não configuradas. Preencha WP_URL, WP_USER e WP_APP_PASS no Railway."
+        )
+
+    # Prepara a carga do post
+    title = post.get("title", "")
+    content = post.get("content", "")
+    image_url = post.get("featured_image_url", "")
+
+    # Monta a requisição usando HTTP Basic Auth de senhas de aplicativo
+    auth = httpx.BasicAuth(wp_user, wp_pass)
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            # 1. Tenta fazer upload da imagem de destaque para a biblioteca de mídia se existir
+            media_id = None
+            if image_url and (image_url.startswith("http") or image_url.startswith("data:")):
+                # Se for data URI base64, converte para binário, senão baixa via HTTP
+                img_data = b""
+                filename = "featured.jpg"
+                if image_url.startswith("data:image/"):
+                    header, encoded = image_url.split(",", 1)
+                    import base64
+                    img_data = base64.b64decode(encoded)
+                    ext = header.split(";")[0].split("/")[1]
+                    filename = f"featured.{ext}"
+                else:
+                    img_res = await client.get(image_url)
+                    if img_res.status_code == 200:
+                        img_data = img_res.content
+                        filename = image_url.split("/")[-1].split("?")[0] or "featured.jpg"
+
+                if img_data:
+                    # Upload para wp-json/wp/v2/media
+                    headers = {
+                        "Content-Disposition": f'attachment; filename="{filename}"',
+                        "Content-Type": "image/jpeg"
+                    }
+                    media_res = await client.post(
+                        f"{wp_url}/wp-json/wp/v2/media",
+                        auth=auth,
+                        headers=headers,
+                        content=img_data
+                    )
+                    if media_res.status_code in (200, 201):
+                        media_id = media_res.json().get("id")
+
+            # 2. Cria o post no WordPress
+            post_payload = {
+                "title": title,
+                "content": content,
+                "status": "draft"  # Cria como rascunho por segurança para o usuário revisar
+            }
+            if media_id:
+                post_payload["featured_media"] = media_id
+
+            res = await client.post(
+                f"{wp_url}/wp-json/wp/v2/posts",
+                auth=auth,
+                json=post_payload
+            )
+
+            if res.status_code in (200, 201):
+                link = res.json().get("link", "")
+                return {"success": True, "link": link, "message": "Post enviado como rascunho com sucesso!"}
+            else:
+                detail = res.text
+                try:
+                    detail = res.json().get("message", detail)
+                except Exception:
+                    pass
+                raise HTTPException(status_code=500, detail=f"Erro no WordPress: {detail}")
+
+        except httpx.HTTPError as he:
+            raise HTTPException(status_code=500, detail=f"Falha de rede ao conectar ao WordPress: {str(he)}")
+
+
