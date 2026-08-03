@@ -5237,6 +5237,27 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
     is_discover = bool(payload.get("is_discover", False))
     from modules.blog_writer import _call_llm
     
+    # ─── Pré-pesquisa com Obscura ───
+    import random
+    from services.obscura_bridge import get_google_suggestions
+    
+    seeds = ["curiosidades do mundo", "saude e bem estar", "tecnologia e inovacao", "financas pessoais", "viagens baratas", "casa e decoracao", "maternidade real", "pet care", "receitas faceis", "fenomenos misteriosos", "misterios historicos", "gadgets inteligentes"]
+    selected_seed = random.choice(seeds)
+    google_terms = []
+    try:
+        google_terms = await get_google_suggestions(selected_seed, "pt")
+    except Exception as e_sug:
+        print(f"[Seu Hermes] Falha ao pre-pesquisar termos via Obscura: {e_sug}")
+        
+    google_context = ""
+    if google_terms:
+        google_context = (
+            f"\nIMPORTANTE: O Google detectou que as pessoas estao buscando ativamente estes termos hoje:\n"
+            f"{', '.join(google_terms[:8])}\n"
+            f"Voce DEVE se inspirar obrigatoriamente nessas buscas reais para propor o NOME do blog (que deve ser conectado a essa tendencia de forma criativa), "
+            f"o sub-nicho exato e propor os topicos de artigos recomendados baseado nisso."
+        )
+    
     if is_affiliate and is_discover:
         system = "Você é o Seu Hermes, o inteligente orquestrador focado em tráfego massivo e vendas de e-commerce."
         prompt = (
@@ -5244,8 +5265,7 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
             "O blog deve atrair tráfego através do Google Discover (curiosidade extrema) e converter em vendas.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
             '{"name": "Nome do Blog sugerido (viral e atraente)", "niche": "Micro-nicho curioso de produtos inovadores", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
-            "Exemplo:\n"
-            '{"name": "SegredosSmart", "niche": "Tecnologias ocultas e gadgets que impressionam", "topics": ["Gadgets que ninguem te conta", "Tecnologias ocultas no dia a dia", "Aparelhos que impressionam", "Invencoes curiosas", "Ciencia por tras dos gadgets", "O futuro dos wearables"], "content_format": "Listas curiosas e reviews curtos com links de produto", "colors": ["#6366f1", "#0ea5e9", "#f59e0b"], "monetization_mode": "affiliate"}'
+            + google_context
         )
     elif is_affiliate:
         system = "Você é o Seu Hermes, o inteligente orquestrador e estrategista de e-commerce e afiliados."
@@ -5253,8 +5273,7 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
             "Sugira uma ideia única e lucrativa de blog de afiliados focado na venda de produtos de e-commerce (Amazon, Shopee, etc).\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
             '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho ou categoria de produtos específicos do blog", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "affiliate"}\n'
-            "Exemplo:\n"
-            '{"name": "CozinhaTech", "niche": "Eletroportáteis inteligentes e airfryers premium", "topics": ["Melhor airfryer custo-beneficio", "Eletroportateis que valem a pena", "Como escolher sua primeira airfryer", "Airfryer vs forno eletrico", "Limpeza e manutencao", "Receitas faceis na airfryer"], "content_format": "Reviews e comparativos com prós/contras e CTA de compra", "colors": ["#f97316", "#1e293b", "#22c55e"], "monetization_mode": "affiliate"}'
+            + google_context
         )
     elif is_discover:
         system = "Você é o Seu Hermes, o editor-chefe focado em tráfego viral do Google Discover."
@@ -5262,8 +5281,7 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
             "Sugira uma ideia única de blog voltado para conteúdo informativo viral (monetização via AdSense) focado no Google Discover.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
             '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho altamente bizarro, chocante ou de tendências extremas", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "discover"}\n'
-            "Exemplo:\n"
-            '{"name": "FatosOcultos", "niche": "Mistérios históricos e descobertas científicas bizarras", "topics": ["Civilizacoes que desapareceram sem explicação", "Experimentos cientificos que deram errado", "Criaturas que a ciencia ainda nao entende", "Lugares proibidos no mundo", "Descobertas acidentais que mudaram tudo", "O que existe no fundo do oceano"], "content_format": "Listas chocantes com paragrafos curtos e imagens impactantes", "colors": ["#8b5cf6", "#0f172a", "#f472b6"], "monetization_mode": "discover"}'
+            + google_context
         )
     else:
         system = "Você é o Seu Hermes, o inteligente orquestrador e editor-chefe de blogs focados em AdSense."
@@ -5271,8 +5289,7 @@ async def suggest_blog_idea(payload: dict, _admin=Depends(require_admin)):
             "Sugira uma ideia única de blog voltado para conteúdo informativo (monetização via AdSense) com alto potencial de buscas e engajamento.\n"
             "Retorne APENAS um objeto JSON válido (sem markdown, sem ```json, sem texto extra) contendo:\n"
             '{"name": "Nome do Blog sugerido (curto e atraente)", "niche": "Micro-nicho específico com alta curiosidade do público", "topics": ["6 ideias de artigos iniciais"], "content_format": "estilo e tom de conteudo em 1 frase", "colors": ["#cor1", "#cor2", "#cor3"], "monetization_mode": "normal"}\n'
-            "Exemplo:\n"
-            '{"name": "PassaporteHistórico", "niche": "Curiosidades arqueológicas e civilizações antigas", "topics": ["Misterios de Pompeia", "Civilizacoes que sumiram", "Artefatos inexplicaveis", "Como os egipcios construiram as piramides", "Cidades perdidas na Amazonia", "Reliquias escondidas do Vaticano"], "content_format": "Artigos informativos extensos com dados e curiosidades", "colors": ["#d97706", "#1e293b", "#0ea5e9"], "monetization_mode": "normal"}'
+            + google_context
         )
         
     try:
