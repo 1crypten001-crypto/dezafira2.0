@@ -101,16 +101,24 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     """
     Busca no Google usando Chrome/Obscura por PAA (People Also Ask) e discussões
     reais sobre o nicho. Se não houver perguntas do PAA, usa a LLM com contexto
-    para gerar 10 dúvidas reais, humanas e hiper-específicas do público (sem templates enlatados).
+    para gerar 10 dúvidas reais, humanas e hiper-específicas do público.
     """
     from services.obscura_bridge import get_serp_with_fallback
     import json
     import time as _t
 
+    # Simplifica o nicho se for uma frase longa para melhorar a busca no SERP/PAA
+    short_niche = niche
+    if len(niche) > 30:
+        parts = niche.replace(" e ", "|").replace(" na ", "|").replace(" para ", "|").replace(" com ", "|").split("|")
+        short_niche = parts[0].strip()
+
     questions = []
-    print(f"[Seu Reddit] Minerando dúvidas reais para o nicho '{niche}'...")
+    print(f"[Seu Reddit] Minerando dúvidas reais para o nicho '{niche}' (termo busca: '{short_niche}')...")
+    
+    # 1) Tenta PAA do Google via Chrome/Obscura com o termo simplificado
     try:
-        serp_data = await get_serp_with_fallback(niche, lang=lang)
+        serp_data = await get_serp_with_fallback(short_niche, lang=lang)
         if serp_data and serp_data.get("paa"):
             paa_list = serp_data.get("paa", [])
             for q in paa_list:
@@ -121,21 +129,19 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     except Exception as e:
         print(f"[Seu Reddit] Aviso na busca SERP/PAA: {e}")
 
-    # Se o PAA retornar menos de 5 dúvidas, usa a LLM contextualizada (sem templates fixos)
+    # 2) Se o PAA retornar poucas dúvidas, usa a LLM para sintetizar perguntas 100% humanas
     if len(questions) < 5:
         try:
             from modules.blog_writer import _call_llm
             prompt = (
-                f"Você é um pesquisador comportamental especialista no nicho: '{niche}'.\n"
-                f"Gere uma lista de 10 perguntas, dúvidas ou curiosidades REAIS e extremamente naturais "
-                f"que pessoas comuns pesquisam na internet ou perguntam em fóruns como Reddit e Quora sobre '{niche}'.\n"
-                f"REGRAS:\n"
-                f"- Adapte a linguagem ao nicho. Se for curiosidades/história, pergunte sobre mistérios, fatos incríveis e segredos.\n"
-                f"- Se for um nicho comercial/produto, pergunte sobre utilidade, marcas e opiniões de uso.\n"
-                f"- NUNCA use frases genéricas como 'Como escolher o melhor X para começar' se X não for um produto físico.\n"
+                f"Você é um pesquisador comportamental. O usuário quer criar um blog sobre: '{niche}'.\n"
+                f"Gere 10 perguntas e dúvidas REAIS, naturais e interessantes que leitores e internautas pesquisam ou discutem na internet sobre esse assunto.\n"
+                f"REGRAS VITAIS:\n"
+                f"- Crie perguntas naturais e fluidas em português.\n"
+                f"- NUNCA repita a frase longa '{niche}' dentro das perguntas. Escreva frases variadas e específicas sobre os subtemas desse nicho (ex: tecnologia, futuro, IA, privacidade, etc.).\n"
                 f"- Idioma: {lang}\n"
                 f"\n"
-                f"Retorne APENAS as 10 perguntas em formato JSON (array de strings, ex: [\"pergunta 1\", \"pergunta 2\"])."
+                f"Retorne APENAS um JSON no formato de array de strings: [\"pergunta 1\", \"pergunta 2\", ...]"
             )
             llm_res = await _call_llm(prompt, system_prompt="Retorne apenas JSON válido.")
             if llm_res:
@@ -153,19 +159,19 @@ async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
         except Exception as e_llm:
             print(f"[Seu Reddit] Falha ao sintetizar dúvidas via LLM: {e_llm}")
 
-    # Garantia mínima de 10 itens sem templates mecânicos
+    # 3) Fallback elegante se nada mais funcionar (usando termo simplificado e perguntas fluidas)
     if not questions:
         questions = [
-            f"Quais são os maiores mistérios e fatos desconhecidos sobre {niche}?",
-            f"O que a ciência diz sobre os segredos por trás de {niche}?",
-            f"Histórias surpreendentes e curiosidades raras sobre {niche}",
-            f"O que a maioria das pessoas não sabe sobre {niche}?",
-            f"Principais descobertas e fatos fascinantes no universo de {niche}",
-            f"Como o tema {niche} impacta nosso dia a dia e nossa história?",
-            f"Casos inacreditáveis e relatos marcantes ligados a {niche}",
-            f"Perguntas frequentes e explicações simples sobre {niche}",
-            f"Mitos vs Verdades sobre os principais aspectos de {niche}",
-            f"Guia de curiosidades essenciais para entender {niche} de forma rápida"
+            f"Quais são os maiores mistérios e inovações sobre {short_niche}?",
+            f"O que a ciência diz sobre os avanços em {short_niche}?",
+            f"Fatos surpreendentes e curiosidades que pouca gente sabe sobre {short_niche}",
+            f"Como o avanço de {short_niche} pode mudar o nosso dia a dia?",
+            f"Quais são as principais tendências e descobertas em {short_niche}?",
+            f"Como entender o impacto de {short_niche} de forma simples?",
+            f"Relatos marcantes e casos reais relacionados a {short_niche}",
+            f"Perguntas e respostas essenciais para quem quer saber tudo sobre {short_niche}",
+            f"Mitos vs Verdades sobre os efeitos de {short_niche} na sociedade",
+            f"O guia definitivo de dúvidas frequentes sobre {short_niche}"
         ]
     return questions[:10]
 
