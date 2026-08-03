@@ -49,13 +49,59 @@ def _get_niche_style(niche: str, title: str) -> str:
 
 class ImageGeneratorAgent:
     """
-    Gera imagens com cascata: Flux IA → Gemini IA → Pexels → Unsplash → SVG.
+    Gera imagens com cascata inteligente priorizando IA: Gemini Imagen -> Flux -> Pexels -> Unsplash -> SVG.
     Nunca retorna sem imagem.
     """
 
     def __init__(self):
         self.last_provider = None
         self.last_url = None
+
+    async def _expand_prompt_with_llm(self, title: str, niche: str) -> str:
+        """
+        Usa o Gemini LLM para traduzir e expandir o título em um prompt
+        de imagem detalhado, conceitual e fotográfico em inglês.
+        """
+        if not GEMINI_API_KEY:
+            return f"Professional high-quality blog hero image, highly detailed, realistic, beautiful composition: {title}"
+            
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+            
+            system_instruction = (
+                "You are an expert visual director and photographer. Your task is to translate and expand "
+                "the given article title and niche into a highly descriptive image prompt in English.\n"
+                "RULES:\n"
+                "1. Output ONLY the raw prompt string in English (no json, no explanations, no markdown, no quotes).\n"
+                "2. Focus on realistic photography, cinematic lighting (like rim light, volumetric lighting), "
+                "composition (close-up, wide-angle), and rich textures.\n"
+                "3. Crucial: The prompt MUST NOT contain any text, words, labels, signatures, or watermarks to be rendered.\n"
+                "4. Keep it clean, modern, and aesthetic. Do not use generic words like 'photorealistic' or 'hyperrealistic', "
+                "instead describe the details (e.g. 'sharp focus, fine details, natural textures')."
+            )
+            
+            payload = {
+                "contents": [{"parts": [{"text": f"Niche: {niche}\nArticle Title: {title}"}]}],
+                "systemInstruction": {"parts": [{"text": system_instruction}]},
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 200}
+            }
+            
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(url, json=payload)
+                if r.status_code == 200:
+                    data = r.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                        expanded = text.strip()
+                        if expanded:
+                            print(f"[ImageFactory] Prompt expandido com sucesso: {expanded}")
+                            return expanded
+                print(f"[ImageFactory] Falha ao chamar LLM para expandir prompt, HTTP {r.status_code}")
+        except Exception as e:
+            print(f"[ImageFactory] Erro ao expandir prompt via LLM: {e}")
+            
+        return f"Professional high-quality blog hero image, highly detailed, realistic, beautiful composition: {title}"
 
     async def generate_image_for_post(
         self,
@@ -71,22 +117,22 @@ class ImageGeneratorAgent:
         Returns:
             dict com image_url, provider, alt_text, credit
         """
-        style = _get_niche_style(niche, prompt_idea)
-        full_prompt = f"{prompt_idea}, {style}"
+        print(f"[ImageFactory] Expandindo prompt para: '{prompt_idea}' (Nicho: {niche})")
+        expanded_prompt = await self._expand_prompt_with_llm(prompt_idea, niche)
         search_query = self._sanitize_for_search(prompt_idea)
 
-        # === 1. FLUX via Pollinations.ai (IA gratuita) ===
-        result = await self._flux_pollinations(full_prompt, width, height)
-        if result:
-            self.last_provider = "flux"
-            return result
-
-        # === 2. Gemini Imagen (Google) ===
+        # === 1. Gemini Imagen (Google) ===
         if GEMINI_API_KEY:
-            result = await self._gemini_imagen(full_prompt, width, height)
+            result = await self._gemini_imagen(expanded_prompt, width, height)
             if result:
                 self.last_provider = "gemini"
                 return result
+
+        # === 2. FLUX via Pollinations.ai (IA gratuita) ===
+        result = await self._flux_pollinations(expanded_prompt, width, height)
+        if result:
+            self.last_provider = "flux"
+            return result
 
         # === 3. Pexels (busca de fotos) ===
         if PEXELS_API_KEY:
@@ -117,17 +163,13 @@ class ImageGeneratorAgent:
     async def generate_for_article(self, title: str, keywords: str = "", topic: str = "", is_discover: bool = False) -> dict:
         combined = title
         if keywords:
-            combined += " " + " ".join(keywords.split(",")[:3])
+            combined += " - Keywords: " + " ".join(keywords.split(",")[:3])
             
         width = 1200
         height = 675 if is_discover else 630
         
-        if is_discover:
-            combined = f"misterioso, chocante, revelador, foto jornalística realista, ângulo dramático, iluminação de cinema, sem texto: {combined}"
-        else:
-            combined = f"fotografia editorial profissional, altamente detalhado, realista, iluminação suave, composição moderna e limpa: {combined}"
-            
-        return await self.generate_image_for_post(prompt_idea=combined, width=width, height=height)
+        niche_info = "Google Discover Viral" if is_discover else "Blog Post"
+        return await self.generate_image_for_post(prompt_idea=combined, niche=niche_info, width=width, height=height)
 
     # ── PROVEDOR 1: FLUX via Pollinations.ai ────────────────────────────────
 
