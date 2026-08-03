@@ -2626,11 +2626,13 @@ async function generateBrandAsset(channelId, type){
           previewEl.innerHTML = '<img src="'+imgUrl+'" style="max-height:80px;border-radius:6px" />';
         }
       }
-      if(statusEl){ statusEl.textContent = "✅ Gerado via "+( res.provider||"IA")+"! Clique em Salvar para confirmar."; statusEl.style.color="#34d399"; }
-      // Guardar base64 no dataset do file input para poder salvar junto
-      var fileInput = document.getElementById("brand_"+type+"_file_"+channelId);
-      if(fileInput && imgUrl){ fileInput.dataset.base64 = imgUrl; fileInput.dataset.aiGenerated = "true"; }
-      showToast("✅ "+label+" gerado com IA! Clique em 'Salvar Customizações'.");
+      if(statusEl){ statusEl.textContent = "✅ Gerado e salvo via "+( res.provider||"IA")+"!"; statusEl.style.color="#34d399"; }
+      // Recarrega o blog para baixar a nova config de branding salva e atualizar os previews definitivos
+      await loadBlogs();
+      // Reabre a aba de branding correspondente
+      var bd = document.getElementById("branding_container_" + channelId);
+      if (bd) bd.style.display = "block";
+      showToast("✅ "+label+" gerado e salvo com sucesso!");
     } else {
       if(statusEl){ statusEl.textContent = "Falha: "+(res&&res.error||"erro desconhecido"); statusEl.style.color="#f87171"; }
       showToast("Erro ao gerar "+label+": "+(res&&res.error||"erro"));
