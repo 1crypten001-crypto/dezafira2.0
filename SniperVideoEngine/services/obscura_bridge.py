@@ -820,9 +820,24 @@ class ObscuraBridge:
 # VERIFICAÇÃO DE DISPONIBILIDADE
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _err_detail(e: Exception, host: str, port: int) -> str:
+    """Erro de sonda legível: tipo + mensagem + alvo. `str(TimeoutError)` é
+    vazio (por isso o healthz mostrava `error: ""` — inútil pra diagnosticar).
+    Com o type() e o alvo, dá pra distinguir timeout vs refused vs DNS."""
+    try:
+        msg = f"{type(e).__name__}: {e}"[:180]
+    except Exception:
+        msg = type(e).__name__[:180]
+    return f"{msg} @ {host}:{port}"
+
+
 async def get_obscura_status(host: str = None, port: int = None) -> dict:
-    """Verifica se o Obscura está rodando e retorna status detalhado."""
+    """Verifica se o Obscura está rodando e retorna status detalhado.
+    Retorna {online, ws_url, targets, host, port, error} — host/port são os
+    alvos reais sondados (útil pra confirmar que o backend aponta pro
+    serviço certo via env vars)."""
     bridge = ObscuraBridge(host=host, port=port)
+    s_host, s_port = bridge.host, bridge.port
     try:
         connected = await bridge.connect()
         if not connected:
@@ -830,6 +845,8 @@ async def get_obscura_status(host: str = None, port: int = None) -> dict:
                 "online": False,
                 "ws_url": bridge.ws_url,
                 "targets": 0,
+                "host": s_host,
+                "port": s_port,
                 "error": "Não conectou (binário parado ou OBSCURA_ENABLED=false)",
             }
         status = await bridge.get_status()
@@ -838,10 +855,20 @@ async def get_obscura_status(host: str = None, port: int = None) -> dict:
             "online": True,
             "ws_url": status["ws_url"],
             "targets": status["targets"],
+            "host": s_host,
+            "port": s_port,
             "proxy": obscura_proxy(),
+            "error": "",
         }
     except Exception as e:
-        return {"online": False, "ws_url": bridge.ws_url, "targets": 0, "error": str(e)[:200]}
+        return {
+            "online": False,
+            "ws_url": bridge.ws_url,
+            "targets": 0,
+            "host": s_host,
+            "port": s_port,
+            "error": _err_detail(e, s_host, s_port),
+        }
 
 
 async def get_chrome_status(host: str = None, port: int = None) -> dict:
@@ -850,8 +877,10 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
     endpoint /json/version que o bridge usa, pra saber se o Chrome está de
     pé e pode desbloquear o Google (SERP/PAA reais).
 
-    Retorna {online, ws_url, targets, browser, error} — browser traz a
-    versão do Chrome (prova de que é o Chrome real, não o headless Rust).
+    Retorna {online, ws_url, targets, browser, host, port, error} — browser
+    traz a versão do Chrome (prova de que é o Chrome real, não o headless
+    Rust); host/port são os alvos reais sondados (se OBSCURA_CHROME_HOST não
+    estiver setada, default = OBSCURA_HOST — suspeita da queda atual).
     """
     import urllib.request as _urllib
     host = host or OBSCURA_CHROME_HOST
@@ -867,6 +896,8 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
             "ws_url": ws_url,
             "targets": targets,
             "browser": info.get("Browser", "")[:80],
+            "host": host,
+            "port": port,
             "error": "",
         }
     except Exception as e:
@@ -875,7 +906,9 @@ async def get_chrome_status(host: str = None, port: int = None) -> dict:
             "ws_url": ws_url,
             "targets": 0,
             "browser": "",
-            "error": str(e)[:200],
+            "host": host,
+            "port": port,
+            "error": _err_detail(e, host, port),
         }
 
 
