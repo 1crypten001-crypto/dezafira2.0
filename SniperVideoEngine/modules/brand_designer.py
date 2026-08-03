@@ -41,11 +41,10 @@ Você deve gerar um JSON estruturado contendo:
 3. "fonts": Objeto contendo famílias tipográficas do Google Fonts ideais:
    - "heading": Ex: "'Playfair Display', serif" para temas clássicos, ou "'Plus Jakarta Sans', sans-serif" para modernos, ou "'Outfit', sans-serif".
    - "body": Ex: "'Inter', sans-serif" ou "'Lora', serif".
-4. "logo_initial": A letra inicial estilizada para o logotipo.
+4. "logo_initial": As duas primeiras letras iniciais estilizadas para o monograma do logo (Ex: "FI" para Fenômenos Inexplicáveis).
 5. "header_symbol": Um emoji ou caractere unicode decorativo adequado para a marca.
-6. "logo_svg": O código XML de um logotipo SVG vetorial profissional, limpo e inline. Deve usar as cores primárias do blog, ter um viewBox="0 0 120 40", conter o símbolo geométrico estilizado na esquerda e o nome da marca na direita com uma tipografia vetorial em tags `<text>`. Deve ser extremamente limpo, moderno e bonito. Exemplo de estrutura:
-   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="120" height="40"><rect width="120" height="40" rx="6" fill="#1e293b"/><circle cx="20" cy="20" r="10" fill="#3b82f6"/><text x="40" y="25" fill="#ffffff" font-family="sans-serif" font-weight="bold" font-size="14">BlogName</text></svg>`
-7. "favicon_svg": A URI data URI do favicon SVG (Ex: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E...%3C/svg%3E`).
+6. "logo_svg": O código XML de um logotipo SVG vetorial profissional, ultra limpo e inline. Deve usar as cores do blog, ter viewBox="0 0 180 40". Na esquerda (X=0 a 40), deve projetar um monograma ou símbolo geométrico luxuoso combinando/entrelaçando as duas letras iniciais ("logo_initial"). Use tags `<linearGradient>`, `<rect>`, `<circle>`, `<path>` com efeitos elegantes (glow sutil, opacidades). Na direita (X=48 em diante), posicione o nome completo da marca em uma tag `<text>` elegante, alinhado perfeitamente com a tipografia do tema. Evite logos genéricos simples.
+7. "favicon_svg": A URI data URI do favicon SVG usando o mesmo monograma de duas letras centralizado de forma harmônica (Ex: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E...%3C/svg%3E`).
 
 Retorne APENAS o JSON válido sem blocos de código markdown ou texto explicativo extra.
 """
@@ -116,17 +115,26 @@ Retorne APENAS o JSON válido sem blocos de código markdown ou texto explicativ
                     "body": "'Inter', sans-serif"
                 }
             
+            # Gera iniciais robustas (ex: "Fenômenos Inexplicáveis" -> "FI")
+            words = [w for w in blog_name.split() if w]
+            if len(words) >= 2:
+                initials = (words[0][0] + words[1][0]).upper()
+            elif len(words) == 1 and len(words[0]) >= 2:
+                initials = words[0][:2].upper()
+            else:
+                initials = (blog_name[:2] if blog_name else "DE").upper()
+
             logo_color = palette["primary"]
             logo_svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 40" width="180" height="40">
                 <g transform="translate(5, 5)">
-                    <rect x="0" y="2" width="26" height="26" rx="8" fill="{logo_color}" opacity="0.15"/>
-                    <circle cx="13" cy="15" r="7" fill="none" stroke="{logo_color}" stroke-width="2.5"/>
-                    <path d="M13 8v5M13 16v1" stroke="{logo_color}" stroke-width="2.5" stroke-linecap="round"/>
+                    <rect x="0" y="2" width="28" height="28" rx="8" fill="{logo_color}" opacity="0.15"/>
+                    <rect x="0" y="2" width="28" height="28" rx="8" fill="none" stroke="{logo_color}" stroke-width="1.5"/>
+                    <text x="14" y="20" fill="{logo_color}" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="11" text-anchor="middle">{initials}</text>
                 </g>
-                <text x="42" y="24" fill="#ffffff" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="15" letter-spacing="-0.3px">{blog_name}</text>
+                <text x="44" y="24" fill="#ffffff" font-family="'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="15" letter-spacing="-0.3px">{blog_name}</text>
             </svg>"""
             
-            favicon_svg = f"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23{logo_color.replace('#', '')}'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%23fff' stroke-width='2.5'/%3E%3C/svg%3E"
+            favicon_svg = f"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23{logo_color.replace('#', '')}'/%3E%3Ctext x='16' y='20' fill='%23fff' font-family='sans-serif' font-weight='bold' font-size='12' text-anchor='middle'%3E{initials}%3C/text%3E%3C/svg%3E"
             
             return {
                 "colors": palette,
@@ -144,7 +152,7 @@ Retorne APENAS o JSON válido sem blocos de código markdown ou texto explicativ
                     "accent": palette["accent"],
                 },
                 "fonts": fonts,
-                "logo_initial": blog_name[0] if blog_name else "B",
+                "logo_initial": initials,
                 "header_symbol": "✨",
                 "logo_svg": logo_svg,
                 "favicon_svg": favicon_svg
