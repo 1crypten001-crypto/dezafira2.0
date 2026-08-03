@@ -206,41 +206,39 @@ class ImageGeneratorAgent:
 
     async def _gemini_imagen(self, prompt: str, width: int, height: int) -> Optional[dict]:
         """
-        Gera imagem via Google Imagen 3 (imagen-3.0-generate-002) usando a API de compatibilidade OpenAI.
+        Gera imagem via Google Gemini (gemini-2.5-flash-image).
         Retorna a imagem como data URI base64.
         """
         try:
             url = (
-                f"https://generativelanguage.googleapis.com/v1beta/openai/images/generations"
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"gemini-2.5-flash-image:generateContent"
                 f"?key={GEMINI_API_KEY}"
             )
-            # Determina o melhor tamanho suportado (quadrado, retrato ou paisagem)
-            size = "1792x1024" if width > height else "1024x1792"
-            if abs((width/height) - 1.0) < 0.15:
-                size = "1024x1024"
-                
             payload = {
-                "model": "imagen-3.0-generate-002",
-                "prompt": prompt[:500],
-                "n": 1,
-                "size": size,
-                "response_format": "b64_json"
+                "contents": [{"parts": [{"text": prompt[:500]}]}],
+                "generationConfig": {
+                    "responseModalities": ["IMAGE"]
+                }
             }
             async with httpx.AsyncClient(timeout=90.0) as client:
                 r = await client.post(url, json=payload)
                 if r.status_code == 200:
                     data = r.json()
-                    images = data.get("data", [])
-                    if images and len(images) > 0:
-                        b64 = images[0].get("b64_json", "")
-                        if b64:
-                            data_uri = f"data:image/jpeg;base64,{b64}"
-                            return {
-                                "image_url": data_uri,
-                                "alt_text": prompt[:150],
-                                "provider": "gemini",
-                                "credit": "Gerada por Gemini Imagen (Google)",
-                            }
+                    candidates = data.get("candidates", [])
+                    for cand in candidates:
+                        for part in cand.get("content", {}).get("parts", []):
+                            inline = part.get("inlineData")
+                            if inline and inline.get("data"):
+                                mime = inline.get("mimeType", "image/jpeg")
+                                b64 = inline["data"]
+                                data_uri = f"data:{mime};base64,{b64}"
+                                return {
+                                    "image_url": data_uri,
+                                    "alt_text": prompt[:150],
+                                    "provider": "gemini",
+                                    "credit": "Gerada por Gemini Imagen (Google)",
+                                }
                 print(f"[ImageFactory/Gemini] HTTP {r.status_code}: {r.text[:200]}")
         except Exception as e:
             print(f"[ImageFactory/Gemini] Erro: {e}")
