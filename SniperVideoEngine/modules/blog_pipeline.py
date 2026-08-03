@@ -99,135 +99,75 @@ _TOPICS_CACHE = {}
 
 async def get_reddit_questions(niche: str, lang: str = "pt") -> list:
     """
-    Busca no Google usando Obscura por discussões do Reddit sobre o nicho
-    e extrai as 10 principais perguntas/dúvidas.
+    Busca no Google usando Chrome/Obscura por PAA (People Also Ask) e discussões
+    reais sobre o nicho. Se não houver perguntas do PAA, usa a LLM com contexto
+    para gerar 10 dúvidas reais, humanas e hiper-específicas do público (sem templates enlatados).
     """
-    from services.obscura_bridge import ObscuraBridge
-    from services.obscura_service import obscura_telemetry
-    from urllib.parse import quote
+    from services.obscura_bridge import get_serp_with_fallback
     import json
     import time as _t
 
-    from services.obscura_bridge import ObscuraBridge, _pick_bridge_host_port
-    _bhost, _bport = await _pick_bridge_host_port()
-    bridge = ObscuraBridge(host=_bhost, port=_bport)
     questions = []
-
-    # ─── 1) old.reddit.com — fonte primária (threads REAIS, HTML server-rendered) ──
-    old_url = f"https://old.reddit.com/search?q={quote(niche)}&sort=relevance&t=year"
-    print(f"[Seu Reddit] Buscando discussões em: {old_url}")
-    started = _t.perf_counter()
-    fetch_ok = False
-    fetch_error = ""
-    had_bridge = False
+    print(f"[Seu Reddit] Minerando dúvidas reais para o nicho '{niche}'...")
     try:
-        connected = await bridge.connect()
-        if connected:
-            had_bridge = True
-            await bridge.navigate_and_get_html(old_url)
-            js_code = """
-                (() => {
-                    const results = [];
-                    document.querySelectorAll('div.search-result').forEach(r => {
-                        const a = r.querySelector('.search-title a, a.search-title, .search-result-header a');
-                        if (a) {
-                            const txt = a.textContent.trim();
-                            const href = a.href || '';
-                            if (txt && txt.length > 8 && href.includes('/comments/') && !results.includes(txt)) {
-                                results.push(txt);
-                            }
-                        }
-                    });
-                    if (results.length === 0) {
-                        document.querySelectorAll('div.search-result a').forEach(a => {
-                            const txt = a.textContent.trim();
-                            const href = a.href || '';
-                            if (txt && txt.length > 12 && href.includes('/comments/') && !results.includes(txt)) {
-                                results.push(txt);
-                            }
-                        });
-                    }
-                    return JSON.stringify(results.slice(0, 10));
-                })()
-            """
-            res_json = await bridge.execute_js(js_code)
-            await bridge.disconnect()
-            if res_json:
-                questions = json.loads(res_json)
-            fetch_ok = bool(questions)
+        serp_data = await get_serp_with_fallback(niche, lang=lang)
+        if serp_data and serp_data.get("paa"):
+            paa_list = serp_data.get("paa", [])
+            for q in paa_list:
+                clean_q = str(q).strip()
+                if clean_q and len(clean_q) > 10 and clean_q not in questions:
+                    questions.append(clean_q)
+            print(f"[Seu Reddit] Encontradas {len(questions)} perguntas reais no PAA do Google!")
     except Exception as e:
-        print(f"[Seu Reddit] Erro ao extrair dúvidas do Reddit (old.reddit): {e}")
-        fetch_error = str(e)[:200]
-        try:
-            await bridge.disconnect()
-        except Exception:
-            pass
-    ms = int((_t.perf_counter() - started) * 1000)
-    obscura_telemetry.log_call("seu_reddit", old_url, fetch_ok, ms, fetch_error,
-                               via="bridge" if fetch_ok else "fallback")
+        print(f"[Seu Reddit] Aviso na busca SERP/PAA: {e}")
 
-    # ─── 2) DuckDuckGo HTML — secundária (se old.reddit falhar E motor online) ──
-    if not questions and had_bridge:
-        ddg_query = f'site:reddit.com "{niche}"'
+    # Se o PAA retornar menos de 5 dúvidas, usa a LLM contextualizada (sem templates fixos)
+    if len(questions) < 5:
         try:
-            ddg_url = f"https://html.duckduckgo.com/html/?q={quote(ddg_query)}&kl={'br-pt' if lang == 'pt' else 'us-en'}"
-            print(f"[Seu Reddit] Tentando DuckDuckGo: {ddg_url}")
-            d_started = _t.perf_counter()
-            d_ok = False
-            d_err = ""
-            connected = await bridge.connect()
-            if connected:
-                await bridge.navigate_and_get_html(ddg_url)
-                ddg_js = """
-                    (() => {
-                        const results = [];
-                        document.querySelectorAll('.result').forEach(r => {
-                            const a = r.querySelector('.result__a');
-                            const href = a ? (a.href || '') : '';
-                            if (href.includes('reddit.com')) {
-                                const t = a.textContent.trim();
-                                if (t && t.length > 8) results.push(t);
-                            }
-                        });
-                        if (results.length === 0) {
-                            document.querySelectorAll('.result__a').forEach(a => {
-                                const t = a.textContent.trim();
-                                if (t && t.length > 8 && !results.includes(t)) results.push(t);
-                            });
-                        }
-                        return JSON.stringify(results.slice(0, 10));
-                    })()
-                """
-                res_ddg = await bridge.execute_js(ddg_js)
-                await bridge.disconnect()
-                if res_ddg:
-                    questions = json.loads(res_ddg)
-                d_ok = bool(questions)
-            d_ms = int((_t.perf_counter() - d_started) * 1000)
-            obscura_telemetry.log_call("seu_reddit", ddg_url, d_ok, d_ms, d_err,
-                                       via="bridge" if d_ok else "fallback")
-        except Exception as e_ddg:
-            print(f"[Seu Reddit] DuckDuckGo também falhou: {e_ddg}")
-            try:
-                await bridge.disconnect()
-            except Exception:
-                pass
+            from modules.blog_writer import _call_llm
+            prompt = (
+                f"Você é um pesquisador comportamental especialista no nicho: '{niche}'.\n"
+                f"Gere uma lista de 10 perguntas, dúvidas ou curiosidades REAIS e extremamente naturais "
+                f"que pessoas comuns pesquisam na internet ou perguntam em fóruns como Reddit e Quora sobre '{niche}'.\n"
+                f"REGRAS:\n"
+                f"- Adapte a linguagem ao nicho. Se for curiosidades/história, pergunte sobre mistérios, fatos incríveis e segredos.\n"
+                f"- Se for um nicho comercial/produto, pergunte sobre utilidade, marcas e opiniões de uso.\n"
+                f"- NUNCA use frases genéricas como 'Como escolher o melhor X para começar' se X não for um produto físico.\n"
+                f"- Idioma: {lang}\n"
+                f"\n"
+                f"Retorne APENAS as 10 perguntas em formato JSON (array de strings, ex: [\"pergunta 1\", \"pergunta 2\"])."
+            )
+            llm_res = await _call_llm(prompt, system_prompt="Retorne apenas JSON válido.")
+            if llm_res:
+                clean_json = llm_res.strip()
+                if "```json" in clean_json:
+                    clean_json = clean_json.split("```json")[1].split("```")[0].strip()
+                elif "```" in clean_json:
+                    clean_json = clean_json.split("```")[1].split("```")[0].strip()
+                parsed = json.loads(clean_json)
+                if isinstance(parsed, list):
+                    for q in parsed:
+                        clean_q = str(q).strip()
+                        if clean_q and clean_q not in questions:
+                            questions.append(clean_q)
+        except Exception as e_llm:
+            print(f"[Seu Reddit] Falha ao sintetizar dúvidas via LLM: {e_llm}")
 
-    # Fallback caso não encontre nada ou Obscura esteja desativado    # Fallback caso não encontre nada ou Obscura esteja desativado
+    # Garantia mínima de 10 itens sem templates mecânicos
     if not questions:
         questions = [
-            f"Como escolher o melhor {niche} para começar?",
-            f"Quais os erros mais comuns ao trabalhar com {niche}?",
-            f"Qual o custo-benefício de {niche} hoje em dia?",
-            f"Dicas práticas de {niche} para iniciantes",
-            f"Como resolver o problema principal de {niche}?",
-            f"Vale a pena investir em {niche} atualmente?",
-            f"O que ninguém te conta sobre {niche}?",
-            f"Comparativo completo: as melhores opções de {niche}",
-            f"Como otimizar meus resultados com {niche}?",
-            f"Guia definitivo de dúvidas frequentes sobre {niche}"
+            f"Quais são os maiores mistérios e fatos desconhecidos sobre {niche}?",
+            f"O que a ciência diz sobre os segredos por trás de {niche}?",
+            f"Histórias surpreendentes e curiosidades raras sobre {niche}",
+            f"O que a maioria das pessoas não sabe sobre {niche}?",
+            f"Principais descobertas e fatos fascinantes no universo de {niche}",
+            f"Como o tema {niche} impacta nosso dia a dia e nossa história?",
+            f"Casos inacreditáveis e relatos marcantes ligados a {niche}",
+            f"Perguntas frequentes e explicações simples sobre {niche}",
+            f"Mitos vs Verdades sobre os principais aspectos de {niche}",
+            f"Guia de curiosidades essenciais para entender {niche} de forma rápida"
         ]
-    return questions
+    return questions[:10]
 
 async def _generate_dynamic_topics(niche: str, count: int = 35, language: str = "pt", is_affiliate: bool = False, is_discover: bool = False, pains: list = None) -> list:
     """
