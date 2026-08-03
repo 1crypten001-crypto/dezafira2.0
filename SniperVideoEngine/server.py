@@ -3535,16 +3535,28 @@ async def update_blog_modes(slug: str, payload: dict):
     from modules.database import SessionLocal, BlogChannel
     db = SessionLocal()
     try:
-        # Buscar canal pelo slug do nome
+        # Buscar canal pelo slug do nome (com sanitização de caracteres especiais/acentos)
+        import unicodedata
+        import re
+        
+        def slugify(text: str) -> str:
+            text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+            text = re.sub(r'[^\w\s-]', '', text).strip().lower()
+            return re.sub(r'[-\s]+', '-', text)[:50]
+
         channels = db.query(BlogChannel).all()
         chan = None
         for c in channels:
-            if c.name.lower().replace(" ", "-")[:50] == slug:
+            if slugify(c.name) == slug or c.name.lower().replace(" ", "-")[:50] == slug:
                 chan = c
                 break
 
         if not chan:
-            raise HTTPException(status_code=404, detail="Blog nao encontrado")
+            # Fallback secundário: buscar direto por ID caso o slug seja o próprio ID
+            chan = db.query(BlogChannel).filter(BlogChannel.id == slug).first()
+
+        if not chan:
+            raise HTTPException(status_code=404, detail=f"Blog nao encontrado (slug: {slug})")
 
         # Atualizar
         for k, v in payload.items():
