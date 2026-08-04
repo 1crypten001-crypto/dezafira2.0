@@ -3475,3 +3475,95 @@ def get_db_obscura_serp_runs(limit: int = 20) -> list:
 # FIM DEZAFIRA CLUB — CRUD Functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+# ─── FÁBRICA DE MARKETING — Model e CRUD ────────────────────────────────────
+
+class MarketingCampaign(Base):
+    """Campanha de Marketing gerada pela Esteira Dezafira (6 fases sequenciais)."""
+    __tablename__ = "marketing_campaigns"
+
+    id = Column(String(50), primary_key=True, index=True)
+    niche = Column(String(200), nullable=False)
+    status = Column(String(30), default="in_progress")  # in_progress, completed, failed
+
+    stage_1_avatar = Column(Text, nullable=True)
+    stage_2_hvco = Column(Text, nullable=True)
+    stage_3_ads = Column(Text, nullable=True)
+    stage_4_landing = Column(Text, nullable=True)
+    stage_5_emails = Column(Text, nullable=True)
+    stage_6_offer = Column(Text, nullable=True)
+
+    stages_completed = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def create_marketing_campaign(campaign_id: str, niche: str) -> dict:
+    db = SessionLocal()
+    try:
+        c = MarketingCampaign(id=campaign_id, niche=niche, status="in_progress")
+        db.add(c)
+        db.commit()
+        db.refresh(c)
+        return {"id": c.id, "niche": c.niche, "status": c.status}
+    finally:
+        db.close()
+
+
+def update_marketing_campaign_stage(campaign_id: str, stage: int, content: str) -> bool:
+    stage_field_map = {1:"stage_1_avatar", 2:"stage_2_hvco", 3:"stage_3_ads",
+                       4:"stage_4_landing", 5:"stage_5_emails", 6:"stage_6_offer"}
+    field = stage_field_map.get(stage)
+    if not field:
+        return False
+    db = SessionLocal()
+    try:
+        c = db.query(MarketingCampaign).filter(MarketingCampaign.id == campaign_id).first()
+        if not c:
+            return False
+        setattr(c, field, content)
+        c.stages_completed = max(c.stages_completed or 0, stage)
+        if stage == 6:
+            c.status = "completed"
+        c.updated_at = datetime.utcnow()
+        db.commit()
+        return True
+    finally:
+        db.close()
+
+
+def get_marketing_campaigns(limit: int = 20) -> list:
+    db = SessionLocal()
+    try:
+        rows = db.query(MarketingCampaign).order_by(MarketingCampaign.created_at.desc()).limit(limit).all()
+        return [{
+            "id": c.id, "niche": c.niche, "status": c.status,
+            "stages_completed": c.stages_completed or 0,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            "stages": {
+                "1": c.stage_1_avatar, "2": c.stage_2_hvco, "3": c.stage_3_ads,
+                "4": c.stage_4_landing, "5": c.stage_5_emails, "6": c.stage_6_offer,
+            }
+        } for c in rows]
+    finally:
+        db.close()
+
+
+def get_marketing_campaign(campaign_id: str) -> dict:
+    db = SessionLocal()
+    try:
+        c = db.query(MarketingCampaign).filter(MarketingCampaign.id == campaign_id).first()
+        if not c:
+            return {}
+        return {
+            "id": c.id, "niche": c.niche, "status": c.status,
+            "stages_completed": c.stages_completed or 0,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "stages": {
+                "1": c.stage_1_avatar, "2": c.stage_2_hvco, "3": c.stage_3_ads,
+                "4": c.stage_4_landing, "5": c.stage_5_emails, "6": c.stage_6_offer,
+            }
+        }
+    finally:
+        db.close()

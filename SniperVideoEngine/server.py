@@ -6092,8 +6092,14 @@ async def start_marketing_campaign(payload: dict, _admin=Depends(require_admin))
         raise HTTPException(status_code=400, detail="Nicho é obrigatório")
 
     from modules.marketing_pipeline import MarketingPipeline
+    from modules.database import create_marketing_campaign
     campaign_id = str(uuid.uuid4().hex[:12])
     _marketing_pipelines[campaign_id] = MarketingPipeline()
+    # Persiste no banco para histórico
+    try:
+        create_marketing_campaign(campaign_id, niche)
+    except Exception as e:
+        print(f"[Marketing] Aviso: falha ao criar campanha no banco: {e}")
     return {"success": True, "campaign_id": campaign_id, "niche": niche}
 
 @app.post("/api/v1/marketing/stage")
@@ -6106,14 +6112,31 @@ async def run_marketing_stage_endpoint(payload: dict, _admin=Depends(require_adm
     if not campaign_id or stage is None:
         raise HTTPException(status_code=400, detail="campaign_id e stage são obrigatórios")
 
-    # Recupera ou inicializa a pipeline correspondente
     from modules.marketing_pipeline import MarketingPipeline
+    from modules.database import update_marketing_campaign_stage
     if campaign_id not in _marketing_pipelines:
         _marketing_pipelines[campaign_id] = MarketingPipeline()
 
     pipeline = _marketing_pipelines[campaign_id]
     result = await pipeline.run_stage(int(stage), niche)
+    
+    # Persiste o conteúdo gerado no banco
+    if result and result.get("success") and result.get("content"):
+        try:
+            update_marketing_campaign_stage(campaign_id, int(stage), result["content"])
+        except Exception as e:
+            print(f"[Marketing] Aviso: falha ao salvar fase {stage} no banco: {e}")
     return result
+
+@app.get("/api/v1/marketing/history")
+async def get_marketing_history_endpoint(_admin=Depends(require_admin)):
+    """Retorna o histórico de campanhas de marketing para restaurar o estado na UI."""
+    from modules.database import get_marketing_campaigns
+    try:
+        campaigns = get_marketing_campaigns(limit=20)
+        return {"success": True, "campaigns": campaigns}
+    except Exception as e:
+        return {"success": False, "error": str(e), "campaigns": []}
 
 @app.post("/api/v1/marketing/send-test-email")
 async def send_marketing_test_email(payload: dict, _admin=Depends(require_admin)):

@@ -662,6 +662,17 @@
           </div>
         </div>
       </div>
+
+      <!-- Histórico de Campanhas de Marketing -->
+      <div class="section" style="margin-top:32px">
+        <div class="section-header">
+          <h3>🗂️ Histórico de Campanhas</h3>
+          <button class="btn btn-sm" onclick="loadMarketingHistory()">🔄 Atualizar</button>
+        </div>
+        <div id="marketingHistoryList" class="card-table">
+          <div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando histórico...</div>
+        </div>
+      </div>
     </div>
   </main>
 </div>
@@ -741,7 +752,7 @@ function navigate(p,skipHash){
   else if(p==="blogs"){loadBlogs(); renderPipeline(); loadHistory();}
   else if(p==="books")loadBooks();
   else if(p==="courses")loadCourses();
-  else if(p==="marketing")loadMarketing();
+  else if(p==="marketing"){loadMarketing(); loadMarketingHistory();}
   else if(p==="images")loadImages();
   else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
@@ -3147,6 +3158,70 @@ function renderMarketingStages(activeStageIndex = 0, stageStatuses = {}) {
       connectorHtml +
     '</div>';
   }).join("");
+}
+
+async function loadMarketingHistory() {
+  var el = $("marketingHistoryList");
+  if (!el) return;
+  el.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando...</div>';
+  try {
+    var res = await api("/api/v1/marketing/history");
+    if (!res || !res.success || !res.campaigns || !res.campaigns.length) {
+      el.innerHTML = '<div class="empty">Nenhuma campanha encontrada ainda. Crie a primeira acima! 🚀</div>';
+      return;
+    }
+    var html = "";
+    res.campaigns.forEach(function(c) {
+      var statusColor = c.status === "completed" ? "#4ade80" : c.status === "in_progress" ? "#fbbf24" : "#f87171";
+      var statusLabel = c.status === "completed" ? "✅ Completa" : c.status === "in_progress" ? "⏳ Em andamento" : "❌ Falhou";
+      var date = c.created_at ? c.created_at.slice(0, 16).replace("T", " ") : "-";
+      html += '<div class="lili-article-row">' +
+        '<div>' +
+          '<div class="lili-article-title">📊 ' + escapeHtml(c.niche) + '</div>' +
+          '<div class="lili-article-meta">' + date + ' · ' + c.stages_completed + '/6 fases · <span style="color:' + statusColor + '">' + statusLabel + '</span></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px">' +
+          '<button class="btn btn-sm" style="background:#7c3aed;border-color:#7c3aed;color:#fff" onclick="restoreMarketingCampaign(\'' + c.id + '\',\'' + escapeHtml(c.niche).replace(/'/g,"\\'") + '\',' + JSON.stringify(c.stages).replace(/</g,'\\u003c') + ')">📂 Restaurar</button>' +
+        '</div>' +
+      '</div>';
+    });
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="empty">Erro ao carregar histórico: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function restoreMarketingCampaign(campaignId, niche, stages) {
+  currentMarketingCampaignId = campaignId;
+  currentMarketingNiche = niche;
+  marketingStageContents = {};
+  
+  // Restaura os conteúdos de cada fase
+  for (var s = 1; s <= 6; s++) {
+    if (stages[String(s)]) {
+      marketingStageContents[s] = stages[String(s)];
+    }
+  }
+  
+  // Atualiza o input de nicho
+  var ni = $("marketingNiche");
+  if (ni) ni.value = niche;
+  
+  // Renderiza as fases com os status corretos
+  var stageStatuses = {};
+  for (var i = 1; i <= 6; i++) {
+    stageStatuses[i] = marketingStageContents[i] ? "completed" : "idle";
+  }
+  renderMarketingStages(0, stageStatuses);
+  
+  // Mostra o último output disponível
+  var lastStage = 0;
+  for (var k = 6; k >= 1; k--) {
+    if (marketingStageContents[k]) { lastStage = k; break; }
+  }
+  if (lastStage > 0) viewMarketingStageContent(lastStage);
+  
+  showToast("📂 Campanha restaurada: " + niche + " (" + lastStage + "/6 fases)");
 }
 
 async function startMarketingCampaign() {
