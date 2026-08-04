@@ -6258,3 +6258,109 @@ async def publish_to_wordpress_endpoint(post_id: str, _admin=Depends(require_adm
             raise HTTPException(status_code=500, detail=f"Falha de rede ao conectar ao WordPress: {str(he)}")
 
 
+# ─── WORDPRESS CONFIGURAÇÃO E PUBLICAÇÃO DE MARKETING ────────────────────────
+
+@app.post("/api/v1/wordpress/test")
+async def wordpress_test_connection(payload: dict, _admin=Depends(require_admin)):
+    """Testa a conexão com a API REST do WordPress usando as credenciais fornecidas."""
+    wp_url = payload.get("wp_url", "").strip().rstrip("/")
+    wp_user = payload.get("wp_user", "").strip()
+    wp_pass = payload.get("wp_app_pass", "").strip()
+
+    if not wp_url or not wp_user or not wp_pass:
+        return {"success": False, "error": "URL, usuário e senha de aplicativo são obrigatórios."}
+
+    auth = httpx.BasicAuth(wp_user, wp_pass)
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            res = await client.get(f"{wp_url}/wp-json/wp/v2/users/me", auth=auth)
+            if res.status_code == 200:
+                user_data = res.json()
+                site_name = user_data.get("name", wp_url)
+                # Pega o nome do site
+                site_res = await client.get(f"{wp_url}/wp-json/")
+                site_name_final = site_name
+                if site_res.status_code == 200:
+                    site_name_final = site_res.json().get("name", site_name)
+                return {"success": True, "site_name": site_name_final, "user": user_data.get("slug", wp_user)}
+            else:
+                msg = "Credenciais inválidas ou API REST desabilitada."
+                try:
+                    msg = res.json().get("message", msg)
+                except Exception:
+                    pass
+                return {"success": False, "error": msg}
+        except httpx.HTTPError as e:
+            return {"success": False, "error": f"Não foi possível conectar ao WordPress: {str(e)}"}
+
+
+@app.post("/api/v1/wordpress/save-settings")
+async def wordpress_save_settings(payload: dict, _admin=Depends(require_admin)):
+    """Salva as configurações do WordPress como variáveis de ambiente em runtime."""
+    wp_url = payload.get("wp_url", "").strip().rstrip("/")
+    wp_user = payload.get("wp_user", "").strip()
+    wp_pass = payload.get("wp_app_pass", "").strip()
+    wp_status = payload.get("wp_default_status", "draft")
+    wp_mtype = payload.get("wp_marketing_type", "page")
+
+    if not wp_url or not wp_user or not wp_pass:
+        return {"success": False, "error": "Campos obrigatórios ausentes."}
+
+    # Salva no ambiente do processo em runtime (Railway requer setar nas variáveis de ambiente pelo painel)
+    os.environ["WP_URL"] = wp_url
+    os.environ["WP_USER"] = wp_user
+    os.environ["WP_APP_PASS"] = wp_pass
+    os.environ["WP_DEFAULT_STATUS"] = wp_status
+    os.environ["WP_MARKETING_TYPE"] = wp_mtype
+
+    return {
+        "success": True,
+        "message": "Configurações salvas na sessão atual. Para persistir entre reinicializações, adicione também no Railway: WP_URL, WP_USER, WP_APP_PASS."
+    }
+
+
+@app.post("/api/v1/marketing/publish-wordpress")
+async def marketing_publish_wordpress(payload: dict, _admin=Depends(require_admin)):
+    """Publica o funil de marketing completo como página/post no WordPress."""
+    title = payload.get("title", "Página de Vendas").strip()
+    content = payload.get("content", "").strip()
+    status = payload.get("status", os.getenv("WP_DEFAULT_STATUS", "draft"))
+    content_type = payload.get("content_type", os.getenv("WP_MARKETING_TYPE", "page"))
+
+    wp_url = os.getenv("WP_URL", "").strip().rstrip("/")
+    wp_user = os.getenv("WP_USER", "").strip()
+    wp_pass = os.getenv("WP_APP_PASS", "").strip()
+
+    if not wp_url or not wp_user or not wp_pass:
+        raise HTTPException(
+            status_code=400,
+            detail="Configure as credenciais do WordPress antes de publicar. Acesse a aba 🌐 WordPress no menu lateral."
+        )
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Conteúdo do funil está vazio.")
+
+    endpoint = f"{wp_url}/wp-json/wp/v2/{'pages' if content_type == 'page' else 'posts'}"
+    auth = httpx.BasicAuth(wp_user, wp_pass)
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            res = await client.post(endpoint, auth=auth, json={
+                "title": title,
+                "content": content,
+                "status": status
+            })
+
+            if res.status_code in (200, 201):
+                data = res.json()
+                return {"success": True, "link": data.get("link", ""), "id": data.get("id")}
+            else:
+                detail = res.text
+                try:
+                    detail = res.json().get("message", detail)
+                except Exception:
+                    pass
+                raise HTTPException(status_code=500, detail=f"Erro no WordPress: {detail}")
+
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=500, detail=f"Erro de rede: {str(e)}")

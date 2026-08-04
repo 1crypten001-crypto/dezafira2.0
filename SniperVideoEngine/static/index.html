@@ -345,6 +345,8 @@
       <a class="nav-item" data-page="hermes" title="Hermes — Orquestrador" href="#hermes" onclick="navigate('hermes')"><span class="icon">🤖</span><span class="nav-label">Hermes</span></a>
       <a class="nav-item" data-page="lili" title="Qualidade — Revisora LiLi" href="#lili" onclick="navigate('lili')"><span class="icon">🔍</span><span class="nav-label">Qualidade</span> <span class="badge" id="liliBadge">-</span></a>
       <a class="nav-item" data-page="obscura" title="Obscura — Motor Headless & Monitoramento" href="#obscura" onclick="navigate('obscura')"><span class="icon">🕵️</span><span class="nav-label">Obscura</span> <span class="badge" id="obscuraBadge">-</span></a>
+      <div class="nav-section" style="margin-top:8px">Integrações</div>
+      <a class="nav-item" data-page="wordpress" title="Configuração do WordPress" href="#wordpress" onclick="navigate('wordpress')"><span class="icon">🌐</span><span class="nav-label">WordPress</span></a>
     </nav>
     <div class="sidebar-footer">Dezafira <span id="uiVersion">v1.1.0</span></div>
   </aside>
@@ -633,9 +635,10 @@
       <div id="marketingOutputPanel" style="display:none;background:#0b0c12;border:1px solid #1e2030;border-radius:12px;padding:20px;margin-bottom:24px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <h3 id="marketingOutputTitle" style="color:#a5b4fc;margin:0;font-size:15px;font-weight:700">Output da Fase</h3>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="copyMarketingOutput()" style="background:#14161f">📋 Copiar Conteúdo</button>
             <button class="btn btn-sm btn-primary" id="btnTestSmtp" style="display:none" onclick="openSmtpTestModal()">✉️ Disparar E-mail Teste</button>
+            <button class="btn btn-sm" style="background:#21759b;border-color:#21759b;color:#fff;font-weight:700" onclick="publishMarketingFunnelToWordPress()" title="Publicar página de vendas completa no WordPress">🌐 Publicar no WP</button>
           </div>
         </div>
         <div id="marketingOutputContent" style="color:#e8edf2;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:monospace;background:#07080b;padding:16px;border-radius:8px;border:1px solid #14161f;max-height:480px;overflow-y:auto"></div>
@@ -673,7 +676,104 @@
           <div class="empty"><div class="spinner" style="margin:0 auto 8px"></div>Carregando histórico...</div>
         </div>
       </div>
+    <!-- PÁGINA DE CONFIGURAÇÃO DO WORDPRESS -->
+    <div class="page" id="page-wordpress">
+      <div class="page-header">
+        <h2>🌐 Integração WordPress</h2>
+        <p>Configure a publicação automática de artigos e páginas de vendas diretamente para o seu WordPress. Não requer plugins — usa a API nativa gratuita do WordPress.</p>
+      </div>
+
+      <!-- Status da Conexão -->
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card">
+          <div class="label">Status da Conexão</div>
+          <div class="value" id="wpConnectionStatus" style="font-size:16px;color:#6b7280">⚪ Não testado</div>
+          <div class="sub" id="wpConnectionDetail">Configure as credenciais abaixo e clique em "Testar"</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Site WordPress</div>
+          <div class="value" id="wpSiteInfo" style="font-size:13px;color:#8a91a5">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Posts Publicados</div>
+          <div class="value" id="wpPostCount">—</div>
+          <div class="sub">via Dezafira</div>
+        </div>
+      </div>
+
+      <!-- Formulário de Credenciais -->
+      <div class="section">
+        <div class="section-header"><h3>🔐 Credenciais do WordPress</h3></div>
+        <div style="background:#0b0c12;border:1px solid #1e2030;border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:6px">URL do WordPress *</label>
+              <input type="url" id="wpUrl" placeholder="https://seusite.com.br" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px" />
+              <div style="font-size:11px;color:#5c6370;margin-top:4px">URL raiz do seu site WordPress (sem barra no final)</div>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:6px">Usuário Admin *</label>
+              <input type="text" id="wpUser" placeholder="admin" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:6px">Senha de Aplicativo *</label>
+              <input type="password" id="wpAppPass" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px" />
+              <div style="font-size:11px;color:#5c6370;margin-top:4px">Gerada em: WordPress Admin → Usuários → Perfil → Senhas de Aplicativo</div>
+            </div>
+          </div>
+
+          <!-- Opções de publicação -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:6px">Status Padrão ao Publicar</label>
+              <select id="wpDefaultStatus" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px">
+                <option value="draft">Rascunho (recomendado — revisar antes)</option>
+                <option value="publish">Publicado diretamente</option>
+                <option value="pending">Pendente de revisão</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:#8a91a5;margin-bottom:6px">Tipo de Conteúdo Marketing</label>
+              <select id="wpMarketingType" style="width:100%;padding:10px 14px;background:#07080b;border:1px solid #1e2030;border-radius:8px;color:#fff;font-size:13px">
+                <option value="page">Página (/wp-json/wp/v2/pages)</option>
+                <option value="post">Post de Blog</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="testWordPressConnection()" id="btnTestWp" style="padding:10px 24px">🔌 Testar Conexão</button>
+            <button class="btn" onclick="saveWordPressSettings()" style="padding:10px 24px;background:#14161f">💾 Salvar Configurações no Railway</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guia Rápido -->
+      <div class="section" style="margin-top:24px">
+        <div class="section-header"><h3>📖 Como obter a Senha de Aplicativo (2 minutos)</h3></div>
+        <div class="card-table">
+          <div class="lili-article-row" style="flex-direction:column;gap:10px;padding:20px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">1</div>
+              <div><div style="font-weight:600;color:#e8edf2">Acesse o painel do WordPress</div><div style="font-size:12px;color:#8a91a5">Vá em: <code style="background:#14161f;padding:2px 6px;border-radius:4px">seusite.com.br/wp-admin</code></div></div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">2</div>
+              <div><div style="font-weight:600;color:#e8edf2">Vá em Usuários → Perfil</div><div style="font-size:12px;color:#8a91a5">No menu lateral do WP Admin</div></div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">3</div>
+              <div><div style="font-weight:600;color:#e8edf2">Role até "Senhas de Aplicativo"</div><div style="font-size:12px;color:#8a91a5">Digite "Dezafira" como nome da aplicação e clique em <strong>Adicionar nova senha de aplicativo</strong></div></div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:#34d399;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">✓</div>
+              <div><div style="font-weight:600;color:#34d399">Cole a senha gerada no campo acima</div><div style="font-size:12px;color:#8a91a5">A senha aparece apenas uma vez (formato: xxxx xxxx xxxx xxxx). Cole exatamente como aparece, com os espaços.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
   </main>
 </div>
 <!-- Busca global (Ctrl+K) -->
@@ -701,7 +801,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura",marketing:"Marketing Digital"};
+const pageTitles={dashboard:"Dashboard",blogs:"Blogs & Pipeline",pipeline:"Pipeline",books:"Livros",courses:"Cursos",images:"Imagens",hermes:"Hermes",lili:"Qualidade",obscura:"Obscura",marketing:"Marketing Digital",wordpress:"WordPress"};
 const STAGES=[
   {id:"fundacao",name:"Fundação",icon:"🏗️",agent:"Seu Hermes + Dona Celia",
     agents:[{name:"Seu Hermes",emoji:"👴",role:"Orquestrador",action:"Coordenando equipes"},{name:"Dona Celia",emoji:"👩‍🎨",role:"Designer",action:"Criando identidade"}]},
@@ -757,6 +857,7 @@ function navigate(p,skipHash){
   else if(p==="hermes")loadHermes();
   else if(p==="lili")loadLili();
   else if(p==="obscura")loadObscura();
+  else if(p==="wordpress")loadWordPressSettings();
   closeSidebar();
   var an=document.querySelector('.nav-item.active');
   if(an){try{an.focus({preventScroll:true})}catch(e){}}
@@ -3402,6 +3503,163 @@ async function sendMarketingTestEmail() {
     }
   };
 })();
+
+// ─── WORDPRESS INTEGRATION JS ───────────────────────────────────────────────
+
+function loadWordPressSettings() {
+  // Carrega credenciais salvas da sessão local (não expõe a senha — só URL e user)
+  var url = localStorage.getItem("wp_url") || "";
+  var user = localStorage.getItem("wp_user") || "";
+  var status = localStorage.getItem("wp_status") || "";
+  if (url && $("wpUrl")) $("wpUrl").value = url;
+  if (user && $("wpUser")) $("wpUser").value = user;
+  if (status === "ok") {
+    var el = $("wpConnectionStatus");
+    if (el) { el.textContent = "🟢 Conectado"; el.style.color = "#34d399"; }
+    var det = $("wpConnectionDetail");
+    if (det) det.textContent = "Credenciais verificadas com sucesso";
+    var si = $("wpSiteInfo");
+    if (si) si.textContent = url;
+  }
+}
+
+async function testWordPressConnection() {
+  var url = ($("wpUrl")||{}).value || "";
+  var user = ($("wpUser")||{}).value || "";
+  var pass = ($("wpAppPass")||{}).value || "";
+  var btn = $("btnTestWp");
+
+  if (!url || !user || !pass) {
+    showToast("⚠️ Preencha URL, usuário e senha de aplicativo.");
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Testando..."; }
+  var statusEl = $("wpConnectionStatus");
+  var detailEl = $("wpConnectionDetail");
+  var siteEl = $("wpSiteInfo");
+
+  try {
+    var res = await api("/api/v1/wordpress/test", {
+      method: "POST",
+      body: JSON.stringify({ wp_url: url.trim().replace(/\/$/, ""), wp_user: user.trim(), wp_app_pass: pass.trim() })
+    });
+    if (res && res.success) {
+      if (statusEl) { statusEl.textContent = "🟢 Conectado"; statusEl.style.color = "#34d399"; }
+      if (detailEl) detailEl.textContent = "Conexão com a API REST do WordPress confirmada!";
+      if (siteEl) siteEl.textContent = res.site_name || url;
+      localStorage.setItem("wp_url", url.trim().replace(/\/$/, ""));
+      localStorage.setItem("wp_user", user.trim());
+      localStorage.setItem("wp_status", "ok");
+      showToast("✅ Conexão com WordPress confirmada: " + (res.site_name || url));
+    } else {
+      if (statusEl) { statusEl.textContent = "🔴 Falha"; statusEl.style.color = "#f87171"; }
+      if (detailEl) detailEl.textContent = res.error || "Verifique URL, usuário e senha de aplicativo.";
+      localStorage.setItem("wp_status", "fail");
+      showToast("❌ Falha: " + (res.error || "credenciais inválidas"));
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = "🔴 Erro de Rede"; statusEl.style.color = "#f87171"; }
+    showToast("❌ Erro de rede: " + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "🔌 Testar Conexão"; }
+  }
+}
+
+async function saveWordPressSettings() {
+  var url = ($("wpUrl")||{}).value || "";
+  var user = ($("wpUser")||{}).value || "";
+  var pass = ($("wpAppPass")||{}).value || "";
+  var status = ($("wpDefaultStatus")||{}).value || "draft";
+  var mtype = ($("wpMarketingType")||{}).value || "page";
+
+  if (!url || !user || !pass) {
+    showToast("⚠️ Preencha todos os campos obrigatórios.");
+    return;
+  }
+
+  try {
+    var res = await api("/api/v1/wordpress/save-settings", {
+      method: "POST",
+      body: JSON.stringify({
+        wp_url: url.trim().replace(/\/$/, ""),
+        wp_user: user.trim(),
+        wp_app_pass: pass.trim(),
+        wp_default_status: status,
+        wp_marketing_type: mtype
+      })
+    });
+    if (res && res.success) {
+      localStorage.setItem("wp_url", url.trim().replace(/\/$/, ""));
+      localStorage.setItem("wp_user", user.trim());
+      showToast("💾 Configurações do WordPress salvas com sucesso!");
+    } else {
+      showToast("❌ Erro ao salvar: " + (res.error || "tente novamente"));
+    }
+  } catch(e) {
+    showToast("❌ Erro de rede: " + e.message);
+  }
+}
+
+async function publishMarketingFunnelToWordPress() {
+  if (!currentMarketingCampaignId) {
+    showToast("⚠️ Nenhum funil ativo. Inicie ou restaure uma campanha primeiro.");
+    return;
+  }
+
+  var mtype = ($("wpMarketingType")||{}).value || "page";
+  var status = ($("wpDefaultStatus")||{}).value || "draft";
+
+  // Monta a página de vendas completa com todo o conteúdo gerado
+  var avatar    = marketingStageContents[1] || "";
+  var hvco      = marketingStageContents[2] || "";
+  var ads       = marketingStageContents[3] || "";
+  var landing   = marketingStageContents[4] || "";
+  var emails    = marketingStageContents[5] || "";
+  var offer     = marketingStageContents[6] || "";
+
+  if (!landing && !offer) {
+    showToast("⚠️ Gere ao menos a Fase 4 (Landing Page) antes de publicar no WordPress.");
+    return;
+  }
+
+  var title = "Página de Vendas — " + (currentMarketingNiche || "Funil");
+  var html = [
+    landing ? "<h1>" + escapeHtml(currentMarketingNiche || "Produto") + "</h1>\n<div class='landing-section'>" + landing.replace(/\n/g, "<br>") + "</div>" : "",
+    offer   ? "<hr><h2>🤝 A Oferta</h2><div class='offer-section'>" + offer.replace(/\n/g, "<br>") + "</div>" : "",
+    ads     ? "<hr><h2>📢 Criativos de Anúncio</h2><pre>" + escapeHtml(ads) + "</pre>" : "",
+    hvco    ? "<hr><h2>🍯 Iscas Digitais (HVCO)</h2><pre>" + escapeHtml(hvco) + "</pre>" : "",
+    emails  ? "<hr><h2>✉️ Sequência de E-mails</h2><pre>" + escapeHtml(emails) + "</pre>" : "",
+    avatar  ? "<hr><details><summary>👤 Pesquisa de Avatar de Cliente</summary><pre>" + escapeHtml(avatar) + "</pre></details>" : ""
+  ].filter(Boolean).join("\n");
+
+  if (!confirm("Publicar a Página de Vendas completa no WordPress como " + (status === "draft" ? "rascunho" : status) + "?\n\nConteúdo: " + [landing?"✅ Landing Page":"", offer?"✅ Oferta":"", ads?"✅ Anúncios":"", emails?"✅ E-mails":""].filter(Boolean).join(", "))) return;
+
+  showToast("⏳ Publicando funil completo no WordPress...");
+
+  try {
+    var res = await api("/api/v1/marketing/publish-wordpress", {
+      method: "POST",
+      body: JSON.stringify({
+        campaign_id: currentMarketingCampaignId,
+        title: title,
+        content: html,
+        status: status,
+        content_type: mtype
+      })
+    });
+    if (res && res.success) {
+      showToast("✅ Página de Vendas publicada no WordPress!");
+      if (res.link && confirm("🎉 Publicado!\n\nAbrir a página no WordPress para revisar?")) {
+        window.open(res.link, "_blank");
+      }
+    } else {
+      showToast("❌ Erro: " + (res.detail || res.error || "falha na publicação"));
+    }
+  } catch(e) {
+    showToast("❌ Erro de rede: " + e.message);
+  }
+}
 </script>
 </body>
 </html>
