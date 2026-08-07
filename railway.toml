@@ -1,0 +1,16 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+# startCommand removido — usa o CMD do Dockerfile
+#
+# Envs obrigatórias no Railway (dashboard, não commitáveis):
+#   AUTH_SECRET (ou SECRET_KEY) — OBRIGATÓRIO desde 08/2026: o backend não sobe sem ele (>= 16 chars)
+#   DATABASE_URL, chaves LLM (OPENROUTER_*/GEMINI_*/NVIDIA_*/HUGGINGFACE_*/DEEPSEEK_*), OBSCURA_*/CHROME_*, WP_*, SMTP_*
+#   CLUBE_PUBLIC_URL (ex: https://www.dezafira.com.br) e CLUBE_IMPORT_KEY (== IMPORT_API_KEY do Clube)
+#     — ponte Adm→Clube: fábricas publicam entregáveis no catálogo do Clube

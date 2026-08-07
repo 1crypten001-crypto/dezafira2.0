@@ -1,0 +1,45 @@
+name: Rotate libsql token
+
+# Renova automaticamente o DATABASE_AUTH_TOKEN da DezafiraClube no Railway
+# antes do token de 1 ano expirar. Roda no dia 1 de cada mês (ou manualmente).
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'   # 1º dia do mês, 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Gerar novo token
+        id: token
+        env:
+          SQLD_AUTH_JWT_KEY: ${{ secrets.SQLD_AUTH_JWT_KEY }}
+        run: |
+          NEW_TOKEN="$(node libsql-server/rotate-token.mjs)"
+          echo "new_token=$NEW_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar CLI do Railway
+        run: |
+          bash <(curl -fsSL railway.com/install.sh)
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+
+      - name: Atualizar DATABASE_AUTH_TOKEN na DezafiraClube
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway variable set "DATABASE_AUTH_TOKEN=${{ steps.token.outputs.new_token }}" \
+            --service "${{ vars.RAILWAY_CLUBE_SERVICE }}" --json
+
+# Secrets necessários (GitHub → Settings → Secrets and variables → Actions):
+#   RAILWAY_TOKEN       — token de projeto do Railway (Project → Settings → Tokens)
+#   SQLD_AUTH_JWT_KEY   — o MESMO segredo do serviço libsql-server
+# Variables:
+#   RAILWAY_CLUBE_SERVICE — nome do serviço (default: dezafiraclube)

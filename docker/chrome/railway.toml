@@ -1,0 +1,23 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# O healthcheck do Railway SEMPRE sonda a variável $PORT injetada — a doc
+# oficial diz "This variable's value is also used when performing health
+# checks" e healthcheckPort no toml é IGNORADO. Como $PORT apontava para o
+# socat -> CDP do Chrome, e o Chrome 136+ tem anti-DNS-rebinding (recusa
+# conexão CDP com Host de hostname), o healthcheck ficava "service
+# unavailable" para sempre, mesmo com o Chrome de pé.
+#
+# Por isso fixamos PORT=9000 (a porta do health_server.py, que responde 200
+# para QUALQUER caminho). O CDP real (9223) fica só para a rede privada do
+# backend via socat — o socat NÃO expõe a 9000.
+healthcheckPath = "/healthz"
+healthcheckPort = 9000
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[variables]
+PORT = "9000"

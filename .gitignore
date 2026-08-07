@@ -1,0 +1,94 @@
+# Dependências
+node_modules/
+.next/
+dist/
+build/
+venv/
+.venv/
+env/
+
+# Arquivos locais e caches
+__pycache__/
+*.tsbuildinfo
+
+# Binario local do motor Obscura (baixado para dev local)
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Banco de dados e dados locais da Dezafira
+dezafira.db
+dezafira.db-journal
+channels.json
+temp/
+outputs/
+backend/
+test_debug.db
+hermes_memory.db
+
+# Segredos (NUNCA COMMITAR CHAVES DE API!)
+.env
+credentials/
+*.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OpenMontage (motor de renderização)
+
+# Sistema
+.DS_Store
+nul
+
+# Logs
+*.log
+
+# Arquivos grandes / PDFs
+*.pdf
+tmp/
+
+# Arquivos temporários / Debug
+*.mp4.tmp.wav
+*TEMP_MPY*
+startup_error.txt
+startup_output.txt
+frontend_error.txt
+frontend_output.txt
+*.bak
+=0.3.0
+
+# Arquivos de teste e backup
+*_test.py
+*_test.html
+
+# Binários pesados e Mídias geradas
+*.mp4
+*.mp3
+*.wav
+*.zip
+*.exe
+*.msi
+
+# Caches locais de IAs e ferramentas
+.gemini/
+.freebuff/
+*.db
+*.db-shm
+*.db-wal
+
+# logs
+
+# Chrome real (perfil persistente do CDP)
+
+# Template de terceiros (Blog Inteligente SEO com IA — referência local)
+
+# Dados de configuração social do distributor.py
+data/

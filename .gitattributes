@@ -1,0 +1,7 @@
+# Força LF (Unix) nos scripts e Dockerfiles — CRLF do Windows quebra o
+# shebang #!/bin/sh e os entrypoints dos containers do Railway.
+*.sh text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.py text eol=lf
+*.bat text eol=crlf

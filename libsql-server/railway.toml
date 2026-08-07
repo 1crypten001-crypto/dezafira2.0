@@ -1,0 +1,14 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# ⚠️ IMPORTANTE no Railway:
+#  1. Crie um VOLUME e monte em /var/lib/sqld (persistência do banco)
+#  2. Defina SQLD_AUTH_JWT_KEY (segredo p/ gerar os tokens de acesso)
+#  3. Gere um token HS256 com o segredo e use como DATABASE_AUTH_TOKEN na DezafiraClube

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <defs>
+    <linearGradient id="cbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="250" rx="12" fill="url(#cbg)"/>
+  <rect x="0" y="0" width="400" height="4" rx="2" fill="#8b5cf6"/>
+  <!-- Course icon -->
+  <g transform="translate(160, 55)">
+    <rect x="0" y="0" width="80" height="50" rx="4" fill="#8b5cf6" opacity="0.2"/>
+    <polygon points="35,12 35,38 60,25" fill="#8b5cf6" opacity="0.6"/>
+  </g>
+  <text x="200" y="145" text-anchor="middle" fill="#e4e4ec" font-family="system-ui" font-size="14" opacity="0.6">Curso</text>
+  <!-- Dots -->
+  <circle cx="170" cy="180" r="3" fill="#6366f1" opacity="0.4"/>
+  <circle cx="200" cy="180" r="3" fill="#8b5cf6" opacity="0.6"/>
+  <circle cx="230" cy="180" r="3" fill="#6366f1" opacity="0.4"/>
+</svg>

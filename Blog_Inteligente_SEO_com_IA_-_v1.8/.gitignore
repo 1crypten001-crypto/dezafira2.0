@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build
+.svelte-kit/
+build/
+dist/
+_app/
+/favicon.svg*
+/robots.txt*
+/sitemap.xml*
+
+# Environment (only for PUBLIC repos - remove this section if repo is private)
+# .env
+# .env.local
+# .env.*.local
+# IMPORTANT: .env is tracked in private repos for platform deployment
+
+# Database (wal/shm sao temporarios; o blog.db principal e versionado p/ deploy)
+*.db-journal
+*.db-wal
+*.db-shm
+!blog.db
+
+# IDE
+.idea/
+.vscode/
+.qwen/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+check.txt
+check.log
+
+# ZIP Archives
+*.zip

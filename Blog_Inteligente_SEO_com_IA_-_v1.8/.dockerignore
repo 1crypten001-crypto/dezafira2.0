@@ -1,0 +1,20 @@
+# Dependências (instaladas dentro do build)
+node_modules/
+
+# Build local
+.svelte-kit/
+build/
+dist/
+_app/
+
+# Banco (o blog.db versionado é copiado explicitamente no Dockerfile)
+blog.db-wal
+blog.db-shm
+blog.db-journal
+
+# Logs e temporários
+*.log
+.DS_Store
+
+# Ambiente (senhas reais não entram na imagem)
+.env
