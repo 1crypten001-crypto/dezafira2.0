@@ -27,7 +27,7 @@ export default function FabricaEbookPage() {
 
   const loadExistingBooks = async () => {
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+      const token = typeof window !== "undefined" ? localStorage.getItem("dz_token") : "";
       const res = await fetch(`${API_URL}/api/v1/ebooks`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
