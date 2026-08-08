@@ -210,16 +210,13 @@ async def get_ebook_task_result(task_id: str):
     return {"success": True, "pack_data": task["pack"]}
 
 # ═════════════════════════════════════════════════════════════════════════
-# CHAINLIT UI MOUNT — CHAT DEZAFIRACHAT
+# HERMES CHAT REDIRECT
 # ═════════════════════════════════════════════════════════════════════════
-try:
-    from chainlit.utils import mount_chainlit
-
-    # Config lives in .chainlit/config.toml — no programmatic overrides needed
-    mount_chainlit(app=app, target="chainlit_app.py", path="/chat")
-    print("[Chainlit] DezafiraChat montado na rota /chat (config via .chainlit/config.toml)")
-except Exception as e:
-    print(f"[Chainlit] Aviso ao montar Chainlit: {e}")
+@app.get("/chat")
+async def chat_redirect():
+    from fastapi.responses import RedirectResponse
+    # Redireciona para o painel do Hermes WebUI rodando localmente na porta 8643
+    return RedirectResponse(url="http://localhost:8643")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -1301,6 +1298,8 @@ async def blog_factory_dashboard(_admin=Depends(require_admin)):
                 "image_provider": p.image_provider,
                 "lili_score": lili_score,
                 "lili_approved": lili_approved,
+                "club_liberado": bool(getattr(p, "club_liberado", False)),
+                "club_enviado_at": getattr(p, "club_enviado_at", None).isoformat() if getattr(p, "club_enviado_at", None) else None,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             })
 
@@ -1311,6 +1310,7 @@ async def blog_factory_dashboard(_admin=Depends(require_admin)):
             BlogPost.id, BlogPost.channel_id, BlogPost.title, BlogPost.slug,
             BlogPost.status, BlogPost.word_count, BlogPost.featured_image_url,
             BlogPost.image_provider, BlogPost.lili_score, BlogPost.lili_approved,
+            BlogPost.club_liberado, BlogPost.club_enviado_at,
             BlogPost.created_at,
         ).order_by(BlogPost.created_at.desc()).all()
         ch_map = {}
@@ -1333,6 +1333,8 @@ async def blog_factory_dashboard(_admin=Depends(require_admin)):
                 "lili_avg": round(sum(lili) / len(lili)) if lili else None,
                 "lili_reviewed_count": len(lili),
                 "lili_approved_count": sum(1 for p in ch_all if p.lili_approved),
+                "club_liberated_count": sum(1 for p in ch_all if getattr(p, "club_liberado", False)),
+                "club_sent_count": sum(1 for p in ch_all if getattr(p, "club_enviado_at", None)),
                 "recent_posts": [{
                     "id": p.id, "title": p.title, "slug": p.slug,
                     "status": p.status, "word_count": p.word_count or 0,
@@ -1341,6 +1343,8 @@ async def blog_factory_dashboard(_admin=Depends(require_admin)):
                     "image_provider": p.image_provider,
                     "lili_score": p.lili_score,
                     "lili_approved": bool(p.lili_approved),
+                    "club_liberado": bool(getattr(p, "club_liberado", False)),
+                    "club_enviado_at": getattr(p, "club_enviado_at", None).isoformat() if getattr(p, "club_enviado_at", None) else None,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
                 } for p in ch_recent],
             }
@@ -1563,6 +1567,49 @@ async def get_course(course_id: str):
         "modules": [{"number": m.module_number, "title": m.title} for m in modules],
         "created_at": c.created_at.isoformat() if c.created_at else None,
     }}
+
+@app.post("/api/v1/courses/{course_id}/agnes-cover")
+async def generate_course_agnes_cover(course_id: str, _admin=Depends(require_admin)):
+    """🎨 Agnes Studio: gera/regenera a capa do curso (16:9) com design real
+    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura."""
+    import json as _json
+    from modules.database import get_db_course, update_db_course
+    from modules.agnes_studio import AgnesStudio
+
+    course = get_db_course(course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Curso não encontrado")
+
+    # Reutiliza o design persistido (se houver) para manter a identidade visual
+    design = None
+    if course.get("cover_design"):
+        try:
+            design = _json.loads(course["cover_design"])
+        except Exception:
+            design = None
+
+    try:
+        studio = AgnesStudio()
+        result = await studio.generate_course_cover(
+            title=course.get("title", ""),
+            subtitle=course.get("subtitle", "") or "",
+            author="Dezafira Studio",
+            niche=course.get("topic", "") or "",
+            style_id="moderno",
+            course_id=course_id,
+            difficulty=course.get("difficulty", "") or "",
+            modules_count=course.get("total_modules", 0) or 0,
+            design=design,
+        )
+        if result.get("cover_url"):
+            update_db_course(
+                course_id,
+                cover_url=result["cover_url"],
+                cover_design=_json.dumps(result.get("design", {}), default=str),
+            )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar capa Agnes do curso: {str(e)}")
 
 @app.post("/api/v1/courses/seed")
 async def seed_course():
@@ -2078,6 +2125,49 @@ async def get_ebook(book_id: str, token: str = "", authorization: str = Header(N
     if not book:
         raise HTTPException(status_code=404, detail="Ebook nao encontrado")
     return {"book": book}
+
+
+@app.post("/api/v1/ebooks/{book_id}/agnes-cover")
+async def generate_ebook_agnes_cover(book_id: str, _admin=Depends(require_admin)):
+    """🎨 Agnes Studio: gera/regenera a capa do ebook com design de capa real
+    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura."""
+    from modules.database import get_db_book, update_db_book
+    from modules.agnes_studio import AgnesStudio
+
+    book = get_db_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Ebook não encontrado")
+
+    import json as _json
+
+    # Reutiliza o design persistido (se houver) para manter a identidade visual
+    design = None
+    if book.get("cover_design"):
+        try:
+            design = _json.loads(book["cover_design"])
+        except Exception:
+            design = None
+
+    try:
+        studio = AgnesStudio()
+        result = await studio.generate_ebook_cover(
+            title=book.get("title", ""),
+            subtitle=book.get("subtitle", "") or "",
+            author=book.get("author", "") or "",
+            niche=book.get("niche", "") or book.get("topic", ""),
+            style_id=book.get("style_id", "moderno") or "moderno",
+            book_id=book_id,
+            design=design,
+        )
+        if result.get("cover_url"):
+            update_db_book(
+                book_id,
+                cover_url=result["cover_url"],
+                cover_design=_json.dumps(result.get("design", {}), default=str),
+            )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar capa Agnes: {str(e)}")
 
 
 @app.delete("/api/v1/ebooks/{book_id}")
@@ -3094,6 +3184,185 @@ async def update_blog_post(slug: str, post_id: str, payload: dict):
     if success:
         return {"success": True, "message": "Post atualizado"}
     return {"success": False, "error": "Post nao encontrado"}
+
+
+@app.post("/api/v1/blog/post/{post_id}/liberar-clube")
+async def liberar_blog_post_clube(post_id: str, payload: dict = None, _admin=Depends(require_admin)):
+    """Marca um artigo como LIBERADO (passou no controle de qualidade) ou não
+    para envio ao DezafiraClube. Body: {"liberado": true|false} (padrão: true)."""
+    from modules.database import get_db_blog_post, update_db_blog_post
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado")
+
+    _raw = (payload or {}).get("liberado", True)
+    liberado = _raw in (True, "true", "True", 1, "1", "on")
+    # Liberação manual sempre sobrescreve a automática da LiLi:
+    # liberar → limpa o bloqueio manual; bloquear → marca bloqueio manual
+    # para que uma revisão LiLi posterior não re-libere sem querer.
+    ok = update_db_blog_post(post_id, club_liberado=liberado, club_manual_block=(not liberado))
+    if not ok:
+        raise HTTPException(status_code=500, detail="Falha ao atualizar o artigo")
+    return {
+        "success": True,
+        "post_id": post_id,
+        "liberado": liberado,
+        "message": "Artigo " + ("liberado para o Clube 🎉" if liberado else "removido da liberação"),
+    }
+
+
+@app.post("/api/v1/blog/post/{post_id}/enviar-clube")
+async def enviar_blog_post_clube(post_id: str, _admin=Depends(require_admin)):
+    """Ponte Adm → Clube: envia UM artigo (já liberado) para a vitrine pública
+    do DezafiraClube via /api/import/sync-blog.
+
+    Só envia se club_liberado == True (controle de qualidade feito).
+    Requer no .env:
+      CLUBE_PUBLIC_URL  (ex: https://www.dezafira.com.br)
+      CLUBE_IMPORT_KEY  (IMPORT_API_KEY do Clube)
+    """
+    from modules.database import get_db_blog_post, update_db_blog_post
+    from datetime import datetime as _dt
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado")
+    if not post.get("club_liberado"):
+        raise HTTPException(status_code=400, detail="Artigo ainda NÃO está liberado para o Clube. Libere-o no controle de qualidade primeiro.")
+    if not post.get("slug") or not post.get("content"):
+        raise HTTPException(status_code=400, detail="Artigo sem slug ou conteúdo — impossível enviar.")
+
+    clube_url, import_key = _clube_env_config()
+
+    # Payload no mesmo formato do articles_export.json (aceito pelo sync-blog do Clube)
+    article = _post_para_clube(post)
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                f"{clube_url}/api/import/sync-blog",
+                json={"posts": [article]},
+                headers={"Content-Type": "application/json", "x-import-key": import_key},
+            )
+        try:
+            data = r.json()
+        except Exception:
+            data = {"raw": r.text[:300]}
+        if r.status_code in (200, 201):
+            update_db_blog_post(post_id, club_enviado_at=_dt.utcnow())
+            return {"success": True, **data, "post_id": post_id}
+        raise HTTPException(status_code=r.status_code, detail=data.get("error") or f"Erro do Clube: HTTP {r.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Falha ao conectar no Clube: {str(e)}")
+
+
+def _clube_env_config() -> tuple:
+    """Retorna (clube_url, import_key) da ponte Adm→Clube."""
+    clube_url = os.getenv("CLUBE_PUBLIC_URL", "https://www.dezafira.com.br").rstrip("/")
+    import_key = os.getenv("CLUBE_IMPORT_KEY", "")
+    if not import_key:
+        raise HTTPException(status_code=503, detail="CLUBE_IMPORT_KEY não configurado no Adm.")
+    return clube_url, import_key
+
+
+def _post_para_clube(post: dict) -> dict:
+    """Converte um post do Adm no payload aceito pelo sync-blog do Clube."""
+    return {
+        "title": post.get("title", ""),
+        "slug": post.get("slug", ""),
+        "content": post.get("content", ""),
+        "excerpt": post.get("excerpt") or "",
+        "featured_image_url": post.get("featured_image_url") or "",
+    }
+
+
+@app.post("/api/v1/blog/channel/{channel_id}/enviar-liberados")
+async def enviar_liberados_blog_clube(channel_id: str, _admin=Depends(require_admin)):
+    """Ponte Adm → Clube (lote): envia TODOS os artigos LIBERADOS de um blog
+    para a vitrine pública do DezafiraClube em uma única chamada."""
+    from modules.database import get_db_blog_posts, get_db_blog_post, update_db_blog_post
+    from datetime import datetime as _dt
+
+    # get_db_blog_posts NÃO inclui a coluna content (grande) — buscamos os posts
+    # completos individualmente para montar o payload, como o lili_review_all faz.
+    metas = get_db_blog_posts(channel_id=channel_id, limit=1000) or []
+    liberados = []
+    for m in metas:
+        if not m.get("club_liberado") or not m.get("slug"):
+            continue
+        full = get_db_blog_post(m["id"])
+        if full and full.get("content"):
+            liberados.append(full)
+    if not liberados:
+        return {"success": True, "enviados": 0, "message": "Nenhum artigo liberado para enviar neste blog."}
+
+    clube_url, import_key = _clube_env_config()
+    payload = [_post_para_clube(p) for p in liberados]
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            r = await client.post(
+                f"{clube_url}/api/import/sync-blog",
+                json={"posts": payload},
+                headers={"Content-Type": "application/json", "x-import-key": import_key},
+            )
+        try:
+            data = r.json()
+        except Exception:
+            data = {"raw": r.text[:300]}
+        if r.status_code in (200, 201):
+            agora = _dt.utcnow()
+            for p in liberados:
+                update_db_blog_post(p["id"], club_enviado_at=agora)
+            return {
+                "success": True,
+                "enviados": len(liberados),
+                "channel_id": channel_id,
+                **data,
+            }
+        raise HTTPException(status_code=r.status_code, detail=data.get("error") or f"Erro do Clube: HTTP {r.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Falha ao conectar no Clube: {str(e)}")
+
+
+@app.post("/api/v1/blog/post/{post_id}/remover-clube")
+async def remover_blog_post_clube(post_id: str, _admin=Depends(require_admin)):
+    """Ponte Adm → Clube (desfazer): remove UM artigo da vitrine pública
+    do DezafiraClube (por slug). Mantém o artigo no Adm e o status de
+    liberado (para poder reenviar depois)."""
+    from modules.database import get_db_blog_post, update_db_blog_post
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Artigo não encontrado")
+    if not post.get("slug"):
+        raise HTTPException(status_code=400, detail="Artigo sem slug — impossível remover do Clube.")
+
+    clube_url, import_key = _clube_env_config()
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                f"{clube_url}/api/import/post/remove",
+                json={"slug": post["slug"]},
+                headers={"Content-Type": "application/json", "x-import-key": import_key},
+            )
+        try:
+            data = r.json()
+        except Exception:
+            data = {"raw": r.text[:300]}
+        if r.status_code in (200, 201):
+            update_db_blog_post(post_id, club_enviado_at=None)
+            return {"success": True, **data, "post_id": post_id}
+        raise HTTPException(status_code=r.status_code, detail=data.get("error") or f"Erro do Clube: HTTP {r.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Falha ao conectar no Clube: {str(e)}")
 
 
 @app.get("/go/{post_slug}/{provider}")
@@ -4589,6 +4858,134 @@ async def regenerate_blog_post_image(post_id: str, _admin=Depends(require_admin)
     return {"success": True, "image_url": img["image_url"], "provider": img.get("provider")}
 
 
+@app.post("/api/v1/blog/post/{post_id}/agnes-cover")
+async def generate_blog_agnes_cover(post_id: str, _admin=Depends(require_admin)):
+    """🎨 Agnes Studio: gera/regenera a imagem de destaque do artigo (1200×630)
+    com design real (tipografia + identidade do canal) e renderiza HTML → PNG via Obscura."""
+    from modules.database import get_db_blog_post, update_db_blog_post
+    from modules.agnes_studio import AgnesStudio
+
+    post = get_db_blog_post(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+
+    channel_name = ""
+    try:
+        from modules.database import get_db_blog_channels
+        chans = get_db_blog_channels(limit=100) or []
+        for ch in chans:
+            if ch.get("id") == post.get("channel_id"):
+                channel_name = ch.get("name", "")
+                break
+    except Exception:
+        channel_name = ""
+
+    try:
+        studio = AgnesStudio()
+        result = await studio.generate_blog_cover(
+            title=post.get("title", ""),
+            subtitle=post.get("excerpt", "") or post.get("meta_description", "") or "",
+            niche=post.get("topic", "") or post.get("keywords", "") or "",
+            style_id="moderno",
+            post_id=post_id,
+            blog_name=channel_name,
+        )
+        if result.get("cover_url"):
+            update_db_blog_post(
+                post_id,
+                featured_image_url=result["cover_url"],
+                image_provider="agnes",
+            )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar imagem Agnes: {str(e)}")
+
+
+@app.get("/api/v1/agnes/gallery")
+async def agnes_gallery(_admin=Depends(require_admin)):
+    """🖼️ Lista todas as capas geradas pelo Agnes Studio (outputs/agnes).
+    Cada PNG tem prefixo {slug}_{uuid} — o slug identifica o produto de origem
+    (course/book/post id). Retorna também o título do produto para a UI."""
+    import time as _time
+    out_dir = os.path.join(_BASE_DIR, "outputs", "agnes")
+    images = []
+    if os.path.isdir(out_dir):
+        from modules.database import get_db_course, get_db_book, get_db_blog_post
+        for fn in sorted(os.listdir(out_dir), reverse=True):
+            if not fn.lower().endswith(".png"):
+                continue
+            slug = fn.rsplit("_", 1)[0] if "_" in fn else fn[:-4]
+            entity_type, entity_id, title = "", "", ""
+            if slug.startswith("crs-"):
+                entity_type, entity_id = "course", slug.replace("-", "_", 1)
+                c = get_db_course(entity_id) or {}
+                title = c.get("title", "") or entity_id
+            elif slug.startswith("book-") or slug.startswith("ebook-"):
+                entity_type = "ebook"
+                entity_id = slug.replace("-", "_", 1)
+                b = get_db_book(entity_id) or {}
+                title = b.get("title", "") or entity_id
+            elif slug.startswith("post-"):
+                entity_type, entity_id = "post", slug.replace("-", "_", 1)
+                p = get_db_blog_post(entity_id) or {}
+                title = p.get("title", "") or entity_id
+            else:
+                title = slug
+            fp = os.path.join(out_dir, fn)
+            try:
+                mtime = os.path.getmtime(fp)
+            except Exception:
+                mtime = 0
+            images.append({
+                "filename": fn,
+                "url": f"/outputs/agnes/{fn}",
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "title": title,
+                "size": os.path.getsize(fp) if os.path.exists(fp) else 0,
+                "created_at": _time.strftime("%Y-%m-%d %H:%M", _time.localtime(mtime)) if mtime else "",
+            })
+    return {"images": images}
+
+
+@app.post("/api/v1/agnes/use-cover")
+async def agnes_use_cover(payload: dict, _admin=Depends(require_admin)):
+    """🖼️ Aplica uma capa da galeria Agnes a um produto (course/ebook/post).
+    Permite escolher entre várias versões geradas sem regenerar."""
+    from modules.database import get_db_course, get_db_book, get_db_blog_post, \
+        update_db_course, update_db_book, update_db_blog_post
+
+    entity_type = (payload.get("entity_type") or "").strip().lower()
+    entity_id = (payload.get("entity_id") or "").strip()
+    filename = (payload.get("filename") or "").strip()
+    if not entity_type or not entity_id or not filename:
+        raise HTTPException(status_code=400, detail="entity_type, entity_id e filename são obrigatórios")
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="filename inválido")
+
+    out_dir = os.path.join(_BASE_DIR, "outputs", "agnes")
+    fp = os.path.join(out_dir, filename)
+    if not os.path.isfile(fp) or not filename.lower().endswith(".png"):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado na galeria Agnes")
+    cover_url = f"/outputs/agnes/{filename}"
+
+    if entity_type == "course":
+        if not get_db_course(entity_id):
+            raise HTTPException(status_code=404, detail="Curso não encontrado")
+        update_db_course(entity_id, cover_url=cover_url)
+    elif entity_type == "ebook":
+        if not get_db_book(entity_id):
+            raise HTTPException(status_code=404, detail="Ebook não encontrado")
+        update_db_book(entity_id, cover_url=cover_url)
+    elif entity_type == "post":
+        if not get_db_blog_post(entity_id):
+            raise HTTPException(status_code=404, detail="Post não encontrado")
+        update_db_blog_post(entity_id, featured_image_url=cover_url, image_provider="agnes")
+    else:
+        raise HTTPException(status_code=400, detail="entity_type deve ser course, ebook ou post")
+    return {"success": True, "cover_url": cover_url, "entity_type": entity_type, "entity_id": entity_id}
+
+
 @app.post("/api/v1/lili/regenerate-batch")
 async def lili_regenerate_batch(payload: dict, _admin=Depends(require_admin)):
     """Regenera em lote os artigos reprovados pela LiLi (score < 70 ou nao aprovados).
@@ -5575,6 +5972,66 @@ async def run_marketing_stage_endpoint(payload: dict, _admin=Depends(require_adm
         except Exception as e:
             print(f"[Marketing] Aviso: falha ao salvar fase {stage} no banco: {e}")
     return result
+
+@app.post("/api/v1/marketing/generate-sales-page")
+async def generate_sales_page_endpoint(payload: dict, _admin=Depends(require_admin)):
+    """
+    Endpoint para gerar uma página de vendas completa (HTML) com copy de 8 blocos e design Impeccable.
+    Salva o arquivo final em static/sales/ e retorna o link de visualização.
+    """
+    product_name = payload.get("product_name", "Super Infoproduto").strip()
+    niche = payload.get("niche", "Marketing Digital").strip()
+    target_audience = payload.get("target_audience", "Empreendedores").strip()
+    price = payload.get("price", "R$ 97,00").strip()
+    guarantee_days = int(payload.get("guarantee_days", 7))
+    video_id = payload.get("video_id", "dQw4w9WgXcQ").strip() # default video (Rick Astley / placeholder)
+    cta_url = payload.get("cta_url", "/checkout").strip()
+    delay_seconds = int(payload.get("delay_seconds", 180))
+
+    from modules.sales_page_generator import SalesPageGenerator
+    generator = SalesPageGenerator()
+    
+    # 1. Gera a copy estruturada de 8 blocos
+    copy_data = await generator.generate_copy(
+        product_name=product_name,
+        niche=niche,
+        target_audience=target_audience,
+        price=price,
+        guarantee_days=guarantee_days
+    )
+
+    # 2. Renderiza o HTML final
+    html_content = generator.render_html(
+        copy=copy_data,
+        video_id=video_id,
+        cta_url=cta_url,
+        delay_seconds=delay_seconds,
+        guarantee_days=guarantee_days,
+        price=price
+    )
+
+    # 3. Salva o arquivo em static/sales/<product_slug>.html
+    import re
+    slug = re.sub(r"[^a-z0-9]+", "-", product_name.lower()).strip("-")
+    if not slug:
+        slug = "sales-page"
+        
+    sales_dir = os.path.join(_BASE_DIR, "static", "sales")
+    os.makedirs(sales_dir, exist_ok=True)
+    
+    file_name = f"{slug}.html"
+    file_path = os.path.join(sales_dir, file_name)
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    public_url = f"/static/sales/{file_name}"
+    return {
+        "success": True,
+        "url": public_url,
+        "file_path": file_path,
+        "copy": copy_data
+    }
 
 @app.get("/api/v1/marketing/history")
 async def get_marketing_history_endpoint(_admin=Depends(require_admin)):
