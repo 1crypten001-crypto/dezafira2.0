@@ -731,8 +731,11 @@ def _migrate_add_column(conn, sql, label):
 
 
 try:
-    Base.metadata.create_all(bind=engine)
-
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as create_err:
+        print(f"[Database] Aviso ao criar tabelas principal: {str(create_err)}")
+        
     # Migrations manuais — idempotentes e a prova de falhas
     with engine.connect() as conn:
         _migrate_add_column(conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'free';", "users.plan")
@@ -804,7 +807,10 @@ except Exception as table_err:
     DATABASE_URL = f"sqlite:///{db_path_unix}"
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as fallback_create_err:
+        print(f"[Database] Recorte fallback create_all: {str(fallback_create_err)}")
 
 # Criar usuario de teste administrador padrao caso nao exista (idempotente)
 try:
@@ -2051,6 +2057,8 @@ def get_db_mindmaps(limit: int = 50) -> list:
             "style_id": m.style_id, "cover_url": m.cover_url, "price_cents": m.price_cents,
             "status": m.status, "sales_page_slug": m.sales_page_slug, "checkout_url": m.checkout_url,
             "pipeline_run_id": m.pipeline_run_id,
+            "map_json": m.map_json,
+            "sales_page_html": m.sales_page_html,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         } for m in mmaps]
     finally:
