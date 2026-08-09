@@ -159,6 +159,128 @@ async def delete_miniapp_endpoint(app_id: str):
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
     return {"message": "MiniApp deletado com sucesso"}
 
+
+def get_trial_expired_html(app_name: str, checkout_url: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Expirado - {app_name}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {{
+            background-color: #060911;
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }}
+        .paywall-card {{
+            background: #090d16;
+            border: 1px solid #1e293b;
+            border-radius: 24px;
+            max-width: 480px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            animation: fadeIn 0.5s ease-out;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        .icon {{
+            font-size: 64px;
+            margin-bottom: 24px;
+        }}
+        h1 {{
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: #f8fafc;
+        }}
+        p {{
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }}
+        .btn-subscribe {{
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #8b5cf6, #38bdf8);
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        .btn-subscribe:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+        }}
+        .progress-lost {{
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 24px;
+            font-weight: 600;
+        }}
+    </style>
+</head>
+<body>
+    <div class="paywall-card">
+        <div class="icon">🔒</div>
+        <h1>Período de Testes Concluído!</h1>
+        <p>Seus 7 dias de acesso gratuito ao <strong>{app_name}</strong> expiraram.</p>
+        <div class="progress-lost">
+            ⚠️ Assine hoje para salvar seu progresso e manter seu cronograma de memorização ativo.
+        </div>
+        <a href="{checkout_url}" class="btn-subscribe">Assinar Agora</a>
+    </div>
+</body>
+</html>"""
+
+
+@app.get("/api/v1/miniapps/{app_id}/view", response_class=HTMLResponse)
+async def view_miniapp_endpoint(app_id: str, token: str = "", authorization: str = Header(None)):
+    """Retorna o HTML do MiniApp. Valida o trial de 7 dias se o usuário for membro."""
+    from modules.database import get_db_miniapp
+    app = get_db_miniapp(app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+    
+    # Se houver um token informado, validar o trial de 7 dias
+    t = token or (authorization.replace("Bearer ", "") if authorization else "")
+    if t:
+        user_id = _verify_jwt_token(t)
+        if user_id:
+            user = get_db_user_by_id(user_id)
+            if user and user.role != "admin" and not user.subscription_active:
+                trial_start = user.trial_started_at or user.created_at
+                if not trial_start:
+                    trial_start = datetime.utcnow()
+                delta = datetime.utcnow() - trial_start
+                if delta.days >= 7:
+                    # Retorna um HTML de bloqueio (Paywall)
+                    checkout_url = f"/checkout/{app.get('id')}"
+                    return HTMLResponse(content=get_trial_expired_html(app.get("app_name", "Clube"), checkout_url), status_code=403)
+                    
+    pwa_html = app.get("pwa_html") or "<h1>MiniApp sem conteudo</h1>"
+    return HTMLResponse(content=pwa_html)
+
 # ═════════════════════════════════════════════════════════════════════════
 # FABRICA DE EBOOKS TRIPLA — API ASYNC COM PROGRESSO
 # ═════════════════════════════════════════════════════════════════════════
@@ -210,13 +332,393 @@ async def get_ebook_task_result(task_id: str):
     return {"success": True, "pack_data": task["pack"]}
 
 # ═════════════════════════════════════════════════════════════════════════
-# HERMES CHAT REDIRECT
+# HERMES CHAT OFICIAL (NOUS RESEARCH) — API + PÁGINA
+#
+# O chat conversa com o Hermes Agent OFICIAL da Nous Research
+# (https://hermes-agent.nousresearch.com) via um gateway OpenAI-compatível:
+#
+#   1) LOCAL — Hermes Agent instalado no seu PC (Windows/Mac/Linux):
+#        hermes setup --portal    (login OAuth com sua conta Nous)
+#        API_SERVER_ENABLED=true  hermes gateway   (abre 127.0.0.1:8642/v1)
+#      Basta o gateway rodando: o backend detecta sozinho (sem config extra).
+#
+#   2) NUVEM — API de inferência hospedada oficial da Nous (planos pagos):
+#        HERMES_GATEWAY_URL=https://inference-api.nousresearch.com/v1
+#        HERMES_API_KEY=<sua chave do portal.nousresearch.com>
+#        HERMES_MODEL=<modelo, ex: hermes-4-70b>
+#
+# Se nenhum gateway estiver acessível, o chat cai na cascata LLM interna
+# (fallback) — a resposta indica qual motor respondeu via campo `engine`.
 # ═════════════════════════════════════════════════════════════════════════
+
+# Histórico de conversa por sessão (em memória; ok para 1 réplica uvicorn)
+hermes_chat_histories: Dict[str, List[Dict[str, str]]] = {}
+hermes_pipeline_tasks: Dict[str, Any] = {}
+
+# Cache de descoberta do gateway oficial (evita sondar a cada mensagem)
+_HERMES_GATEWAY_CACHE = {"ts": 0.0, "online": False, "models": [], "url": ""}
+_HERMES_GATEWAY_TTL = 30.0
+
+
+def _hermes_gateway_url() -> str:
+    """URL base do gateway OpenAI-compatível do Hermes Agent oficial."""
+    url = os.getenv("HERMES_GATEWAY_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    # Porta padrão do Hermes Agent local (hermes gateway / API_SERVER_ENABLED)
+    return "http://127.0.0.1:8642/v1"
+
+
+def _hermes_api_key() -> str:
+    return os.getenv("HERMES_API_KEY", "").strip()
+
+
+def _hermes_model() -> str:
+    """Modelo a usar no gateway: env HERMES_MODEL > primeiro modelo descoberto
+    no /v1/models > 'hermes-agent' (padrão do gateway local)."""
+    m = os.getenv("HERMES_MODEL", "").strip()
+    if m:
+        return m
+    models = _HERMES_GATEWAY_CACHE.get("models") or []
+    if models:
+        return models[0]
+    return "hermes-agent"
+
+
+async def _hermes_probe_gateway(force: bool = False):
+    """Sonda o gateway oficial (GET /v1/models) com cache de TTL."""
+    import time as _t
+    now = _t.time()
+    url = _hermes_gateway_url()
+    cached = _HERMES_GATEWAY_CACHE
+    if (
+        not force
+        and cached["url"] == url
+        and (now - cached["ts"]) < _HERMES_GATEWAY_TTL
+    ):
+        return cached["online"], cached["models"]
+
+    online, models = False, []
+    try:
+        host = url.split("://")[-1].split("/")[0]
+        needs_key = "inference-api.nousresearch.com" in host
+        if needs_key and not _hermes_api_key():
+            raise RuntimeError("HERMES_API_KEY ausente para a API hospedada da Nous")
+        headers = {}
+        if _hermes_api_key():
+            headers["Authorization"] = f"Bearer {_hermes_api_key()}"
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            r = await client.get(f"{url}/models", headers=headers)
+            if r.status_code == 200:
+                data = r.json()
+                raw = data.get("data", data if isinstance(data, list) else [])
+                models = [str(m.get("id") or m.get("name") or m) for m in raw][:12]
+                online = True
+    except Exception as e:
+        print(f"[HermesOficial] Gateway {url} indisponível: {type(e).__name__}: {e}"[:200])
+        online = False
+
+    cached.update({"ts": now, "online": online, "models": models, "url": url})
+    return online, models
+
+
+async def _hermes_official_chat(messages: List[Dict[str, str]]) -> str:
+    """Chama o Hermes Agent oficial via /chat/completions (OpenAI-compatível)."""
+    url = _hermes_gateway_url()
+    headers = {"Content-Type": "application/json"}
+    if _hermes_api_key():
+        headers["Authorization"] = f"Bearer {_hermes_api_key()}"
+    payload = {
+        "model": _hermes_model(),
+        "messages": messages,
+        "max_tokens": 1200,
+        "temperature": 0.7,
+    }
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        r = await client.post(f"{url}/chat/completions", headers=headers, json=payload)
+        if r.status_code != 200:
+            raise RuntimeError(
+                f"Gateway Hermes respondeu HTTP {r.status_code}: {r.text[:300]}"
+            )
+        data = r.json()
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise RuntimeError("Resposta do gateway Hermes em formato inesperado")
+        return str(content).strip() or "…"
+
+
+class HermesChatPayload(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+
+@app.get("/api/v1/hermes/status")
+async def hermes_status():
+    """Status do chat: mostra qual motor está ativo
+    (Hermes Oficial da Nous vs fallback interno)."""
+    gateway = _hermes_gateway_url()
+    configured = bool(os.getenv("HERMES_GATEWAY_URL", "").strip())
+    online, models = await _hermes_probe_gateway(force=False)
+    return {
+        "official_online": online,
+        "gateway_url": gateway,
+        "configured": configured,
+        "model": _hermes_model(),
+        "models": models,
+        "engine": "hermes_official" if online else "fallback_llm",
+        "hermes_webui_url": os.getenv("HERMES_WEBUI_PUBLIC_URL", "").strip(),
+    }
+
+
+@app.post("/api/v1/hermes/chat")
+async def hermes_chat_endpoint(payload: HermesChatPayload):
+    """Chat do Hermes — usa o Hermes Agent OFICIAL da Nous Research quando o
+    gateway está acessível; senão cai na cascata LLM interna (fallback).
+
+    Aceita comandos de disparo da Pipeline Central ("iniciar", "gerar esteira",
+    "criar oferta"...) e inicia o orquestrador em background, igual ao antigo
+    chat Chainlit.
+    """
+    sid = (payload.session_id or "sess_admin").strip() or "sess_admin"
+    text = (payload.message or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+
+    history = hermes_chat_histories.setdefault(sid, [])
+    history.append({"role": "user", "content": text})
+    history = history[-12:]
+    hermes_chat_histories[sid] = history
+
+    system_instruction = (
+        "Você é o Hermes, o Agente Orquestrador executivo e extremamente inteligente "
+        "da plataforma DEZAFIRA, a Fábrica de Conteúdo. Você está conversando com o "
+        "fundador (Jonatas). Seu objetivo é rodar a esteira no modo autônomo e "
+        "responder de forma direta, clara e executiva em português."
+    )
+
+    trigger_words = ["iniciar", "executar", "criar oferta", "gerar esteira",
+                     "gerar funil", "rodar pipeline", "pipeline geral",
+                     "todas as fábricas", "todas as fabricas", "esteira completa"]
+    lowered = text.lower()
+    pipeline_started = any(w in lowered for w in trigger_words)
+
+    engine = "hermes_official"
+    if pipeline_started:
+        engine = "pipeline"
+        from modules.hermes_orchestrator import get_or_create_orchestrator
+        orchestrator = get_or_create_orchestrator(sid)
+        try:
+            task = asyncio.create_task(orchestrator.run_pipeline(text))
+            hermes_pipeline_tasks[sid] = task
+
+            def _pipeline_done(t, _sid=sid):
+                # Evita "Task exception was never retrieved" e deixa o erro visível no log
+                try:
+                    exc = t.exception()
+                    if exc:
+                        print(f"[HermesChat] Pipeline {_sid} falhou: {exc}")
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    print(f"[HermesChat] Erro ao ler task {_sid}: {e}")
+
+            task.add_done_callback(_pipeline_done)
+            reply = (
+                "▶️ **Pipeline Geral iniciada!**\n\n"
+                "O Hermes está orquestrando todas as fábricas (Blog, Ebook, Curso, "
+                "MiniApp, Marketing, Postiz)...\n\n"
+                f"Acompanhe o progresso em `/api/v1/hermes/pipeline/status/{sid}`."
+            )
+        except Exception as e:
+            reply = f"⚠️ Não consegui iniciar a pipeline: {esc(e)}"
+    else:
+        messages = [{"role": "system", "content": system_instruction}] + history
+        engine = "fallback_llm"
+        try:
+            online, _models = await _hermes_probe_gateway()
+        except Exception:
+            online = False
+        if online:
+            try:
+                reply = await _hermes_official_chat(messages)
+                engine = "hermes_official"
+            except Exception:
+                reply = None
+        else:
+            reply = None
+        if reply is None:
+            try:
+                from agents.llm import query_llm
+                reply = await query_llm(messages, max_tokens=1200)
+            except Exception as e2:
+                reply = f"Desculpe, tive um problema ao pensar: {esc(e2)}"
+
+    history.append({"role": "assistant", "content": reply})
+    hermes_chat_histories[sid] = history
+    return {"reply": reply, "session_id": sid, "pipeline_started": pipeline_started, "engine": engine}
+
+
+_HERMES_CHAT_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hermes Agent — Chat Oficial · Dezafira</title>
+<style>
+  :root{ --bg:#060911; --panel:#0a0f1c; --border:#1e293b; --text:#e2e8f0; --dim:#94a3b8; --brand:#38bdf8; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:linear-gradient(180deg,#0d1424,#0a0f1c);border-bottom:1px solid var(--border)}
+  .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 18px rgba(99,102,241,.35)}
+  h1{font-size:15px;font-weight:700}
+  .status{font-size:11px;color:#4ade80;display:inline-flex;align-items:center;gap:5px;margin-left:6px}
+  .status::before{content:"";width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80}
+  .status.warn{color:#fbbf24}
+  .status.warn::before{background:#fbbf24;box-shadow:0 0 8px #fbbf24}
+  .status.off{color:#94a3b8}
+  .status.off::before{background:#64748b;box-shadow:none}
+  .bubble .eng{display:inline-block;font-size:9px;font-weight:700;color:#38bdf8;border:1px solid #38bdf8;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px;letter-spacing:.5px}
+  .bubble .eng.fb{color:#fbbf24;border-color:#fbbf24}
+  .sub{font-size:11px;color:var(--dim);margin-top:2px}
+  #quickbar{display:flex;gap:6px;padding:10px 20px 0;flex-wrap:wrap}
+  .quick{background:#0f1526;border:1px solid var(--border);border-radius:8px;padding:6px 11px;font-size:11px;color:#7dd3fc;cursor:pointer;font-family:inherit}
+  .quick:hover{border-color:var(--brand)}
+  #messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+  .msg{display:flex;gap:10px;max-width:92%}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .avatar.bot{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+  .avatar.user{background:#1e293b}
+  .bubble{background:#0f1526;border:1px solid var(--border);border-radius:14px;padding:10px 14px;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+  .msg.user .bubble{background:#12314a;border-color:#155e8a}
+  .bubble .name{display:block;font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:4px}
+  .msg.user .bubble .name{color:#7dd3fc}
+  .bubble strong{color:#c4b5fd}
+  .bubble pre{background:#060911;border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto;font-size:12px}
+  .bubble code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:12px}
+  .bubble a{color:#7dd3fc}
+  .typing{display:inline-flex;gap:4px;padding:6px 2px}
+  .typing span{width:7px;height:7px;border-radius:50%;background:#8b5cf6;animation:blink 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+  footer{border-top:1px solid var(--border);background:var(--panel);padding:12px 20px;display:flex;gap:10px;align-items:center}
+  #input{flex:1;background:#070a12;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:11px 14px;font-size:13px;font-family:inherit;outline:none}
+  #input:focus{border-color:var(--brand)}
+  #sendBtn{background:linear-gradient(135deg,#0284c7,#6366f1);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:13px;cursor:pointer}
+  #sendBtn:hover{filter:brightness(1.15)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🤖</div>
+  <div>
+    <h1>Hermes Agent <span class="status" id="statusBadge">Conectando…</span></h1>
+    <div class="sub" id="subLine">Chat oficial · Orquestrador Central Dezafira</div>
+  </div>
+</header>
+<div id="quickbar">
+  <button class="quick" onclick="send('INICIAR PIPELINE GERAL')">▶️ INICIAR PIPELINE GERAL</button>
+  <button class="quick" onclick="send('Gere um ebook sobre [tema]')">📗 Ebook</button>
+  <button class="quick" onclick="send('Gere um curso sobre [tema]')">🎓 Curso</button>
+  <button class="quick" onclick="send('Crie um miniapp para [ideia]')">📱 MiniApp</button>
+</div>
+<div id="messages"></div>
+<footer>
+  <input id="input" placeholder="Digite sua mensagem para o Hermes..." autofocus/>
+  <button id="sendBtn" onclick="send()">Enviar</button>
+</footer>
+<script>
+var sid = sessionStorage.getItem("dz_hermes_sid") || ("sess_" + Math.random().toString(36).slice(2,8));
+sessionStorage.setItem("dz_hermes_sid", sid);
+var msgs = document.getElementById("messages");
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}
+function md(s){
+  s=esc(s);
+  var preBlocks=[];
+  s=s.replace(/```([\s\S]*?)```/g,function(m,c){preBlocks.push("<pre>"+esc(c)+"</pre>");return "\u0000PRE"+(preBlocks.length-1)+"\u0000";});
+  s=s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+  s=s.replace(/`([^`]+)`/g,"<code>$1</code>");
+  s=s.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noreferrer">$1</a>');
+  s=s.replace(/\n/g,"<br/>");
+  s=s.replace(/\u0000PRE(\d+)\u0000/g,function(m,i){return preBlocks[+i];});
+  return s;
+}
+function addMsg(text, who, engine){
+  var d=document.createElement("div");
+  d.className="msg "+(who==="user"?"user":"bot");
+  var engHtml="";
+  if(engine==="hermes_official"){engHtml='<span class="eng">NOUS</span>';}
+  else if(engine==="fallback_llm"){engHtml='<span class="eng fb">FALLBACK</span>';}
+  d.innerHTML='<div class="avatar '+(who==="user"?"user":"bot")+'">'+(who==="user"?"👤":"🤖")+'</div><div class="bubble"><span class="name">'+(who==="user"?"Você":"Hermes")+'</span>'+engHtml+md(text)+'</div>';
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+function addTyping(){
+  var d=document.createElement("div");
+  d.className="msg bot";
+  d.id="typing";
+  d.innerHTML='<div class="avatar bot">🤖</div><div class="bubble"><span class="name">Hermes</span><span class="typing"><span></span><span></span><span></span></span></div>';
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+function removeTyping(){var t=document.getElementById("typing");if(t)t.remove();}
+function send(pre){
+  var inp=document.getElementById("input");
+  var text=(pre||inp.value||"").trim();
+  if(!text)return;
+  inp.value="";
+  addMsg(text,"user");
+  addTyping();
+  fetch("/api/v1/hermes/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,session_id:sid})})
+    .then(function(r){return r.json();})
+    .then(function(res){
+      removeTyping();
+      addMsg(res.reply||(res.error||res.detail||"Sem resposta"),"bot",res.engine);
+    })
+    .catch(function(e){removeTyping();addMsg("Erro de conexão: "+e.message,"bot");});
+}
+document.getElementById("input").addEventListener("keydown",function(e){if(e.key==="Enter")send();});
+function loadStatus(){
+  fetch("/api/v1/hermes/status").then(function(r){return r.json();}).then(function(s){
+    var badge=document.getElementById("statusBadge");
+    var sub=document.getElementById("subLine");
+    if(s.official_online){
+      badge.className="status";
+      badge.textContent="Hermes Oficial · Nous Research";
+      sub.textContent="Chat oficial do Hermes Agent (Nous Research) · modelo "+(s.model||"hermes-agent");
+    }else{
+      badge.className="status warn";
+      badge.textContent="Fallback LLM";
+      sub.textContent="Gateway Hermes oficial offline — usando cascata LLM interna. Instale o Hermes Agent (hermes setup --portal; hermes gateway) ou configure HERMES_GATEWAY_URL / HERMES_API_KEY.";
+    }
+  }).catch(function(){
+    var b=document.getElementById("statusBadge");
+    if(b){b.className="status off";b.textContent="Offline";}
+  });
+}
+loadStatus();
+addMsg("Olá! Sou o Hermes, orquestrador do ecossistema Dezafira. Posso responder estratégia, tirar dúvidas ou **iniciar a esteira completa** de fábricas (ebook, curso, miniapp, funil, marketing).","bot");
+</script>
+</body>
+</html>"""
+
+
 @app.get("/chat")
-async def chat_redirect():
-    from fastapi.responses import RedirectResponse
-    # Redireciona para o painel do Hermes WebUI rodando localmente na porta 8643
-    return RedirectResponse(url="http://localhost:8643")
+async def chat_official():
+    """Serve o Chat Oficial do Hermes (página embutida no backend).
+
+    Se HERMES_WEBUI_PUBLIC_URL estiver definido (ex: URL do Hermes WebUI
+    deployado), redireciona para lá; senão serve a página de chat embutida.
+    """
+    webui_url = os.getenv("HERMES_WEBUI_PUBLIC_URL", "").strip()
+    if webui_url:
+        return RedirectResponse(url=webui_url)
+    return HTMLResponse(
+        content=_HERMES_CHAT_HTML,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -374,6 +876,46 @@ async def require_admin(user=Depends(get_current_user)):
 async def require_admin_or_token(token: str = ""):
     if not token:
         raise HTTPException(status_code=401, detail="Token ausente")
+    user_id = _verify_jwt_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido ou expirado")
+    user = get_db_user_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Usuario nao encontrado ou inativo")
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
+
+def _matches_service_key(value: str | None) -> bool:
+    """Valida uma chave de serviço (header X-Service-Key) contra SERVICE_API_KEY.
+
+    Comparação em tempo constante (hmac.compare_digest) para evitar timing
+    attacks. Sem SERVICE_API_KEY configurada, a service key fica desabilitada.
+    """
+    expected = os.getenv("SERVICE_API_KEY", "").strip()
+    return bool(expected and value and hmac.compare_digest(value, expected))
+
+async def require_admin_or_service(
+    authorization: str = Header(None),
+    x_service_key: str = Header(None),
+):
+    """Admin via JWT (Authorization: Bearer) OU via chave de serviço (X-Service-Key).
+
+    Permite que orquestradores externos (ex: Hermes no AionUi) disparem pipelines
+    e consultem diagnósticos sem expor as credenciais do admin. A service key é
+    comparada em tempo constante e não expira (gerenciada via env SERVICE_API_KEY).
+    """
+    if _matches_service_key(x_service_key):
+        return {
+            "id": "service:hermes",
+            "email": "service@dezafira",
+            "name": "Hermes Service",
+            "role": "admin",
+            "plan": "service",
+        }
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Token ausente")
+    token = authorization.replace("Bearer ", "")
     user_id = _verify_jwt_token(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido ou expirado")
@@ -601,6 +1143,16 @@ async def serve_pwa_app(slug: str):
     template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "pwa_template.html")
     if not os.path.exists(template_path):
         raise HTTPException(status_code=404, detail="Template do PWA nÃ£o encontrado")
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
+
+@app.get("/mindmap/{slug}", response_class=HTMLResponse)
+async def serve_mindmap_pwa_app(slug: str):
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "mindmap_pwa_template.html")
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template do PWA de Mapa Mental nao encontrado")
     with open(template_path, "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
@@ -1153,7 +1705,7 @@ async def get_ze_status():
 
 
 @app.get("/api/v1/obscura/status")
-async def obscura_status(_admin=Depends(require_admin)):
+async def obscura_status(_admin=Depends(require_admin_or_service)):
     """ðŸ•µï¸ Painel Obscura â€” status do motor headless, telemetria e historico."""
     from services.obscura_service import obscura_telemetry
     from services.obscura_bridge import get_obscura_status as _ping_obscura
@@ -1244,7 +1796,7 @@ async def obscura_serp_sources_reset(_admin=Depends(require_admin)):
 
 
 @app.get("/api/v1/factory/dashboard")
-async def blog_factory_dashboard(_admin=Depends(require_admin)):
+async def blog_factory_dashboard(_admin=Depends(require_admin_or_service)):
     """Dashboard consolidado com metricas de todas as fabricas."""
     from modules.database import SessionLocal, BlogChannel, BlogPost, Book, Course, __get_subdomain_for_channel
     from modules.brand_themes import detect_theme, get_logo_svg, get_favicon_svg
@@ -1758,7 +2310,7 @@ async def cleanup_old_blogs(_admin=Depends(require_admin)):
 _ebook_macro_results = {}
 
 @app.post("/api/v1/pipeline/run-ebook-factory")
-async def run_ebook_factory(payload: dict, _admin=Depends(require_admin)):
+async def run_ebook_factory(payload: dict, _admin=Depends(require_admin_or_service)):
     """Inicia a macro-pipeline de criacao de ebook."""
     import asyncio
     niche = payload.get("niche", "")
@@ -1798,7 +2350,7 @@ async def run_ebook_factory(payload: dict, _admin=Depends(require_admin)):
 
 
 @app.get("/api/v1/pipeline/ebook-factory/status/{task_id}")
-async def ebook_factory_status(task_id: str, _admin=Depends(require_admin)):
+async def ebook_factory_status(task_id: str, _admin=Depends(require_admin_or_service)):
     """Polling do status da macro-pipeline de ebooks."""
     data = _ebook_macro_results.get(task_id)
     if not data:
@@ -1807,10 +2359,70 @@ async def ebook_factory_status(task_id: str, _admin=Depends(require_admin)):
 
 
 @app.get("/api/v1/pipeline/ebook-factory/history")
-async def ebook_factory_history(_admin=Depends(require_admin)):
+async def ebook_factory_history(_admin=Depends(require_admin_or_service)):
     """Historico de execucoes da fabrica de ebooks."""
     from modules.database import get_db_ebook_pipeline_runs
     runs = get_db_ebook_pipeline_runs()
+    return {"runs": runs}
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# FABRICA DE MAPAS MENTAIS — Pipeline Endpoints (NOVO)
+# ═════════════════════════════════════════════════════════════════════════
+
+_mindmap_macro_results = {}
+
+@app.post("/api/v1/pipeline/run-mindmap-factory")
+async def run_mindmap_factory(payload: dict, _admin=Depends(require_admin_or_service)):
+    """Inicia a macro-pipeline de criacao de mapa mental."""
+    import asyncio
+    niche = payload.get("niche", "")
+    if not niche:
+        raise HTTPException(status_code=400, detail="Nicho e obrigatorio")
+
+    title = payload.get("title", "")
+    style_id = payload.get("style_id", "minimalista")
+    price_cents = payload.get("price_cents", 1700)
+
+    task_id = f"mmpipe_{_uuid.uuid4().hex[:8]}"
+    _mindmap_macro_results[task_id] = {"status": "starting"}
+
+    def _progress_callback(tid, *args, **kwargs):
+        event_type = args[2] if len(args) > 2 else "progress"
+        data = args[3] if len(args) > 3 else {}
+        if isinstance(data, dict):
+            _mindmap_macro_results[tid] = data
+
+    async def _run_and_report():
+        try:
+            from modules.mindmap_pipeline import run_mindmap_macro_pipeline
+            result = await run_mindmap_macro_pipeline(
+                niche=niche, title=title, style_id=style_id,
+                price_cents=price_cents, task_id=task_id,
+                on_progress=_progress_callback,
+            )
+            _mindmap_macro_results[task_id] = result
+        except Exception as e:
+            _mindmap_macro_results[task_id] = {"status": "failed", "error": str(e)}
+
+    asyncio.create_task(_run_and_report())
+    return {"task_id": task_id, "status": "starting"}
+
+
+@app.get("/api/v1/pipeline/mindmap-factory/status/{task_id}")
+async def mindmap_factory_status(task_id: str, _admin=Depends(require_admin_or_service)):
+    """Polling do status da macro-pipeline de mapas mentais."""
+    data = _mindmap_macro_results.get(task_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Task nao encontrada")
+    return data
+
+
+@app.get("/api/v1/pipeline/mindmap-factory/history")
+async def mindmap_factory_history(_admin=Depends(require_admin_or_service)):
+    """Historico de execucoes da fabrica de mapas mentais."""
+    from modules.database import get_db_mindmap_pipeline_runs
+    runs = get_db_mindmap_pipeline_runs()
     return {"runs": runs}
 
 
@@ -1822,7 +2434,7 @@ _course_macro_results = {}
 
 
 @app.post("/api/v1/pipeline/run-course-factory")
-async def run_course_factory(payload: dict, _admin=Depends(require_admin)):
+async def run_course_factory(payload: dict, _admin=Depends(require_admin_or_service)):
     """Inicia a macro-pipeline de criacao de curso."""
     import asyncio
     topic = payload.get("topic", "")
@@ -2187,6 +2799,64 @@ async def delete_ebook(book_id: str, _admin=Depends(require_admin)):
     if not ok:
         raise HTTPException(status_code=404, detail="Ebook nao encontrado")
     return {"message": "Ebook deletado com sucesso"}
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# CRUD — FABRICA DE MAPAS MENTAIS (NOVO)
+# ═════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/mindmaps")
+async def list_mindmaps(_admin=Depends(require_admin)):
+    """Lista todos os mapas mentais."""
+    from modules.database import get_db_mindmaps
+    mmaps = get_db_mindmaps()
+    return {"mindmaps": mmaps}
+
+
+@app.get("/api/v1/mindmaps/{mindmap_id}")
+async def get_mindmap_endpoint(mindmap_id: str, token: str = "", authorization: str = Header(None)):
+    """Detalhes de um mapa mental. Exige token ou header Bearer."""
+    t = token or (authorization.replace("Bearer ", "") if authorization else "")
+    user_id = _verify_jwt_token(t) if t else None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token ausente ou invalido")
+    user = get_db_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    
+    # Validar trial de 7 dias se o usuario for membro regular (nao administrador)
+    if user.role != "admin" and not user.subscription_active:
+        trial_start = user.trial_started_at or user.created_at
+        if not trial_start:
+            trial_start = datetime.utcnow()
+        delta = datetime.utcnow() - trial_start
+        if delta.days >= 7:
+            return {"success": False, "expired": True, "message": "Seu periodo de testes de 7 dias acabou. Por favor, assine."}
+
+    from modules.database import get_db_mindmap
+    m = get_db_mindmap(mindmap_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Mapa mental nao encontrado")
+    return {"success": True, "mindmap": m}
+
+
+@app.delete("/api/v1/mindmaps/{mindmap_id}")
+async def delete_mindmap_endpoint(mindmap_id: str, _admin=Depends(require_admin)):
+    """Deleta um mapa mental e seus dados."""
+    from modules.database import delete_db_mindmap, SessionLocal, MindMapPipelineRun
+    # Deletar pipeline runs associados
+    db = SessionLocal()
+    try:
+        db.query(MindMapPipelineRun).filter(MindMapPipelineRun.mindmap_id == mindmap_id).delete()
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+    ok = delete_db_mindmap(mindmap_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Mapa mental nao encontrado")
+    return {"message": "Mapa mental deletado com sucesso"}
 
 
 
@@ -2606,6 +3276,28 @@ async def build_hyperframes_timeline(payload: dict, _admin=Depends(require_admin
 
 
 
+@app.get("/api/v1/pipeline/active-tasks")
+async def get_active_pipeline_tasks(channel_id: str = None):
+    """
+    Retorna a lista de todas as tarefas de pipeline ativas ou recentes filtradas por blog.
+    (Registrado ANTES de /pipeline/{task_id} para nao ser engolido pela rota dinamica.)
+    """
+    tasks = []
+    for tid, info in _macro_results.items():
+        if channel_id and info.get("channel_id") != channel_id:
+            continue
+        tasks.append({
+            "task_id": tid,
+            "topic": info.get("topic"),
+            "channel_id": info.get("channel_id"),
+            "status": info.get("status"),
+            "phase": info.get("phase"),
+            "progress": info.get("progress"),
+            "error": info.get("error"),
+        })
+    return {"tasks": tasks}
+
+
 @app.get("/api/v1/pipeline/{task_id}")
 async def get_pipeline_status(task_id: str):
     """
@@ -2635,7 +3327,7 @@ async def list_pipelines():
 
 
 @app.post("/api/v1/pipeline/{task_id}/pause")
-async def pause_pipeline(task_id: str, _admin=Depends(require_admin)):
+async def pause_pipeline(task_id: str, _admin=Depends(require_admin_or_service)):
     """
     Pausa um pipeline.
     """
@@ -2651,7 +3343,7 @@ async def pause_pipeline(task_id: str, _admin=Depends(require_admin)):
 
 
 @app.post("/api/v1/pipeline/{task_id}/resume")
-async def resume_pipeline(task_id: str, _admin=Depends(require_admin)):
+async def resume_pipeline(task_id: str, _admin=Depends(require_admin_or_service)):
     """
     Retoma um pipeline pausado.
     """
@@ -2667,7 +3359,7 @@ async def resume_pipeline(task_id: str, _admin=Depends(require_admin)):
 
 
 @app.post("/api/v1/pipeline/{task_id}/stop")
-async def stop_pipeline(task_id: str, _admin=Depends(require_admin)):
+async def stop_pipeline(task_id: str, _admin=Depends(require_admin_or_service)):
     """
     Para um pipeline.
     """
@@ -2683,7 +3375,7 @@ async def stop_pipeline(task_id: str, _admin=Depends(require_admin)):
 
 
 @app.post("/api/v1/pipeline/{task_id}/approve/{stage}")
-async def approve_stage(task_id: str, stage: str, _admin=Depends(require_admin)):
+async def approve_stage(task_id: str, stage: str, _admin=Depends(require_admin_or_service)):
     """
     Aprova um estÃ¡gio do pipeline.
     """
@@ -3682,29 +4374,6 @@ hermes_chat_history = [
     }
 ]
 
-@app.post("/api/v1/hermes/chat")
-async def hermes_chat(payload: dict, background_tasks: BackgroundTasks):
-    """
-    Hermes Orquestrador - Entende comandos e executa aÃ§Ãµes reais.
-    Retorna dados estruturados para a UI atualizar as abas.
-    """
-    message = payload.get("message", "").strip()
-    channel_id = payload.get("channel_id")
-    
-    hermes_chat_history.append({"role": "user", "content": message})
-    
-    text, action_type, action_data = await process_hermes_command(message, channel_id, background_tasks)
-    
-    hermes_chat_history.append({"role": "assistant", "content": text})
-    
-    return {
-        "response": text,
-        "action_type": action_type,
-        "action_data": action_data,
-        "history": hermes_chat_history[-20:]
-    }
-
-
 @app.get("/api/v1/hermes/history")
 async def get_hermes_history():
     """Retorna histÃ³rico do chat do Hermes."""
@@ -3950,27 +4619,6 @@ async def generate_article_hype_endpoint(payload: dict, background_tasks: Backgr
         "status": "starting",
         "message": f"Esteira do Google Hype iniciada para lote de {quantity} artigos!",
     }
-
-
-@app.get("/api/v1/pipeline/active-tasks")
-async def get_active_pipeline_tasks(channel_id: str = None):
-    """
-    Retorna a lista de todas as tarefas de pipeline ativas ou recentes filtradas por blog.
-    """
-    tasks = []
-    for tid, info in _macro_results.items():
-        if channel_id and info.get("channel_id") != channel_id:
-            continue
-        tasks.append({
-            "task_id": tid,
-            "topic": info.get("topic"),
-            "channel_id": info.get("channel_id"),
-            "status": info.get("status"),
-            "phase": info.get("phase"),
-            "progress": info.get("progress"),
-            "error": info.get("error"),
-        })
-    return {"tasks": tasks}
 
 
 @app.post("/api/v1/blog/import-posts")
@@ -4665,7 +5313,7 @@ async def lili_correct_post(post_id: str, _admin=Depends(require_admin)):
 
 
 @app.get("/api/v1/lili/ranking")
-async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depends(require_admin)):
+async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depends(require_admin_or_service)):
     """Ranking global de artigos por score LiLi (todos os blogs)."""
     from modules.database import (
         get_db_all_posts_with_meta,
@@ -4688,8 +5336,13 @@ async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depend
     for p in posts:
         score = p.get("lili_score")
         approved = p.get("lili_approved")
-        if score is None:
-            # Sem cache: calcula e persiste para as proximas leituras
+        issues_top: list = []
+        # Sem cache OU reprovado: deriva o MOTIVO da reprovação do conteúdo.
+        # A regra real da LiLi é: score >= 70 E zero issues de severidade 'alta'
+        # (ver modules/lili.py). Por isso um artigo com score 85 pode estar
+        # reprovado — ele tem 1 issue alta. Expor os issues aqui deixa o
+        # motivo visível na UI e para o Hermes (diagnóstico por evidência).
+        if score is None or not approved:
             full = get_db_blog_post(p["id"])
             if full:
                 try:
@@ -4700,13 +5353,23 @@ async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depend
                         full["content"] or "",
                         full["keywords"] or "",
                     )
-                    score = r.get("score")
-                    approved = bool(r.get("approved"))
-                    if score is not None:
-                        try:
-                            save_db_lili_score(p["id"], score, approved)
-                        except Exception:
-                            pass
+                    issues_top = [
+                        {
+                            "tipo": i.get("tipo"),
+                            "severidade": i.get("severity"),
+                            "mensagem": (i.get("message") or "")[:90],
+                        }
+                        for i in (r.get("issues") or [])
+                        if i.get("severity") == "alta"
+                    ][:3]
+                    if score is None:
+                        score = r.get("score")
+                        approved = bool(r.get("approved"))
+                        if score is not None:
+                            try:
+                                save_db_lili_score(p["id"], score, approved)
+                            except Exception:
+                                pass
                 except Exception:
                     score, approved = None, None
         results.append({
@@ -4723,6 +5386,7 @@ async def lili_ranking(channel_id: str = None, status: str = None, _admin=Depend
             "lili_score": score,
             "lili_approved": approved,
             "lili_reviewed_at": p.get("lili_reviewed_at"),
+            "lili_issues": issues_top,
             "created_at": p.get("created_at"),
         })
 
@@ -5264,7 +5928,7 @@ async def delete_blog_channel(channel_id: str, _admin=Depends(require_admin)):
 
 
 @app.post("/api/v1/pipeline/run-blog-factory")
-async def run_blog_factory_frontend(payload: dict, _admin=Depends(require_admin)):
+async def run_blog_factory_frontend(payload: dict, _admin=Depends(require_admin_or_service)):
     """Alias da UI - delega para a pipeline macro."""
     blog_name = payload.get("blog_name", "")
     niche = payload.get("niche", "")
@@ -5930,7 +6594,7 @@ async def admin_stats(user=Depends(require_admin)):
 _marketing_pipelines: Dict[str, Any] = {}
 
 @app.post("/api/v1/marketing/start")
-async def start_marketing_campaign(payload: dict, _admin=Depends(require_admin)):
+async def start_marketing_campaign(payload: dict, _admin=Depends(require_admin_or_service)):
     """Inicia uma nova esteira de marketing para um determinado nicho."""
     niche = payload.get("niche", "").strip()
     if not niche:
@@ -5948,7 +6612,7 @@ async def start_marketing_campaign(payload: dict, _admin=Depends(require_admin))
     return {"success": True, "campaign_id": campaign_id, "niche": niche}
 
 @app.post("/api/v1/marketing/stage")
-async def run_marketing_stage_endpoint(payload: dict, _admin=Depends(require_admin)):
+async def run_marketing_stage_endpoint(payload: dict, _admin=Depends(require_admin_or_service)):
     """Executa uma fase da esteira de marketing de forma sequencial."""
     campaign_id = payload.get("campaign_id")
     stage = payload.get("stage")
@@ -6034,7 +6698,7 @@ async def generate_sales_page_endpoint(payload: dict, _admin=Depends(require_adm
     }
 
 @app.get("/api/v1/marketing/history")
-async def get_marketing_history_endpoint(_admin=Depends(require_admin)):
+async def get_marketing_history_endpoint(_admin=Depends(require_admin_or_service)):
     """Retorna o histÃ³rico de campanhas de marketing para restaurar o estado na UI."""
     from modules.database import get_marketing_campaigns
     try:

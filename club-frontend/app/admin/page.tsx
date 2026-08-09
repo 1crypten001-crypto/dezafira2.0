@@ -10,6 +10,10 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import Link from "next/link";
 
+const apiBase = (typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") : "http://localhost:8000").replace(/\/$/, "");
+const chatUrl = `${apiBase}/chat/`;
+const previewUrl = `${apiBase}/api/v1/hermes/preview/sess_admin/funnel`;
+
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -21,6 +25,7 @@ export default function AdminPage() {
     | "hermes"
     | "fabrica-blog"
     | "fabrica-ebook"
+    | "fabrica-mapas"
     | "fabrica-curso"
     | "marketing"
     | "fabrica-miniapp"
@@ -67,6 +72,7 @@ export default function AdminPage() {
             { id: "hermes", label: "🤖 Hermes Agent" },
             { id: "stats", label: "📊 Estatísticas" },
             { id: "fabrica-blog", label: "📝 Fábrica Blog" },
+            { id: "fabrica-mapas", label: "🧠 Fábrica Mapas" },
             { id: "fabrica-ebook", label: "📗 Fábrica Ebook" },
             { id: "fabrica-curso", label: "🎓 Fábrica Curso" },
             { id: "fabrica-miniapp", label: "📱 Fábrica MiniApp" },
@@ -112,7 +118,7 @@ export default function AdminPage() {
 
                 <div className="flex gap-2">
                   <a
-                    href="https://dezafiraadm-production.up.railway.app/chat/"
+                    href={chatUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs bg-[#38bdf822] text-[#38bdf8] px-3 py-2 rounded-lg font-semibold border border-[#38bdf855] hover:bg-[#38bdf844]"
@@ -120,7 +126,7 @@ export default function AdminPage() {
                     ↗️ Abrir Chat em Nova Janela
                   </a>
                   <a
-                    href="https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/funnel"
+                    href={previewUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-primary text-xs px-3 py-2"
@@ -132,10 +138,10 @@ export default function AdminPage() {
 
               {/* Chat e Pipeline Geral em Tela Cheia Responsiva */}
               <iframe
-                src="https://dezafiraadm-production.up.railway.app/chat/"
+                src={chatUrl}
                 className="w-full rounded-xl border border-[#1e293b] bg-[#060911]"
                 style={{ height: "calc(100vh - 200px)", minHeight: "650px" }}
-                title="Hermes Agent Chainlit Chat"
+                title="Hermes Agent WebUI Chat"
               />
             </div>
           </div>
@@ -162,6 +168,31 @@ export default function AdminPage() {
               className="w-full rounded-2xl border border-[#1e293b] bg-[#060911]"
               style={{ height: "calc(100vh - 250px)", minHeight: "700px" }}
               title="Fábrica de MiniApps PWA"
+            />
+          </div>
+        )}
+
+        {/* FÁBRICA DE MAPAS MENTAIS (NOVO) */}
+        {tab === "fabrica-mapas" && (
+          <div className="space-y-4">
+            <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl flex justify-between items-center">
+              <div>
+                <span className="badge text-[var(--success)] text-xs mb-1 inline-block">🟢 Memorização Ativa & Spaced Repetition</span>
+                <h2 className="text-xl font-bold text-[#f1f5f9]">🧠 Fábrica de Mapas Mentais (Esteira Recorrente)</h2>
+                <p className="text-xs text-[var(--text-dim)] mt-1">
+                  Gere mapas mentais dinâmicos em JSON com quizzes interativos e modo foco de 3 níveis.
+                </p>
+              </div>
+              <Link href="/admin/fabrica-mapas" className="btn-primary text-xs px-4 py-2">
+                🚀 Abrir Workspace de Mapas Mentais
+              </Link>
+            </div>
+            
+            <iframe
+              src="/admin/fabrica-mapas"
+              className="w-full rounded-2xl border border-[#1e293b] bg-[#060911]"
+              style={{ height: "calc(100vh - 250px)", minHeight: "700px" }}
+              title="Fábrica de Mapas Mentais"
             />
           </div>
         )}
@@ -252,6 +283,14 @@ export default function AdminPage() {
             <h2 className="text-2xl font-bold mb-2">Fábrica de Blogs</h2>
             <p className="text-[var(--text-dim)] mb-4">Gerencie blogs e artigos do sistema com automação SEO</p>
             <a href="/admin/fabrica-blog" className="btn-primary inline-block">Acessar Fábrica de Blogs</a>
+          </div>
+        )}
+
+        {tab === "fabrica-mapas" && (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold mb-2">Fábrica de Mapas Mentais</h2>
+            <p className="text-[var(--text-dim)] mb-4">Gerencie mapas mentais estruturados, visualizadores PWA e quizzes de fixação</p>
+            <a href="/admin/fabrica-mapas" className="btn-primary inline-block">Acessar Fábrica de Mapas Mentais</a>
           </div>
         )}
 

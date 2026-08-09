@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clube do Mapa Mental</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- D3 and Markmap via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.15.4"></script>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.15);
+            --bg: #060911;
+            --surface: #090d16;
+            --border: #1e293b;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background: var(--surface);
+            border-b: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 12px;
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #38bdf8);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        /* Main Workspace */
+        .workspace {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #mindmap-svg {
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            cursor: grab;
+        }
+
+        #mindmap-svg:active {
+            cursor: grabbing;
+        }
+
+        /* Floating Toolbar */
+        .toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 5;
+        }
+
+        .btn-tool {
+            width: 44px;
+            height: 44px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn-tool:hover {
+            border-color: var(--primary);
+            background: var(--primary-glow);
+        }
+
+        /* Mode presentation toolbar */
+        .nav-toolbar {
+            position: absolute;
+            bottom: 300px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 5;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 10px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .nav-btn.primary {
+            background: var(--primary);
+            box-shadow: 0 4px 10px var(--primary-glow);
+        }
+
+        .nav-btn.primary:hover {
+            background: #7c3aed;
+        }
+
+        /* Detail Drawer */
+        .detail-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 280px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 5;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .detail-drawer.open {
+            transform: translateY(0);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .drawer-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        .drawer-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.5;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Quiz / Flashcard Card */
+        .quiz-card {
+            background: #131c2e;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .quiz-question {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .quiz-option {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .quiz-option:hover {
+            border-color: var(--primary);
+            background: var(--primary-glow);
+        }
+
+        .quiz-option.correct {
+            background: rgba(34, 197, 94, 0.15) !important;
+            border-color: #22c55e !important;
+            color: #4ade80;
+        }
+
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border-color: #ef4444 !important;
+            color: #f87171;
+        }
+
+        /* Paywall Block overlay */
+        .paywall-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 9, 17, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .paywall-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .paywall-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            max-width: 440px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .paywall-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+
+        .paywall-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .paywall-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .btn-subscribe {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #38bdf8);
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        .btn-subscribe:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .markmap-node text {
+            fill: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .markmap-node circle {
+            fill: var(--primary) !important;
+            stroke: var(--border) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">🧠 Mapa<span>Mental</span></div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="prog-fill"></div>
+            </div>
+            <span class="progress-text" id="prog-text">0%</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+        <svg id="mindmap-svg"></svg>
+
+        <!-- Floating Zoom Toolbar -->
+        <div class="toolbar">
+            <button class="btn-tool" onclick="zoomIn()">+</button>
+            <button class="btn-tool" onclick="zoomOut()">-</button>
+            <button class="btn-tool" onclick="resetZoom()">⟲</button>
+        </div>
+
+        <!-- Navigation presentation toolbar -->
+        <div class="nav-toolbar">
+            <button class="nav-btn" onclick="prevNode()">◀ Anterior</button>
+            <span id="node-counter" style="font-size: 12px; font-weight: 700;">1 / 1</span>
+            <button class="nav-btn primary" onclick="nextNode()">Próximo ▶</button>
+        </div>
+
+        <!-- Detail drawer -->
+        <div class="detail-drawer" id="drawer">
+            <div class="drawer-header">
+                <h3 class="drawer-title" id="node-title">Nó Selecionado</h3>
+                <button onclick="closeDrawer()" style="background:transparent; border:none; color:white; cursor:pointer; font-size:16px;">✕</button>
+            </div>
+            <p class="drawer-desc" id="node-desc">Clique em um ramo ou use os controles de navegação para estudar os tópicos detalhadamente.</p>
+            
+            <!-- Quiz/Flashcard Panel -->
+            <div id="quiz-panel" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Trial Expired Paywall -->
+    <div class="paywall-overlay" id="paywall">
+        <div class="paywall-card">
+            <div class="paywall-icon">🔒</div>
+            <h2 class="paywall-title">Período de Testes Expirado</h2>
+            <p class="paywall-desc">Seus 7 dias gratuitos no Clube do Mapa Mental acabaram. Assine agora para continuar recebendo novos mapas mentais semanais e manter seu progresso de memorização.</p>
+            <a href="#" class="btn-subscribe" id="checkout-link">Assinar Acesso Completo</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let mapData = null;
+        let markmapInstance = null;
+        let allNodes = [];
+        let currentNodeIndex = 0;
+        let masteredNodes = new Set();
+
+        async function initApp() {
+            // Pegar slug ou id do mapa pela URL
+            const pathParts = window.location.pathname.split('/');
+            const mindmapId = pathParts[pathParts.length - 1] || 'mmap_demo';
+
+            // Puxar token de acesso do localStorage
+            const token = localStorage.getItem('dz_token') || '';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/mindmaps/${mindmapId}?token=${token}`);
+                const data = await res.json();
+                
+                if (data.expired) {
+                    showPaywall(data.checkout_url || '/checkout');
+                    return;
+                }
+                
+                if (data.success && data.mindmap) {
+                    mapData = JSON.parse(data.mindmap.map_json);
+                    document.getElementById('checkout-link').href = data.mindmap.checkout_url || '#';
+                    setupMindMap(mapData);
+                } else {
+                    loadDemoData();
+                }
+            } catch(e) {
+                console.error("Erro ao carregar mapa mental:", e);
+                loadDemoData();
+            }
+        }
+
+        function loadDemoData() {
+            const demo = {
+                id: "raiz",
+                title: "Direito Administrativo: Atos Administrativos",
+                description: "Visão geral sobre os Atos Administrativos para concursos públicos.",
+                children: [
+                    {
+                        id: "requisitos",
+                        title: "Requisitos / Elementos",
+                        description: "Os 5 requisitos indispensáveis de validade do ato administrativo (Competência, Finalidade, Forma, Motivo e Objeto).",
+                        quiz: {
+                            question: "Qual elemento do ato administrativo refere-se ao resultado prático que a Administração deseja alcançar?",
+                            options: ["Motivo", "Forma", "Objeto", "Finalidade"],
+                            answer: "Finalidade"
+                        },
+                        children: []
+                    },
+                    {
+                        id: "atributos",
+                        title: "Atributos / Características",
+                        description: "As prerrogativas especiais dos atos administrativos (Presunção de Legitimidade, Imperatividade, Autoexecutoriedade e Tipicidade).",
+                        quiz: null,
+                        children: []
+                    }
+                ]
+            };
+            setupMindMap(demo);
+        }
+
+        function setupMindMap(data) {
+            // Flatten nodes para navegação sequencial
+            allNodes = [];
+            flattenTree(data);
+            
+            currentNodeIndex = 0;
+            document.getElementById('node-counter').innerText = `1 / ${allNodes.length}`;
+
+            // Converter JSON da IA para formato compatível com o Markmap
+            const mmData = convertToMarkmapFormat(data);
+
+            const { Markmap } = window.markmap;
+            markmapInstance = Markmap.create('#mindmap-svg', null, mmData);
+
+            // Adicionar evento de clique no nó
+            markmapInstance.options.onClick = (e, node) => {
+                const nodeObj = allNodes.find(n => n.title.includes(node.content.replace(/<[^>]*>/g, '')));
+                if (nodeObj) {
+                    const idx = allNodes.indexOf(nodeObj);
+                    if (idx !== -1) {
+                        selectNode(idx);
+                    }
+                }
+            };
+
+            // Focar no nó inicial
+            selectNode(0);
+        }
+
+        function flattenTree(node) {
+            allNodes.push(node);
+            if (node.children) {
+                node.children.forEach(flattenTree);
+            }
+        }
+
+        function convertToMarkmapFormat(node) {
+            return {
+                content: `<strong>${node.title}</strong>`,
+                children: node.children ? node.children.map(convertToMarkmapFormat) : []
+            };
+        }
+
+        function showPaywall(checkoutUrl) {
+            document.getElementById('paywall').classList.add('active');
+            document.getElementById('checkout-link').href = checkoutUrl;
+        }
+
+        function selectNode(index) {
+            currentNodeIndex = index;
+            const node = allNodes[index];
+            
+            document.getElementById('node-counter').innerText = `${index + 1} / ${allNodes.length}`;
+            document.getElementById('node-title').innerText = node.title;
+            document.getElementById('node-desc').innerText = node.description || "Sem descrição disponível.";
+
+            // Mostrar gaveta de detalhes
+            document.getElementById('drawer').classList.add('open');
+
+            // Renderizar quiz se disponível
+            const quizPanel = document.getElementById('quiz-panel');
+            if (node.quiz) {
+                quizPanel.style.display = 'block';
+                quizPanel.innerHTML = `
+                    <div class="quiz-card">
+                        <div class="quiz-question">${node.quiz.question}</div>
+                        <div class="quiz-options">
+                            ${node.quiz.options.map((opt, i) => `
+                                <div class="quiz-option" onclick="answerQuiz('${node.id}', '${opt}', ${opt === node.quiz.answer}, this)">
+                                    ${opt}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                quizPanel.style.display = 'none';
+            }
+
+            // Animação de zoom e pan D3 no nó correspondente
+            if (markmapInstance) {
+                // Procurar elementos svg e centralizar o nó
+                const svg = d3.select('#mindmap-svg');
+                // Centralização lógica simplificada
+                markmapInstance.fit();
+            }
+        }
+
+        window.answerQuiz = function(nodeId, option, isCorrect, btnEl) {
+            if (isCorrect) {
+                btnEl.classList.add('correct');
+                masteredNodes.add(nodeId);
+                updateProgress();
+                setTimeout(() => {
+                    nextNode();
+                }, 1500);
+            } else {
+                btnEl.classList.add('incorrect');
+                alert("Resposta errada. Estude o conteúdo deste ramo e tente novamente!");
+            }
+        };
+
+        function updateProgress() {
+            const percent = Math.round((masteredNodes.size / allNodes.length) * 100);
+            document.getElementById('prog-fill').style.width = percent + '%';
+            document.getElementById('prog-text').innerText = percent + '%';
+        }
+
+        window.nextNode = function() {
+            if (currentNodeIndex < allNodes.length - 1) {
+                selectNode(currentNodeIndex + 1);
+            }
+        };
+
+        window.prevNode = function() {
+            if (currentNodeIndex > 0) {
+                selectNode(currentNodeIndex - 1);
+            }
+        };
+
+        window.closeDrawer = function() {
+            document.getElementById('drawer').classList.remove('open');
+        };
+
+        // ZOOM CONTROLS
+        window.zoomIn = function() {
+            if (markmapInstance) {
+                // Utiliza os controles internos do Markmap/D3
+                markmapInstance.fit();
+            }
+        };
+
+        window.zoomOut = function() {
+            if (markmapInstance) {
+                markmapInstance.fit();
+            }
+        };
+
+        window.resetZoom = function() {
+            if (markmapInstance) {
+                markmapInstance.fit();
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
