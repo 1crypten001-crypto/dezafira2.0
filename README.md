@@ -1,5 +1,7 @@
 # DEZAFIRA — Ecossistema de Fábricas de Conteúdo
 
+> **Repositório Oficial:** https://github.com/1crypten001-crypto/dezafira2.0/
+>
 > **Automação de Conteúdo Digital com IA — 100% CPU, sem GPU**
 >
 > **Site público (DezafiraClube):** https://www.dezafira.com.br (SvelteKit + Railway)
