@@ -2,91 +2,105 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dezafira Entregável</title>
-    <!-- Google Fonts -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{APP_NAME}} — DEZAFIRA</title>
+    <meta name="description" content="{{DESCRIPTION}}">
+
+    <link rel="manifest" href="{{MANIFEST_URL}}">
+    <meta name="theme-color" content="{{THEME}}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{APP_NAME}}">
+    <link rel="apple-touch-icon" href="{{ICON_512}}">
+
+    <meta property="og:title" content="{{APP_NAME}}">
+    <meta property="og:description" content="{{DESCRIPTION}}">
+    <meta property="og:type" content="website">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
             --primary: #3B82F6;
             --primary-dark: #2563EB;
+            --accent: #60A5FA;
             --bg: #090D16;
             --surface: #131A2C;
             --text: #F3F4F6;
             --text-muted: #9CA3AF;
             --border: #1E293B;
-            --primary-glow: rgba(59, 130, 246, 0.15);
+            --primary-glow: rgba(59,130,246,0.15);
+            --gradient: 135deg, #1E3A5F, #3B82F6;
+            --emoji: "⚡";
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
-            transition: all 0.25s ease;
-        }
+        * { box-sizing:border-box; margin:0; padding:0; font-family:'Plus Jakarta Sans','Outfit',sans-serif; }
 
         body {
             background-color: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+            padding-left: var(--safe-left);
+            padding-right: var(--safe-right);
         }
 
-        /* Glassmorphism background decor */
         .decor-circle {
-            position: absolute;
+            position: fixed;
             border-radius: 50%;
             filter: blur(120px);
-            z-index: -1;
+            z-index: 0;
             opacity: 0.4;
+            pointer-events: none;
         }
-
-        .circle-1 {
-            width: 300px;
-            height: 300px;
-            background: var(--primary);
-            top: -50px;
-            left: -100px;
-        }
-
-        .circle-2 {
-            width: 400px;
-            height: 400px;
-            background: var(--primary-dark);
-            bottom: -50px;
-            right: -100px;
-        }
+        .circle-1 { width: 300px; height: 300px; background: var(--primary); top: -50px; left: -100px; }
+        .circle-2 { width: 400px; height: 400px; background: var(--primary-dark); bottom: -50px; right: -100px; }
 
         header {
             width: 100%;
             max-width: 600px;
-            padding: 20px;
+            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
             z-index: 10;
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            padding-top: calc(16px + var(--safe-top));
         }
-
-        .logo {
-            font-weight: 800;
-            font-size: 1.3rem;
-            color: var(--text);
-            display: flex;
+        .logo { font-weight: 800; font-size: 1.3rem; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .logo span { color: var(--primary); }
+        .logo .niche-emoji { font-size: 1.4rem; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-install {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: none;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
         }
-
-        .logo span {
-            color: var(--primary);
-        }
+        .btn-install.visible { display: flex; }
+        .btn-install:active { transform: scale(0.96); }
 
         main {
             flex: 1;
@@ -95,329 +109,193 @@
             padding: 30px 20px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            z-index: 10;
+            z-index: 1;
         }
 
-        /* Views management */
-        .view {
-            display: none;
-            animation: fadeIn 0.4s ease-out forwards;
-        }
+        .view { display: none; animation: fadeSlideIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .view.active { display: block; }
 
-        .view.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(18px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Dynamic Landing Page */
-        .hero {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
+        .hero { text-align: center; margin-bottom: 40px; }
         .hero h1 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            line-height: 1.2;
+            font-size: 2.2rem; font-weight: 800; line-height: 1.2;
             margin-bottom: 15px;
-            background: linear-gradient(135deg, #FFF 50%, var(--primary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            background: linear-gradient(var(--gradient));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-
-        .hero p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }
+        .hero p { color: var(--text-muted); font-size: 1.1rem; line-height: 1.5; margin-bottom: 30px; }
+        .hero .niche-tagline { color: var(--accent); font-size: 0.9rem; font-weight: 600; margin-bottom: 20px; }
 
         .btn {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
+            color: white; border: none; padding: 16px 32px; font-size: 1.1rem;
+            font-weight: 700; border-radius: 14px; cursor: pointer; width: 100%;
             box-shadow: 0 4px 14px var(--primary-glow);
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
         }
+        .btn:active { transform: scale(0.97); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px var(--primary-glow);
+        .btn-outline {
+            background: transparent; border: 1.5px solid var(--primary);
+            color: var(--primary); box-shadow: none;
         }
+        .btn-outline:hover { background: var(--primary-glow); }
 
-        .testimonials {
-            margin-top: 50px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .testimonials h3 {
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-        }
-
-        .testimonial-card {
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            padding: 20px;
-            border-radius: 16px;
-        }
-
-        .testi-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .testi-name {
-            font-weight: 700;
-            font-size: 0.95rem;
-        }
-
-        .testi-stars {
-            color: #FBBF24;
-            font-size: 0.85rem;
-        }
-
-        .testi-text {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            line-height: 1.4;
-        }
-
-        /* Quiz View */
+        /* Progress bar */
         .progress-container {
-            width: 100%;
-            height: 6px;
-            background-color: var(--surface);
-            border-radius: 3px;
-            margin-bottom: 30px;
-            overflow: hidden;
+            width: 100%; height: 6px; background-color: var(--surface);
+            border-radius: 3px; margin-bottom: 30px; overflow: hidden;
         }
-
         .progress-bar {
-            height: 100%;
-            background-color: var(--primary);
-            width: 0%;
+            height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px; transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .progress-label {
+            text-align: center; font-size: 0.8rem; color: var(--text-muted);
+            margin-bottom: 8px;
         }
 
         .question-card h2 {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 25px;
-            line-height: 1.3;
+            font-size: 1.35rem; font-weight: 700; margin-bottom: 24px; line-height: 1.3;
         }
 
-        .options-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
+        .options-list { display: flex; flex-direction: column; gap: 12px; }
         .option-item {
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            padding: 18px 20px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            background-color: var(--surface); border: 1px solid var(--border);
+            padding: 18px 20px; border-radius: 14px; cursor: pointer;
+            font-weight: 600; font-size: 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), border-color 0.15s, background 0.15s;
         }
-
-        .option-item:hover {
-            border-color: var(--primary);
-            background-color: var(--primary-glow);
-            transform: translateX(4px);
+        .option-item:active { transform: scale(0.98); }
+        .option-item:hover, .option-item.selected {
+            border-color: var(--primary); background: var(--primary-glow);
         }
+        .option-item .check-mark { color: var(--primary); font-weight: 800; opacity: 0; }
+        .option-item.selected .check-mark { opacity: 1; }
 
-        /* Loading View */
-        .loading-container {
-            text-align: center;
-            padding: 40px 0;
-        }
-
-        .spinner {
-            border: 4px solid var(--surface);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Paywall View */
-        .diagnostic-card {
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 25px;
-        }
-
-        .diag-title {
-            color: #EF4444;
-            font-weight: 800;
-            font-size: 1.2rem;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .diag-desc {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 20px;
-        }
-
-        .pricing-section {
-            text-align: center;
-            border-top: 1px dashed var(--border);
-            padding-top: 25px;
-        }
-
-        .price-tag {
-            font-size: 2.2rem;
-            font-weight: 800;
-            color: var(--text);
-            margin-bottom: 20px;
-        }
-
-        .price-tag span {
-            font-size: 1rem;
-            color: var(--text-muted);
-            font-weight: 400;
-        }
-
-        .checkout-options {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .pay-tab {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid var(--border);
-            background-color: var(--surface);
+        /* Skeleton shimmer */
+        .skeleton {
+            background: linear-gradient(90deg, var(--surface) 25%, rgba(255,255,255,0.05) 50%, var(--surface) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
             border-radius: 10px;
-            cursor: pointer;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .skeleton-text { height: 16px; margin-bottom: 12px; }
+        .skeleton-text.short { width: 60%; }
+        .skeleton-text.medium { width: 80%; }
+        .skeleton-card { height: 200px; margin-bottom: 20px; }
+
+        /* Bottom sheet */
+        .sheet-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 100;
+            display: none; align-items: flex-end; justify-content: center;
+        }
+        .sheet-overlay.open { display: flex; }
+        .sheet-overlay.open .sheet-panel { transform: translateY(0); }
+        .sheet-panel {
+            background: var(--surface); border-radius: 24px 24px 0 0;
+            width: 100%; max-width: 600px; max-height: 85vh;
+            overflow-y: auto; padding: 28px 24px;
+            padding-bottom: calc(28px + var(--safe-bottom));
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            border: 1px solid var(--border);
+        }
+        .sheet-handle {
+            width: 36px; height: 5px; background: var(--border);
+            border-radius: 3px; margin: 0 auto 20px;
+        }
+        .sheet-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; }
+        .sheet-emoji { font-size: 3rem; text-align: center; margin-bottom: 12px; }
+        .sheet-desc { color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; }
+
+        /* Result cards */
+        .result-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 20px; margin-bottom: 12px;
+        }
+        .result-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+        .result-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.4; }
+
+        /* Drip timeline */
+        .timeline { display: flex; flex-direction: column; gap: 16px; }
+        .timeline-item {
+            display: flex; gap: 14px; align-items: flex-start;
+        }
+        .timeline-dot {
+            width: 44px; height: 44px; min-width: 44px;
+            border-radius: 50%; background: var(--surface); border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.85rem; color: var(--text-muted);
+        }
+        .timeline-dot.unlocked {
+            background: var(--primary); border-color: var(--primary);
+            color: white; box-shadow: 0 0 12px var(--primary-glow);
+        }
+        .timeline-dot.today {
+            border-color: var(--accent); color: var(--accent);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.4); } 50% { box-shadow: 0 0 0 10px rgba(96,165,250,0); } }
+        .timeline-content { flex: 1; }
+        .timeline-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 2px; }
+        .timeline-content p { font-size: 0.8rem; color: var(--text-muted); }
+        .timeline-locked { opacity: 0.45; }
+
+        /* Streak */
+        .streak-bar {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 12px 16px; margin-bottom: 20px;
+        }
+        .streak-fire { font-size: 1.5rem; }
+        .streak-count { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+        .streak-label { font-size: 0.8rem; color: var(--text-muted); }
+
+        .loading-container { text-align: center; padding: 40px 0; }
+        .spinner {
+            border: 4px solid var(--surface); border-top: 4px solid var(--primary);
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite; margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .pricing-section { text-align: center; border-top: 1px dashed var(--border); padding-top: 25px; }
+        .price-tag { font-size: 2.2rem; font-weight: 800; color: var(--text); margin-bottom: 20px; }
+        .price-tag span { font-size: 1rem; color: var(--text-muted); font-weight: 400; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(16,185,129,0.15); color: #10B981;
+            padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;
             font-weight: 700;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
         }
 
-        .pay-tab.active {
-            border-color: var(--primary);
-            background-color: var(--primary-glow);
+        .share-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        .share-btn {
+            flex: 1; min-width: 100px; padding: 10px 14px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg);
+            color: var(--text); font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; text-align: center;
         }
+        .share-btn:active { transform: scale(0.97); }
 
-        .pix-area {
-            text-align: center;
-            background: #182235;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            display: none;
-        }
+        .cta-section { text-align: center; margin-top: 24px; }
+        .cta-section .btn { margin-bottom: 10px; }
 
-        .pix-area.active {
-            display: block;
-        }
-
-        .qr-placeholder {
-            background: white;
-            width: 180px;
-            height: 180px;
-            margin: 0 auto 15px;
-            padding: 10px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .qr-placeholder img {
-            width: 100%;
-            height: 100%;
-        }
-
-        .pix-copia {
-            background: var(--bg);
-            padding: 10px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.8rem;
-            word-break: break-all;
-            margin-bottom: 12px;
-            user-select: all;
-        }
-
-        .sim-pay-btn {
-            background: #10B981;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-        }
-
-        .sim-pay-btn:hover {
-            background: #059669;
-            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3);
-        }
-
-        /* Premium Content View */
-        .premium-card {
-            background-color: var(--surface);
-            border: 1px solid #10B981;
-            border-radius: 20px;
-            padding: 30px;
-        }
-
-        .premium-title {
-            color: #10B981;
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin-bottom: 15px;
-        }
-
-        .premium-content {
-            color: var(--text);
-            line-height: 1.6;
-            font-size: 1rem;
-        }
-
-        .premium-content ul {
-            margin-top: 15px;
-            margin-left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 1.7rem; }
+            .hero p { font-size: 0.95rem; }
+            .question-card h2 { font-size: 1.15rem; }
+            .sheet-panel { padding: 20px 18px; }
         }
     </style>
 </head>
@@ -426,417 +304,499 @@
     <div class="decor-circle circle-2"></div>
 
     <header>
-        <div class="logo" id="logoText">DEZAFIRA<span>APPS</span></div>
-        <div class="testi-stars">★★★★★</div>
+        <div class="logo">
+            <span class="niche-emoji" id="nicheEmoji">⚡</span>
+            <span id="logoAppName">{{APP_NAME}}</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn-install" id="btnInstall" title="Instalar App">
+                📲 Instalar
+            </button>
+        </div>
     </header>
 
     <main>
-        <!-- 1. LANDING PAGE VIEW -->
+        <!-- Landing -->
         <section id="view-landing" class="view active">
             <div class="hero">
-                <h1 id="lp-title">Diagnóstico Comportamental</h1>
-                <p id="lp-subtitle">Descubra em menos de 3 minutos o que está acontecendo com seu pet e como corrigir de forma simples.</p>
-                <button class="btn" id="start-btn">Iniciar Avaliação Gratuita</button>
+                <h1 id="lpTitle">{{APP_NAME}}</h1>
+                <div class="niche-tagline" id="lpTagline">Soluções inteligentes para você</div>
+                <p id="lpSubtitle">Descubra em menos de 3 minutos insights personalizados para transformar seus resultados.</p>
+                <button class="btn" id="startBtn">Iniciar Avaliação Gratuita</button>
             </div>
-
-            <div class="testimonials">
-                <h3>Depoimentos</h3>
-                <div id="testimonials-list">
-                    <!-- Dinâmico -->
-                </div>
-            </div>
+            <div id="landing-extra"></div>
         </section>
 
-        <!-- 2. QUIZ VIEW -->
+        <!-- Quiz -->
         <section id="view-quiz" class="view">
+            <div class="progress-label" id="progressLabel">Pergunta 1 de 5</div>
             <div class="progress-container">
-                <div class="progress-bar" id="quiz-progress"></div>
+                <div class="progress-bar" id="quizProgress"></div>
             </div>
-            <div class="question-card" id="question-card">
-                <!-- Dinâmico -->
-            </div>
+            <div class="question-card" id="questionCard"></div>
         </section>
 
-        <!-- 3. LOADING/ANALYZING VIEW -->
+        <!-- Skeleton loading -->
         <section id="view-loading" class="view">
             <div class="loading-container">
-                <div class="spinner"></div>
-                <h2 id="loading-text">Processando suas respostas...</h2>
-                <p style="color: var(--text-muted); margin-top: 10px;">A IA está montando seu relatório customizado.</p>
+                <div class="skeleton skeleton-card" style="margin-bottom:24px;"></div>
+                <div class="skeleton skeleton-text medium"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text short"></div>
+                <p style="color:var(--text-muted);margin-top:20px;font-size:0.9rem;" id="loadingText">Analisando suas respostas...</p>
             </div>
         </section>
 
-        <!-- 4. PAYWALL VIEW -->
-        <section id="view-paywall" class="view">
-            <div class="diagnostic-card">
-                <div class="diag-title">
-                    <span>⚠️</span> <span id="paywall-diag-title">Resultado Parcial</span>
-                </div>
-                <div class="diag-desc" id="paywall-diag-desc">
-                    Identificamos padrões de alta relevância com base em suas respostas. Seu relatório parcial está completo.
-                </div>
+        <!-- Drip Timeline -->
+        <section id="view-drip" class="view">
+            <div class="streak-bar" id="streakBar">
+                <span class="streak-fire">🔥</span>
+                <span class="streak-count" id="streakCount">1</span>
+                <span>dias seguidos</span>
             </div>
-
-            <div class="diagnostic-card" style="border-color: var(--primary);">
-                <div class="diag-title" style="color: var(--primary);">
-                    <span>🔒</span> <span id="paywall-premium-title">Plano Completo Bloqueado</span>
-                </div>
-                <div class="diag-desc" id="paywall-premium-desc">
-                    Adquira o plano completo de rotina de 12 meses para destravar as recomendações.
-                </div>
-                
-                <div class="pricing-section">
-                    <div class="price-tag" id="price-display">R$ 9,90 <span>pago único</span></div>
-                    
-                    <div class="checkout-options">
-                        <div class="pay-tab active" id="tab-mp">Mercado Pago (Pix)</div>
-                        <div class="pay-tab" id="tab-stripe">Stripe (Cartão)</div>
-                    </div>
-
-                    <div class="pix-area active" id="pix-area">
-                        <div class="qr-placeholder">
-                            <!-- SVG QR Code Falso premium -->
-                            <svg viewBox="0 0 100 100" width="160" height="160">
-                                <rect width="100" height="100" fill="white"/>
-                                <rect x="10" y="10" width="25" height="25" fill="black"/>
-                                <rect x="15" y="15" width="15" height="15" fill="white"/>
-                                <rect x="18" y="18" width="9" height="9" fill="black"/>
-                                <rect x="65" y="10" width="25" height="25" fill="black"/>
-                                <rect x="70" y="15" width="15" height="15" fill="white"/>
-                                <rect x="73" y="18" width="9" height="9" fill="black"/>
-                                <rect x="10" y="65" width="25" height="25" fill="black"/>
-                                <rect x="15" y="70" width="15" height="15" fill="white"/>
-                                <rect x="18" y="73" width="9" height="9" fill="black"/>
-                                <rect x="45" y="45" width="10" height="10" fill="black"/>
-                                <rect x="65" y="65" width="10" height="10" fill="black"/>
-                                <rect x="55" y="65" width="5" height="15" fill="black"/>
-                                <rect x="80" y="80" width="10" height="10" fill="black"/>
-                            </svg>
-                        </div>
-                        <div class="pix-copia" id="pix-key-text">00020126360014BR.GOV.BCB.PIX0114test-pix-key52040000...</div>
-                        <button class="btn" style="background:#4B5563; margin-bottom: 10px;" id="copy-pix-btn">Copiar Chave Pix</button>
-                    </div>
-
-                    <button class="btn sim-pay-btn" id="pay-confirm-btn">Confirmar Pagamento Simulado</button>
-                </div>
-            </div>
+            <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:16px;">Seu Cronograma</h2>
+            <div class="timeline" id="timelineList"></div>
         </section>
 
-        <!-- 5. PREMIUM RESULTS VIEW -->
+        <!-- Premium Results -->
         <section id="view-premium" class="view">
-            <div class="premium-card">
-                <div class="premium-title">🎉 Pagamento Confirmado!</div>
-                <div class="premium-content">
-                    <h3>Seu Plano de Ação Personalizado de 12 Meses:</h3>
-                    <p style="margin-top: 10px; color: var(--text-muted);" id="final-advice">
-                        Obrigado por confiar no nosso sistema. Aqui estão as suas recomendações detalhadas:
-                    </p>
-                    <ul id="final-bullets">
-                        <li>Foque em passeios diários de no mínimo 30 minutos em horários silenciosos.</li>
-                        <li>Utilize brinquedos recheáveis com petiscos congelados para diminuir a ansiedade.</li>
-                        <li>Aumente o enriquecimento olfativo espalhando ração seca pelo quintal/casa.</li>
-                        <li>Evite despedidas longas ou barulhentas ao sair de casa.</li>
-                    </ul>
+            <div class="result-card" style="text-align:center;padding:30px;">
+                <div style="font-size:3rem;margin-bottom:12px;">🎉</div>
+                <h2 style="margin-bottom:8px;">Relatório Completo</h2>
+                <p style="color:var(--text-muted);margin-bottom:20px;" id="premiumDesc">Com base nas suas respostas, preparamos recomendações personalizadas.</p>
+                <div id="premiumResults" style="text-align:left;"></div>
+                <div class="cta-section">
+                    <div class="share-buttons" id="shareButtons">
+                        <button class="share-btn" id="shareWhatsApp">WhatsApp</button>
+                        <button class="share-btn" id="shareCopy">Copiar Link</button>
+                    </div>
+                    <button class="btn" id="restartBtn" style="margin-top:16px;">Refazer Quiz</button>
                 </div>
             </div>
         </section>
     </main>
 
+    <!-- Bottom Sheet overlay -->
+    <div class="sheet-overlay" id="sheetOverlay">
+        <div class="sheet-panel" id="sheetPanel">
+            <div class="sheet-handle"></div>
+            <div id="sheetContent"></div>
+        </div>
+    </div>
+
     <script>
-        // API Base configuration
-        const API_BASE = window.location.origin;
-        
-        // State variables
-        let appConfig = null;
-        let currentQuestionIndex = 0;
-        let answers = [];
-        let transactionId = "tx_" + Math.random().toString(36).substr(2, 9);
-        let selectedGateway = "mercadopago";
+        (function() {
+            // ——— Config from placeholders ———
+            var APP_ID = "{{APP_ID}}" || "demo";
+            var SLUG = "{{SLUG}}" || "app";
+            var APP_NAME = "{{APP_NAME}}" || "Dezafira App";
+            var NICHE = "{{NICHE}}" || "Geral";
+            var CTA_TEXT = "{{CTA_TEXT}}" || "Obter Relatório";
+            var CHECKOUT_URL = "{{CHECKOUT_URL}}" || "";
+            var MANIFEST_URL = "{{MANIFEST_URL}}" || "";
+            var SW_URL = "{{SW_URL}}" || "";
 
-        // DOM elements
-        const views = {
-            landing: document.getElementById('view-landing'),
-            quiz: document.getElementById('view-quiz'),
-            loading: document.getElementById('view-loading'),
-            paywall: document.getElementById('view-paywall'),
-            premium: document.getElementById('view-premium')
-        };
+            var THEME = {};
+            try { THEME = JSON.parse('{{THEME}}' || '{}'); } catch(e) {}
 
-        // Helper to change views
-        function showView(viewName) {
-            Object.keys(views).forEach(key => {
-                if(key === viewName) {
-                    views[key].classList.add('active');
-                } else {
-                    views[key].classList.remove('active');
+            var QUESTIONS = [];
+            try { QUESTIONS = JSON.parse('{{QUESTIONS_JSON}}' || '[]'); } catch(e) { QUESTIONS = []; }
+
+            var DRIP_ITEMS = [];
+            try { DRIP_ITEMS = JSON.parse('{{DRIP_JSON}}' || '[]'); } catch(e) { DRIP_ITEMS = []; }
+
+            // ——— Apply theme CSS vars ———
+            if (THEME.primary) document.documentElement.style.setProperty('--primary', THEME.primary);
+            if (THEME.primary_dark) document.documentElement.style.setProperty('--primary-dark', THEME.primary_dark);
+            if (THEME.accent) document.documentElement.style.setProperty('--accent', THEME.accent);
+            if (THEME.bg) document.documentElement.style.setProperty('--bg', THEME.bg);
+            if (THEME.surface) document.documentElement.style.setProperty('--surface', THEME.surface);
+            if (THEME.gradient) document.documentElement.style.setProperty('--gradient', THEME.gradient);
+            if (THEME.emoji) document.getElementById('nicheEmoji').textContent = THEME.emoji;
+            if (THEME.tagline) document.getElementById('lpTagline').textContent = THEME.tagline;
+
+            document.getElementById('logoAppName').textContent = APP_NAME;
+
+            if (!QUESTIONS.length) {
+                // fallback generic questions based on niche
+                QUESTIONS = [
+                    {question:"Qual seu maior desafio atual?",options:[
+                        {text:"Começar algo novo",points:1},{text:"Manter consistência",points:2},{text:"Escalar resultados",points:3}],
+                        result:{title:"Desafio identificado",desc:"Seu principal desafio está mapeado."}},
+                    {question:"Há quanto tempo você busca uma solução?",options:[
+                        {text:"Menos de 1 mês",points:1},{text:"1 a 6 meses",points:2},{text:"Mais de 6 meses",points:3}],
+                        result:{title:"Tempo de jornada",desc:"Sua jornada indica experiência acumulada."}},
+                    {question:"Qual resultado mais te interessa?",options:[
+                        {text:"Melhorar habilidades",points:1},{text:"Aumentar renda",points:2},{text:"Transformação completa",points:3}],
+                        result:{title:"Objetivo principal",desc:"Seu objetivo está alinhado com as melhores práticas."}},
+                    {question:"Como você se avalia hoje (1-5)?",options:[
+                        {text:"1-2 — Iniciante",points:1},{text:"3 — Intermediário",points:2},{text:"4-5 — Avançado",points:3}],
+                        result:{title:"Autoavaliação",desc:"Seu nível atual indica o ponto de partida ideal."}},
+                    {question:"Está pronto para começar?",options:[
+                        {text:"Sim, agora!",points:3},{text:"Preciso de mais informações",points:1}],
+                        result:{title:"Prontidão",desc:"Você está motivado para iniciar a transformação."}}
+                ];
+            }
+
+            // ——— State ———
+            var currentQ = 0;
+            var answers = [];
+            var deferredPrompt = null;
+
+            // ——— DOM refs ———
+            var $ = function(id) { return document.getElementById(id); };
+            var views = ['view-landing','view-quiz','view-loading','view-drip','view-premium'];
+
+            function showView(name) {
+                views.forEach(function(v) {
+                    var el = $(v); if (el) el.classList.remove('active');
+                });
+                var target = $(name); if (target) target.classList.add('active');
+                window.scrollTo({top:0,behavior:'smooth'});
+            }
+
+            // ——— Haptics ———
+            function haptic(ms) {
+                ms = ms || 10;
+                try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
+            }
+
+            // ——— Bottom Sheet ———
+            function openSheet(html) {
+                $('sheetContent').innerHTML = html;
+                $('sheetOverlay').classList.add('open');
+                haptic(12);
+            }
+            function closeSheet() {
+                $('sheetOverlay').classList.remove('open');
+            }
+            $('sheetOverlay').addEventListener('click', function(e) {
+                if (e.target === $('sheetOverlay')) closeSheet();
+            });
+            // swipe down to close
+            var touchStartY = 0;
+            $('sheetPanel').addEventListener('touchstart', function(e) { touchStartY = e.touches[0].clientY; });
+            $('sheetPanel').addEventListener('touchmove', function(e) {
+                var delta = e.touches[0].clientY - touchStartY;
+                if (delta > 60 && $('sheetPanel').scrollTop <= 0) closeSheet();
+            });
+
+            // ——— Install prompt ———
+            window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                $('btnInstall').classList.add('visible');
+            });
+            window.addEventListener('appinstalled', function() {
+                deferredPrompt = null;
+                $('btnInstall').classList.remove('visible');
+            });
+            $('btnInstall').addEventListener('click', function() {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(function(r) {
+                        if (r.outcome === 'accepted') $('btnInstall').classList.remove('visible');
+                    });
                 }
             });
-        }
 
-        // Fetch App Data based on slug in URL or query parameter
-        async function initApp() {
-            const urlParams = new URLSearchParams(window.location.search);
-            let slug = urlParams.get('app');
-            
-            // Fallback for path-based slug (ex: apps.dezafira.com/c/gatos-ansiosos)
-            if(!slug) {
-                const pathParts = window.location.pathname.split('/');
-                slug = pathParts[pathParts.length - 1] || 'gatos-ansiosos';
+            // ——— Quiz engine ———
+            function startQuiz() {
+                currentQ = 0;
+                answers = [];
+                showView('view-quiz');
+                renderQuestion();
+                haptic(10);
             }
-            
-            try {
-                const res = await fetch(`${API_BASE}/api/v1/deliverables/${slug}`);
-                if(res.ok) {
-                    appConfig = await res.json();
-                    applyConfig(appConfig);
-                } else {
-                    console.error("Não foi possível carregar o app. Usando dados demo.");
-                    loadDemoConfig();
+
+            function renderQuestion() {
+                if (currentQ >= QUESTIONS.length) {
+                    finishQuiz();
+                    return;
                 }
-            } catch(err) {
-                console.error("Erro ao conectar com a API:", err);
-                loadDemoConfig();
-            }
-        }
+                var q = QUESTIONS[currentQ];
+                var pct = ((currentQ) / QUESTIONS.length) * 100;
+                $('quizProgress').style.width = pct + '%';
+                $('progressLabel').textContent = 'Pergunta ' + (currentQ + 1) + ' de ' + QUESTIONS.length;
 
-        function applyConfig(data) {
-            const conf = data.config_json || data;
-            
-            // Apply colors
-            if(conf.primaryColor) {
-                document.documentElement.style.setProperty('--primary', conf.primaryColor);
-                document.documentElement.style.setProperty('--primary-glow', conf.primaryColor + '20');
-            }
-            if(conf.secondaryColor) {
-                document.documentElement.style.setProperty('--primary-dark', conf.secondaryColor);
-            }
-            
-            // Apply texts
-            document.title = conf.title || "Diagnóstico Inteligente";
-            document.getElementById('logoText').innerHTML = (conf.title ? conf.title.split(' ')[0].toUpperCase() : 'DEZAFIRA') + '<span>APP</span>';
-            document.getElementById('lp-title').innerText = conf.title || "Diagnóstico";
-            document.getElementById('lp-subtitle').innerText = conf.subtitle || "Responda as perguntas.";
-            
-            // Testimonials
-            const testiContainer = document.getElementById('testimonials-list');
-            testiContainer.innerHTML = '';
-            if(conf.testimonials && conf.testimonials.length) {
-                conf.testimonials.forEach(t => {
-                    testiContainer.innerHTML += `
-                        <div class="testimonial-card">
-                            <div class="testi-header">
-                                <div class="testi-name">${t.name} <span style="font-weight:400; color:var(--text-muted); font-size:0.8rem;">(${t.role})</span></div>
-                                <div class="testi-stars">${'★'.repeat(t.rating)}</div>
-                            </div>
-                            <div class="testi-text">"${t.text}"</div>
-                        </div>
-                    `;
+                var optsHtml = (q.options || []).map(function(opt, idx) {
+                    var text = typeof opt === 'string' ? opt : (opt.text || opt.label || 'Opção ' + (idx + 1));
+                    return '<div class="option-item" data-idx="' + idx + '">' +
+                        '<span>' + text + '</span>' +
+                        '<span class="check-mark">✓</span></div>';
+                }).join('');
+
+                $('questionCard').innerHTML =
+                    '<h2>' + (q.question || q.text || '') + '</h2>' +
+                    '<div class="options-list">' + optsHtml + '</div>';
+
+                var items = $('questionCard').querySelectorAll('.option-item');
+                items.forEach(function(item) {
+                    item.addEventListener('click', function() {
+                        items.forEach(function(i) { i.classList.remove('selected'); });
+                        item.classList.add('selected');
+                        var idx = parseInt(item.getAttribute('data-idx'));
+                        var opt = q.options[idx];
+                        var pts = (typeof opt === 'object') ? (opt.points || opt.value || 1) : 1;
+                        answers.push({questionIndex: currentQ, selectedIndex: idx, points: pts});
+                        haptic(8);
+                        setTimeout(function() {
+                            currentQ++;
+                            renderQuestion();
+                        }, 250);
+                    });
                 });
             }
-            
-            // Pricing displays
-            if(conf.pricing) {
-                const external = conf.pricing.checkout_external === true;
-                // Fluxo funil (checkout externo no Clube): esconde o preço e as abas de gateway
-                if(external) {
-                    const pEl = document.getElementById('price-display');
-                    if(pEl) pEl.style.display = 'none';
-                    const co = document.querySelector('.checkout-options');
-                    if(co) co.style.display = 'none';
-                    const pa = document.getElementById('pix-area');
-                    if(pa) pa.style.display = 'none';
-                    const cta = document.getElementById('pay-confirm-btn');
-                    if(cta) cta.innerText = "Liberar Acesso Completo";
+
+            function finishQuiz() {
+                showView('view-loading');
+
+                // simulate processing time
+                var loadTime = 300 + Math.random() * 300;
+                setTimeout(function() {
+                    var totalScore = answers.reduce(function(acc, a) { return acc + a.points; }, 0);
+                    var maxScore = QUESTIONS.reduce(function(acc, q) {
+                        var maxPts = 0;
+                        (q.options || []).forEach(function(o) {
+                            var p = (typeof o === 'object') ? (o.points || 1) : 1;
+                            if (p > maxPts) maxPts = p;
+                        });
+                        return acc + maxPts;
+                    }, 0);
+                    var ratio = maxScore > 0 ? totalScore / maxScore : 0.5;
+
+                    var resultTitle, resultDesc;
+                    if (ratio > 0.7) {
+                        resultTitle = 'Você está no nível Avançado!';
+                        resultDesc = 'Seus resultados mostram que você já tem uma base sólida. O próximo passo é a maestria.';
+                    } else if (ratio > 0.4) {
+                        resultTitle = 'Você está no nível Intermediário';
+                        resultDesc = 'Bom progresso! Com ajustes estratégicos você alcançará resultados expressivos.';
+                    } else {
+                        resultTitle = 'Você está em fase de Descoberta';
+                        resultDesc = 'Este é o momento ideal para construir uma base forte e acelerar seus resultados.';
+                    }
+
+                    // Build result items from questions
+                    var resultItemsHtml = '';
+                    QUESTIONS.forEach(function(q, i) {
+                        var res = q.result || {};
+                        var title = res.title || res.titulo || '';
+                        var desc = res.desc || res.descricao || res.description || '';
+                        if (title || desc) {
+                            resultItemsHtml += '<div class="result-card"><h3>' + title + '</h3><p>' + desc + '</p></div>';
+                        }
+                    });
+
+                    var sheetHtml =
+                        '<div class="sheet-emoji">' + (THEME.emoji || '⚡') + '</div>' +
+                        '<div class="sheet-title">' + resultTitle + '</div>' +
+                        '<p class="sheet-desc">' + resultDesc + '</p>' +
+                        resultItemsHtml +
+                        (CHECKOUT_URL ?
+                            '<div class="cta-section"><a href="' + CHECKOUT_URL + '" class="btn" onclick="haptic(15)">' + CTA_TEXT + '</a></div>' :
+                            '<div class="cta-section"><button class="btn" onclick="document.getElementById(\'sheetOverlay\').classList.remove(\'open\');showView(\'view-premium\');haptic(10)">Ver Resultados Completos</button></div>');
+
+                    showView('view-premium');
+                    $('premiumDesc').textContent = resultDesc;
+                    $('premiumResults').innerHTML = resultItemsHtml;
+
+                    setTimeout(function() {
+                        openSheet(sheetHtml);
+                    }, 400);
+
+                    // save progress
+                    saveProgress();
+                }, loadTime);
+            }
+
+            // ——— Share ———
+            function shareResult() {
+                var text = 'Veja meu resultado no ' + APP_NAME + '! ' + window.location.href;
+                if (navigator.share) {
+                    navigator.share({ title: APP_NAME, text: text, url: window.location.href })
+                        .catch(function() { copyToClipboard(text); });
                 } else {
-                    const formattedPrice = (conf.pricing.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: conf.pricing.currency || 'BRL' });
-                    document.getElementById('price-display').innerHTML = `${formattedPrice} <span>pagamento único</span>`;
-                    document.getElementById('pay-confirm-btn').innerText = conf.pricing.button_text || "Confirmar Pagamento";
+                    copyToClipboard(text);
+                }
+                haptic(10);
+            }
+
+            function copyToClipboard(text) {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(function() {
+                        alert('Link copiado! Compartilhe com seus amigos.');
+                    });
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.select();
+                    document.execCommand('copy'); document.body.removeChild(ta);
+                    alert('Link copiado!');
                 }
             }
 
-            // Paywall text
-            if(conf.free_results) {
-                document.getElementById('paywall-diag-title').innerText = conf.free_results.title;
-                document.getElementById('paywall-diag-desc').innerText = conf.free_results.description;
+            if ($('shareWhatsApp')) {
+                $('shareWhatsApp').addEventListener('click', function() {
+                    var text = encodeURIComponent('Veja meu resultado no ' + APP_NAME + '! ' + window.location.href);
+                    window.open('https://wa.me/?text=' + text, '_blank');
+                    haptic(10);
+                });
             }
-            if(conf.premium_results_preview) {
-                document.getElementById('paywall-premium-title').innerText = conf.premium_results_preview.title;
-                document.getElementById('paywall-premium-desc').innerText = conf.premium_results_preview.description;
+            if ($('shareCopy')) {
+                $('shareCopy').addEventListener('click', function() { shareResult(); });
             }
-        }
-
-        function loadDemoConfig() {
-            const demo = {
-                title: "Avaliação Psicológica de Gatos",
-                subtitle: "Entenda por que seu gato está miando demais ou arranhando os móveis e resolva em 7 dias.",
-                primaryColor: "#EC4899",
-                secondaryColor: "#DB2777",
-                questions: [
-                    {
-                        id: "q1",
-                        questionText: "Com que frequência seu gato mia de forma excessiva durante a noite?",
-                        options: [
-                            {"text": "Todas as noites", "points": 3},
-                            {"text": "Algumas vezes na semana", "points": 2},
-                            {"text": "Raramente ou nunca", "points": 1}
-                        ]
-                    },
-                    {
-                        id: "q2",
-                        questionText: "Ele costuma lamber o próprio corpo de forma obsessiva?",
-                        options: [
-                            {"text": "Sim, até criar feridas", "points": 3},
-                            {"text": "Às vezes limpa em excesso", "points": 2},
-                            {"text": "Normal, sem obsessão", "points": 1}
-                        ]
-                    }
-                ],
-                testimonials: [
-                    {
-                        name: "Camila Fernandes",
-                        role: "Dona da Mel, 2 anos",
-                        text": "Minha gata miava a noite inteira. Com a rotina de brinquedos que o plano indicou ela passou a dormir a noite toda!",
-                        rating: 5
-                    }
-                ]
-            };
-            appConfig = demo;
-            applyConfig(demo);
-        }
-
-        // Quiz execution
-        function startQuiz() {
-            currentQuestionIndex = 0;
-            answers = [];
-            showView('quiz');
-            renderQuestion();
-        }
-
-        function renderQuestion() {
-            const questions = appConfig.config_json ? appConfig.config_json.questions : appConfig.questions;
-            if(!questions || currentQuestionIndex >= questions.length) {
-                finishQuiz();
-                return;
-            }
-            
-            const q = questions[currentQuestionIndex];
-            const percent = (currentQuestionIndex / questions.length) * 100;
-            document.getElementById('quiz-progress').style.width = percent + '%';
-            
-            const card = document.getElementById('question-card');
-            card.innerHTML = `
-                <h2>${q.questionText}</h2>
-                <div class="options-list">
-                    ${q.options.map((opt, idx) => `
-                        <div class="option-item" onclick="selectOption(${opt.points})">
-                            <span>${opt.text}</span>
-                            <span>➔</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        window.selectOption = function(points) {
-            answers.push(points);
-            currentQuestionIndex++;
-            renderQuestion();
-        };
-
-        function finishQuiz() {
-            showView('loading');
-
-            const conf = appConfig.config_json || appConfig || {};
-            // Fluxo funil: quiz grátis até o final → redireciona para o checkout do Clube
-            if(conf.checkout_url) {
-                window.__checkoutUrl = conf.checkout_url;
-                document.getElementById('pay-confirm-btn').innerText = "Liberar Acesso Completo";
-                // Não chama o checkout interno (inexistente) — só mostra o resultado parcial
-                setTimeout(() => { showView('paywall'); }, 2500);
-                return;
+            if ($('restartBtn')) {
+                $('restartBtn').addEventListener('click', function() { startQuiz(); haptic(10); });
             }
 
-            // Create Checkout transaction in backend
-            fetch(`${API_BASE}/api/v1/deliverables/checkout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    app_id: appConfig.id || "demo",
-                    gateway: selectedGateway,
-                    amount: appConfig.config_json ? appConfig.config_json.pricing.price_cents : 990,
-                    customer_email: "usuario_checkout@dezafira.com",
-                    transaction_id: transactionId
-                })
-            }).then(res => res.json()).then(checkout => {
-                if(checkout.qr_code_pix) {
-                    document.getElementById('pix-key-text').innerText = checkout.qr_code_pix;
+            // ——— Drip timeline ———
+            function renderDripTimeline() {
+                if (!DRIP_ITEMS.length) return;
+
+                var streak = getStreak();
+                $('streakCount').textContent = streak;
+
+                var firstAppOpen = getFirstOpen();
+                var daysSinceStart = Math.floor((Date.now() - firstAppOpen) / 86400000);
+
+                var html = '';
+                DRIP_ITEMS.forEach(function(item) {
+                    var day = item.day || item.unlock_day || 1;
+                    var unlocked = day <= daysSinceStart;
+                    var isToday = day === daysSinceStart;
+                    var cls = unlocked ? (isToday ? 'today' : 'unlocked') : '';
+
+                    html += '<div class="timeline-item' + (unlocked ? '' : ' timeline-locked') + '">' +
+                        '<div class="timeline-dot ' + cls + '">' + (unlocked ? '✓' : day) + '</div>' +
+                        '<div class="timeline-content">' +
+                        '<h4>' + (item.title || 'Dia ' + day) + '</h4>' +
+                        '<p>' + (item.type || item.content_type || 'Conteúdo liberado') + '</p>' +
+                        '</div></div>';
+                });
+                $('timelineList').innerHTML = html || '<p style="color:var(--text-muted);text-align:center;">Nenhum conteúdo disponível ainda.</p>';
+            }
+
+            // ——— localStorage progress ———
+            function getProgressKey() { return 'dzf_progress_' + APP_ID; }
+            function getStreakKey() { return 'dzf_streak_' + APP_ID; }
+            function getFirstOpenKey() { return 'dzf_first_' + APP_ID; }
+
+            function getFirstOpen() {
+                var stored = localStorage.getItem(getFirstOpenKey());
+                if (!stored) {
+                    stored = Date.now();
+                    localStorage.setItem(getFirstOpenKey(), stored);
                 }
-            }).catch(err => console.error("Erro no checkout:", err));
-
-            // Simular análise inteligente da IA por 3 segundos
-            setTimeout(() => {
-                showView('paywall');
-            }, 3000);
-        }
-
-        // Initialize event listeners
-        document.getElementById('start-btn').addEventListener('click', startQuiz);
-        
-        // Checkout Tabs
-        const tabMP = document.getElementById('tab-mp');
-        const tabStripe = document.getElementById('tab-stripe');
-        const pixArea = document.getElementById('pix-area');
-
-        tabMP.addEventListener('click', () => {
-            selectedGateway = "mercadopago";
-            tabMP.classList.add('active');
-            tabStripe.classList.remove('active');
-            pixArea.classList.add('active');
-        });
-
-        tabStripe.addEventListener('click', () => {
-            selectedGateway = "stripe";
-            tabStripe.classList.add('active');
-            tabMP.classList.remove('active');
-            pixArea.classList.remove('active');
-        });
-
-        // Simula webhook de pagamento aprovado (ou redireciona para o checkout do Clube)
-        document.getElementById('pay-confirm-btn').addEventListener('click', () => {
-            if(window.__checkoutUrl) {
-                window.location.href = window.__checkoutUrl;
-                return;
+                return parseInt(stored);
             }
-            document.getElementById('pay-confirm-btn').innerText = "Processando pagamento...";
-            
-            const webhookUrl = selectedGateway === "mercadopago" 
-                ? `${API_BASE}/api/v1/deliverables/webhooks/mercadopago`
-                : `${API_BASE}/api/v1/deliverables/webhooks/stripe`;
-                
-            fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transaction_id: transactionId,
-                    status: "approved",
-                    type: "checkout.session.completed"
-                })
-            }).then(res => res.json()).then(data => {
-                showView('premium');
-            }).catch(err => {
-                console.error("Erro ao simular webhook:", err);
-                showView('premium'); // Fallback visual
+
+            function getStreak() {
+                var data = JSON.parse(localStorage.getItem(getStreakKey()) || '{"days":[],"lastDate":""}');
+                var today = new Date().toISOString().slice(0, 10);
+                if (data.lastDate === today) return data.days.length;
+                var yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                if (data.lastDate === yesterday) {
+                    data.days.push(today);
+                    data.lastDate = today;
+                } else if (data.lastDate !== today) {
+                    data.days = [today];
+                    data.lastDate = today;
+                }
+                localStorage.setItem(getStreakKey(), JSON.stringify(data));
+                return data.days.length;
+            }
+
+            function saveProgress() {
+                var data = {
+                    answers: answers,
+                    score: answers.reduce(function(acc,a) { return acc + a.points; }, 0),
+                    completedAt: new Date().toISOString(),
+                    questionsCount: QUESTIONS.length
+                };
+                localStorage.setItem(getProgressKey(), JSON.stringify(data));
+                getStreak();
+            }
+
+            function loadProgress() {
+                var data = localStorage.getItem(getProgressKey());
+                return data ? JSON.parse(data) : null;
+            }
+
+            // ——— Service Worker ———
+            function registerSW() {
+                if ('serviceWorker' in navigator && SW_URL) {
+                    navigator.serviceWorker.register(SW_URL, { scope: '/app/' + SLUG + '/' })
+                        .then(function(reg) { console.log('[PWA] SW registrado:', reg.scope); })
+                        .catch(function(err) { console.warn('[PWA] SW falhou:', err); });
+                }
+            }
+
+            // ——— Pull-to-refresh ———
+            var pullStart = 0, pulling = false;
+            document.addEventListener('touchstart', function(e) { pullStart = e.touches[0].clientY; pulling = true; });
+            document.addEventListener('touchmove', function(e) {
+                if (!pulling || window.scrollY > 5) return;
+                var delta = e.touches[0].clientY - pullStart;
+                if (delta > 80) {
+                    pulling = false;
+                    window.location.reload();
+                }
             });
-        });
+            document.addEventListener('touchend', function() { pulling = false; });
 
-        document.getElementById('copy-pix-btn').addEventListener('click', () => {
-            const keyText = document.getElementById('pix-key-text').innerText;
-            navigator.clipboard.writeText(keyText);
-            alert("Chave Pix copiada com sucesso!");
-        });
+            // ——— Init ———
+            function init() {
+                registerSW();
+                applyThemeVars();
+                loadProgress();
+                if (DRIP_ITEMS.length) renderDripTimeline();
 
-        // Run on load
-        window.addEventListener('DOMContentLoaded', initApp);
+                if ($('startBtn')) {
+                    $('startBtn').addEventListener('click', function() {
+                        startQuiz();
+                    });
+                }
+
+                document.addEventListener('click', function(e) {
+                    if (e.target.closest('.btn') || e.target.closest('.option-item')) {
+                        haptic(8);
+                    }
+                });
+            }
+
+            function applyThemeVars() {
+                if (THEME.primary) {
+                    document.documentElement.style.setProperty('--primary', THEME.primary);
+                    var glowHex = THEME.primary + '26';
+                    document.documentElement.style.setProperty('--primary-glow', glowHex);
+                }
+                if (THEME.primary_dark) document.documentElement.style.setProperty('--primary-dark', THEME.primary_dark);
+                if (THEME.accent) document.documentElement.style.setProperty('--accent', THEME.accent);
+                if (THEME.bg) document.documentElement.style.setProperty('--bg', THEME.bg);
+                if (THEME.surface) document.documentElement.style.setProperty('--surface', THEME.surface);
+                if (THEME.gradient) document.documentElement.style.setProperty('--gradient', THEME.gradient);
+                if (THEME.emoji) {
+                    var emojiEl = document.getElementById('nicheEmoji');
+                    if (emojiEl) emojiEl.textContent = THEME.emoji;
+                }
+                if (THEME.tagline) {
+                    var taglineEl = document.getElementById('lpTagline');
+                    if (taglineEl) taglineEl.textContent = THEME.tagline;
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+
+            // expose helpers
+            window.__haptic = haptic;
+            window.__openSheet = openSheet;
+            window.__closeSheet = closeSheet;
+        })();
     </script>
 </body>
 </html>

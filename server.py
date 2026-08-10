@@ -1139,13 +1139,156 @@ async def serve_ui(token: str = "", authorization: str = Header(None)):
         return HTMLResponse(content=f.read(), headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"})
 
 @app.get("/app/{slug}", response_class=HTMLResponse)
-async def serve_pwa_app(slug: str):
-    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "pwa_template.html")
-    if not os.path.exists(template_path):
-        raise HTTPException(status_code=404, detail="Template do PWA nÃ£o encontrado")
-    with open(template_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content)
+async def serve_pwa_app(slug: str, request: Request):
+    """Serve o PWA personalizado para o slug (resolve do banco de dados)."""
+    from services.pwa_generator import PWAGenerator
+    from modules.database import get_db_miniapp, get_db_miniapps
+
+    record = None
+    # Tentativa 1: match exato pelo ID
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        record = app
+    else:
+        # Tentativa 2: fallback — scan e slugify(app_name)
+        apps = get_db_miniapps(limit=200)
+        for a in apps:
+            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+                record = get_db_miniapp(a["id"])
+                break
+
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    generated = PWAGenerator.generate_from_app_record(record)
+    return HTMLResponse(
+        content=generated.get("html", "<h1>Erro ao gerar PWA</h1>"),
+        headers={"Cache-Control": "no-cache", "X-Frame-Options": "SAMEORIGIN"}
+    )
+
+
+@app.get("/app/{slug}/manifest.json")
+async def serve_pwa_manifest(slug: str):
+    """Serve o manifest.json dinamico para o PWA."""
+    from services.pwa_generator import PWAGenerator
+    from modules.database import get_db_miniapp, get_db_miniapps
+
+    record = None
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        record = app
+    else:
+        apps = get_db_miniapps(limit=200)
+        for a in apps:
+            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+                record = get_db_miniapp(a["id"])
+                break
+
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    manifest = PWAGenerator.build_manifest(
+        app_id=record.get("id", slug),
+        slug=slug,
+        app_name=record.get("app_name", "Dezafira App"),
+        theme=theme,
+        description=f"{record.get('app_name', 'App')} — {theme.get('tagline', 'App Inteligente')}"
+    )
+    return manifest
+
+
+@app.get("/app/{slug}/sw.js")
+async def serve_pwa_service_worker(slug: str):
+    """Serve o service worker dinamico para o PWA."""
+    from services.pwa_generator import PWAGenerator
+    from modules.database import get_db_miniapp, get_db_miniapps
+
+    record = None
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        record = app
+    else:
+        apps = get_db_miniapps(limit=200)
+        for a in apps:
+            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+                record = get_db_miniapp(a["id"])
+                break
+
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    app_id = record.get("id", slug)
+    sw_content = PWAGenerator.build_service_worker(slug, app_id)
+    from starlette.responses import Response as StarletteResponse
+    return StarletteResponse(
+        content=sw_content,
+        media_type="application/javascript",
+        headers={
+            "Service-Worker-Allowed": f"/app/{slug}/",
+            "Cache-Control": "no-cache"
+        }
+    )
+
+
+@app.get("/app/{slug}/icon-192.png")
+async def serve_pwa_icon_192(slug: str):
+    """Serve o icone 192x192 em PNG gerado dinamicamente."""
+    from services.pwa_generator import PWAGenerator
+    from modules.database import get_db_miniapp, get_db_miniapps
+
+    record = None
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        record = app
+    else:
+        apps = get_db_miniapps(limit=200)
+        for a in apps:
+            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+                record = get_db_miniapp(a["id"])
+                break
+
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    png_bytes = PWAGenerator.generate_icons(record.get("app_name", "App"), theme, size=192)
+    from starlette.responses import Response as StarletteResponse
+    return StarletteResponse(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800", "ETag": hashlib.md5(png_bytes).hexdigest()}
+    )
+
+
+@app.get("/app/{slug}/icon-512.png")
+async def serve_pwa_icon_512(slug: str):
+    """Serve o icone 512x512 em PNG gerado dinamicamente."""
+    from services.pwa_generator import PWAGenerator
+    from modules.database import get_db_miniapp, get_db_miniapps
+
+    record = None
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        record = app
+    else:
+        apps = get_db_miniapps(limit=200)
+        for a in apps:
+            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+                record = get_db_miniapp(a["id"])
+                break
+
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    png_bytes = PWAGenerator.generate_icons(record.get("app_name", "App"), theme, size=512)
+    from starlette.responses import Response as StarletteResponse
+    return StarletteResponse(
+        content=png_bytes,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800", "ETag": hashlib.md5(png_bytes).hexdigest()}
+    )
 
 
 @app.get("/mindmap/{slug}", response_class=HTMLResponse)
@@ -3221,18 +3364,19 @@ async def spy_discover_offers(payload: dict):
 @app.post("/api/v1/factory/build-app")
 async def build_mini_app(payload: dict, _admin=Depends(require_admin)):
     """
-    Gera um PWA estÃ¡tico de Quiz estruturado com base nas perguntas fornecidas.
+    Gera um PWA estatico de Quiz estruturado com base nas perguntas fornecidas.
+    Faz upsert no banco de dados (miniapps) para que /app/{slug} funcione.
     """
     app_id = payload.get("app_id", "my_app")
-    title = payload.get("title", "Quiz de AvaliaÃ§Ã£o")
+    title = payload.get("title", "Quiz de Avaliacao")
     nicho = payload.get("nicho", "Geral")
     questions = payload.get("questions", [])
-    checkout_url = payload.get("checkout_url", "https://kiwify.com.br")
-    cta_text = payload.get("cta_text", "Obter RelatÃ³rio")
-    
+    checkout_url = payload.get("checkout_url", "")
+    cta_text = payload.get("cta_text", "Obter Relatorio")
+
     if not questions:
         raise HTTPException(status_code=400, detail="Questions are required to generate Quiz")
-        
+
     try:
         from services.pwa_generator import PWAGenerator
         res = PWAGenerator.generate_quiz_pwa(
@@ -3243,9 +3387,51 @@ async def build_mini_app(payload: dict, _admin=Depends(require_admin)):
             cta_text=cta_text,
             checkout_url=checkout_url
         )
-        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PWA build failed: {str(e)}")
+
+    # Upsert no banco de dados
+    try:
+        from modules.database import create_db_miniapp, update_db_miniapp, get_db_miniapp, SessionLocal, MiniApp
+        import uuid as _uuid_mod
+        import json as _json_mod
+
+        existing = get_db_miniapp(app_id)
+        manifest_json = _json_mod.dumps(res.get("manifest", {}), ensure_ascii=False)
+        html_content = res.get("html", "")
+        slug = res.get("slug", PWAGenerator.slugify(title))
+
+        if existing and existing.get("id"):
+            update_db_miniapp(
+                app_id,
+                app_name=title,
+                niche=nicho,
+                pwa_html=html_content,
+                pwa_manifest=manifest_json
+            )
+        else:
+            db = SessionLocal()
+            try:
+                new_app = MiniApp(
+                    id=app_id, app_name=title, niche=nicho,
+                    app_type="Interactive PWA",
+                    pwa_manifest=manifest_json, pwa_html=html_content,
+                    status="active"
+                )
+                db.add(new_app)
+                db.commit()
+            finally:
+                db.close()
+
+        res["app_url"] = f"/app/{slug}"
+        res["persisted"] = True
+    except Exception as e:
+        # Non-fatal: o PWA foi gerado, mas nao persistiu
+        res["app_url"] = f"/app/{res.get('slug', PWAGenerator.slugify(title))}"
+        res["persisted"] = False
+        res["db_error"] = str(e)
+
+    return res
 
 
 @app.post("/api/v1/pipeline/hyperframes-video")
