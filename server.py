@@ -3362,7 +3362,7 @@ async def spy_discover_offers(payload: dict):
 
 
 @app.post("/api/v1/factory/build-app")
-async def build_mini_app(payload: dict, _admin=Depends(require_admin)):
+async def build_mini_app(payload: dict, _admin=Depends(require_admin_or_service)):
     """
     Gera um PWA estatico de Quiz estruturado com base nas perguntas fornecidas.
     Faz upsert no banco de dados (miniapps) para que /app/{slug} funcione.
