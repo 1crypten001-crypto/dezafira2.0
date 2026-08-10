@@ -5,7 +5,7 @@
 > **Admin (Dezafira Adm):** https://adm.dezafira.com.br (Next.js + Railway)  
 > **API Backend:** https://dezafiraadm-production.up.railway.app (FastAPI)  
 > **Database:** PostgreSQL (prod) / SQLite (dev)  
-> **Última atualização:** 06/08/2026
+> **Última atualização:** 09/08/2026
 
 ---
 
@@ -17,7 +17,7 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 | Métrica | Valor |
 |---|---|
-| **Canais de Blog** | 3 ativos (O Reino, Fenômenos Inexplicáveis, Emagrecimento Dores) |
+| **Canais de Blog** | 2 ativos (O Reino, Emagrecimento) |
 | **Total de Artigos** | Ver dashboard (atualizado dinamicamente) |
 | **Palavras Geradas** | ~199.000+ |
 | **Artigos com Imagem** | 100% |
@@ -30,13 +30,12 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 ### Blogs Ativos
 
-| Blog | Nicho | Artigos | Imagens | Subdomínio |
-|---|---|---|---|---|
-| ✝ **O Reino** | Ensinamentos de Jesus | — | 100% | oreino |
-| 🔮 **Fenômenos Inexplicáveis** | Teorias da Conspiração | — | 100% | fenomenosinexplicaveis |
-| 🥗 **Emagrecimento Dores** | Emagrecimento | — | 100% | emagrecimentodores |
+| Blog | Nicho | Artigos | URL pública (Clube) |
+|---|---|---|---|
+| ✝ **O Reino** | Ensinamentos de Jesus | 21 | https://www.dezafira.com.br/category/ensinamentos-de-jesus |
+| 🥗 **Emagrecimento** | emagrecimento | 3 | https://www.dezafira.com.br/category/emagrecimento |
 
-> *Artigos por blog atualizados dinamicamente no dashboard; os valores da tabela refletem os canais ativos em produção.*
+> *Estado verificado em 09/08/2026 no banco de produção (Postgres). O canal de teste "Teste Chrome PAA" foi removido (0 posts). Cada artigo vive em `https://www.dezafira.com.br/post/{post.slug}` (vitrine pública do Clube). O `site_url` do canal aponta para a **categoria por nicho** — as rotas antigas `/blog/{slug}` e `/post/{slug-do-canal}` não existem publicamente.*
 
 ---
 
@@ -118,6 +117,10 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 - `repeticao_massiva_sequencia` — 5 palavras repetidas 4+ vezes
 
 **Correção automática:** Remove exclamacoes, traduz inglês, limpa encoding, remove tags vazias, limpa garbage text
+
+**⚠️ Regra REAL de aprovação (investigação 09/08/2026):** aprova **somente se `score >= 70` E `zero` issues de severidade **alta**. Por isso artigos com score 85/70 podem estar **reprovados**: 85 = 1 issue alta (dedução de 15pts), 70 = 2 issues altas. Só score 100 (nenhuma issue) passa de fato. A documentação antiga "aprova >=70" era imprecisa. O endpoint `GET /api/v1/lili/ranking` agora retorna `lili_issues` (top-3 issues altas com `tipo`/`mensagem`) para explicar cada reprovação, e a UI admin mostra o motivo + só habilita 🔄 regenerar/🚀 WP para posts com `lili_approved=false`/`true` respectivamente.
+
+**🔧 Detector de loop corrigido (11/08/2026):** o issue `repeticao_massiva_sequencia` era **falso positivo em massa** — contava repetição DISPERSA de frase de tema (ex: "multiplicação dos pães e peixes" 15x num artigo sobre o milagre) como loop. Agora só acusa loop **real**: sequência de 5 palavras repetida **emendada** (stutter literal) ou **3+ ocorrências densas** (gaps consecutivos ≤ 12 palavras). Anti-loop mecânico adicionado na cascata LLM (`frequency_penalty=0.4`/`presence_penalty=0.2` em `agents/llm.py`, `repetition_penalty=1.15` no HuggingFace; seções de `blog_writer.py` com `max_tokens=2048` e instrução anti-loop). Endpoint novo `POST /api/v1/lili/recheck-all` (service-key/admin) re-persiste score/approved do acervo inteiro sem regenerar.
 
 **Score:** 0-100 (aprovado se ≥ 70 e sem issues "alta")
 
@@ -207,7 +210,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 ## 📡 ENDPOINTS DA API
 
 > **Base:** `https://dezafiraadm-production.up.railway.app` · **181 endpoints no total** (admin-gated com `require_admin`).
-> **Autenticação:** `Authorization: Bearer <JWT>`. Endpoints de **admin** (`/admin/*`, pipelines, ebooks, lili, search, monetization) exigem `require_admin` (401 sem token de admin).  
+> **Autenticação:** `Authorization: Bearer <JWT>`. Endpoints de **admin** (`/admin/*`, pipelines, ebooks, lili, search, monetization) exigem `require_admin` (401 sem token de admin).
+  
 > **LLM Cascade:** fonte única em `agents/llm.py` — OpenRouter → Gemini → NVIDIA NIM → HuggingFace → DeepSeek (unificada em 08/2026; `_call_llm` do blog_writer virou delegador fino).
 
 ### 🏥 Health & Infra
@@ -273,7 +277,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | DELETE | `/api/v1/blog/post/{post_id}` | Deletar artigo — **admin** |
 | POST | `/api/v1/blog/post/{post_id}/regenerate` | Regenerar post — **admin** |
 | POST | `/api/v1/blog/post/{post_id}/regenerate-image` | Regenerar imagem — **admin** |
-| DELETE | `/api/v1/blog/channel/{channel_id}` | Deletar canal — **admin** |
+| DELETE | `/api/v1/blog/channel/{channel_id}` | Deletar canal com **cascata completa** (posts, sections, pipeline runs, subdomínios, affiliate clicks) — **admin** |
+| POST | `/api/v1/blog/{slug}/site-url` | Atualizar `site_url` do canal (destino real no Clube) — **admin/service** |
 | POST | `/api/v1/blogs/seed` | Popular blogs de teste |
 
 ### 🌸 LiLi — Revisão (admin)
@@ -349,6 +354,9 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | POST | `/api/v1/pipeline/run-course-factory` | Iniciar fábrica de cursos |
 | GET | `/api/v1/pipeline/course-factory/status/{task_id}` | Status fábrica de cursos |
 | GET | `/api/v1/pipeline/course-factory/history` | Histórico |
+| POST | `/api/v1/pipeline/run-mindmap-factory` | Iniciar fábrica de mapas mentais (multi-agente, price default 1990) |
+| GET | `/api/v1/pipeline/mindmap-factory/status/{task_id}` | Status fábrica de mapas (macro_stages + sub_stage) |
+| GET | `/api/v1/pipeline/mindmap-factory/history` | Histórico |
 | GET | `/api/v1/pipeline/macro-result/{task_id}` | Resultado da macro-esteira |
 | GET | `/api/v1/pipeline/active-tasks` | Tarefas ativas |
 | GET | `/api/v1/pipeline/{task_id}` | Status de pipeline específico |
@@ -413,7 +421,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 ### 🧠 Hermes Chat & Canais
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| POST | `/api/v1/hermes/chat` | Conversar com Hermes |
+| POST | `/api/v1/hermes/chat` | Conversar com Hermes (Hermes Agent oficial da Nous via gateway OpenAI-compatível, com fallback interno) |
+| GET | `/api/v1/hermes/status` | Status do chat: motor ativo (hermes_official vs fallback_llm), gateway, modelos |
 | GET | `/api/v1/hermes/history` | Histórico do chat |
 | POST | `/api/v1/hermes/clear` | Limpar histórico |
 | POST | `/api/v1/hermes/analyze-video` | Analisar vídeo concorrente |
@@ -440,11 +449,11 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 |--------|------|-----------|
 | GET | `/` | Painel admin legacy (SPA) — exige token admin (`?token=` ou header) |
 | GET | `/app/{slug}` | App do canal |
-| GET | `/blog/{slug}` | Página inicial do blog |
-| GET | `/blog/{slug}/sobre` | Página Sobre |
-| GET | `/blog/{slug}/contato` | Página Contato |
-| GET | `/blog/{slug}/privacidade` | Política de Privacidade |
-| GET | `/blog/{slug}/termos` | Termos de Uso |
+| GET | `/blog/{slug}` | Viewer HTML do blog (rota interna do backend — **não é o destino público**; a URL canônica real é `https://www.dezafira.com.br/category/{nicho-slug}` e cada artigo em `/post/{post.slug}`) |
+| GET | `/blog/{slug}/sobre` | Página Sobre (viewer interno) |
+| GET | `/blog/{slug}/contato` | Página Contato (viewer interno) |
+| GET | `/blog/{slug}/privacidade` | Política de Privacidade (viewer interno) |
+| GET | `/blog/{slug}/termos` | Termos de Uso (viewer interno) |
 | GET | `/ebook/{slug}/venda` | Página de vendas do ebook |
 | GET | `/ebook/{token}/reader` | Leitor do ebook |
 | GET | `/api/v1/ebook-reader/{token}/chapter/{n}` | Capítulo do leitor |
@@ -506,10 +515,11 @@ Dashboard simples do usuário logado (dados de `/api/v1/auth/me` + listas de cur
 | Login | `/auth/login` | Formulário de login |
 | Painel | `/painel` | Dashboard do usuário (tabs: Visão Geral, Cursos, Ebooks) |
 | Admin | `/admin` | Painel admin (stats, usuários, fábricas, trilhas, analytics, marketing) |
-| Fábrica Blog | `/admin/fabrica-blog` | iframe do painel legacy → `/#blogs` |
-| Fábrica Ebook | `/admin/fabrica-ebook` | iframe do painel legacy → `/#books` |
+| Fábrica Blog | `/admin/fabrica-blog` | **Nativa** (COMBO 05) — gera artigo via pipeline, canais, histórico, posts por canal |
+| Fábrica Ebook | `/admin/fabrica-ebook` | **Nativa** (COMBO 05) — pipeline de 6 fases, lista/detalhe de ebooks |
 | Fábrica Curso | `/admin/fabrica-curso` | Pipeline nativa de cursos (Next.js) |
-| Fábrica Marketing | `/admin/fabrica-blog#marketing` | Aba no admin → iframe do painel legacy → `/#marketing` (esteira de 6 fases) |
+| Fábrica Marketing | `/admin/fabrica-marketing` | **Nativa** (COMBO 05) — esteira de 6 fases (start + stage por fase), histórico |
+| Hub de Canais | `/admin/canais` | Lista canais + ativos vinculados + botão **Abrir PWA ↗** (`/pwa/{slug}`) |
 | Trilhas | `/admin/trilhas` | Gestão de learning paths |
 | Analytics | `/admin/analytics` | Métricas reais (cursos/trilhas) |
 
@@ -517,7 +527,7 @@ Dashboard simples do usuário logado (dados de `/api/v1/auth/me` + listas de cur
 - Dark mode (indigo/purple gradient theme)
 - JWT armazenado em `localStorage` (`dz_token`)
 - Rotas protegidas: `/painel` exige login; `/admin/*` exige `role === "admin"`
-- As fábricas Blog/Ebook/Marketing são um **iframe** do painel legacy (`static/index.html`) com token passado via `?token=` + hash `#blogs`/`#books`/`#marketing`
+- **Fábricas Blog/Ebook/Marketing reconstruídas como páginas nativas** (COMBO 05) em 09/08/2026 — o iframe do painel legacy (`static/index.html`) foi substituído por componentes React nativos consumindo a API diretamente (fetch com `Bearer`); o painel legacy segue disponível em `/` do backend para quem precisar
 - Auth flow em `lib/auth-context.tsx` (AuthProvider + useAuth) — usa `api.getMe()` para restaurar sessão
 - API client em `lib/api.ts` injeta `Authorization: Bearer` em todas as chamadas
 
@@ -1023,6 +1033,84 @@ Course
 
 ---
 
+## 🧠 FÁBRICA DE MAPAS MENTAIS (Nova)
+
+### Visão Geral
+Pipeline de 6 fases para criação de **mapas mentais interativos** (JSON hierárquico + quizzes de fixação) com **arquitetura multi-agente cooperativa**: a fase de **Produção** roda 3 sub-etapas sequenciais (Redator → Branding → Ilustrador). Preço padrão da assinatura recorrente: **R$ 19,90** (`price_cents=1990`).
+
+### Pipeline de 6 Fases
+
+| Fase | Nome | Descrição |
+|------|------|-----------|
+| 1 | **Fundação** | Cria o mapa no banco (`mindmaps`), gera título, cria pipeline run |
+| 2 | **Pesquisa de Dores** | Keyword research + consolidação via LLM |
+| 3 | **Criar Oferta** | Promise, mecanismo único, ancoragem de preço |
+| 4 | **Produção** | **Multi-agente** — ver sub-etapas abaixo |
+| 5 | **Refino** | Página de vendas HTML + slug + checkout |
+| 6 | **Entrega** | Publica o mapa (`status=published`) |
+
+### Sub-etapas da Fase Produção (multi-agente)
+
+| Sub-etapa | Agente | Modelo / Mecanismo | Saída |
+|-----------|--------|--------------------|-------|
+| ✍️ **Redator** | `agents/llm.query_deepseek` | deepseek-chat (nativo ou OpenRouter) com fallback estrutural | `map_json` hierárquico com quizzes (3–5 ramos, ≥4 nós com quiz) |
+| 🎨 **Diretor de Branding** | `agents/mindmap_cover._determine_branding` | `query_llm` (cascata completa) | `primary_color`, `secondary_color`, `background_color`, `icon_theme`, `image_prompt` |
+| 🖼️ **Ilustrador de Capas** | `agents/mindmap_cover.generate_cover` | Cascata **Pollinations FLUX → Gemini Imagen → Pexels → Pillow** (grafo conectado abstrato com cores do branding) | `cover_url` em `outputs/` (servido em `/outputs/`) |
+
+- O progresso das sub-etapas é emitido via `sub_stage` (evento `sub_stage`) e renderizado no painel admin (`fabrica-mapas`) junto com o checklist das 6 macro-fases (`macro_stages`).
+- **Branding persistido:** o resultado do Agente 2 é salvo em `mindmaps.branding_json` (coluna adicionada por migração idempotente no startup) — cores, `icon_theme` e prompt reutilizáveis no PWA/página de vendas.
+- `icon_theme` tem fallback determinístico por nicho (`NICHE_ICON_THEMES`/`_guess_icon_theme` em `agents/mindmap_cover.py`): espiritual, tecnologico, corporativo, academico, saude, generico.
+
+### Endpoints da Fábrica
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/pipeline/run-mindmap-factory` | Inicia a fábrica (`niche` obrigatório; `price_cents` default **1990**) — **admin/service** |
+| GET | `/api/v1/pipeline/mindmap-factory/status/{task_id}` | Polling (retorna último evento: `macro_stages`, `sub_stage`, etc.) — **admin/service** |
+| GET | `/api/v1/pipeline/mindmap-factory/history` | Histórico de execuções — **admin/service** |
+| GET | `/api/v1/mindmaps` | Lista mapas (inclui `cover_url`, `map_json`, `branding_json`) — **admin** |
+| GET | `/api/v1/mindmaps/{mindmap_id}` | Detalhe (header OU `?token=`) — valida trial de 7 dias para membros |
+| DELETE | `/api/v1/mindmaps/{mindmap_id}` | Deleta mapa + pipeline runs — **admin** |
+| POST | `/api/v1/mindmaps/{mindmap_id}/pwa-token` | Gera URL do PWA com **token assinado de 10 min** (`_generate_jwt_token` com `expire_seconds=600`) — evita expor o JWT de sessão na URL — **admin** |
+| POST | `/api/v1/mindmaps/{mindmap_id}/share-token` | Gera **link público duradouro** do PWA — token assinado de longa duração (default **365 dias**, `?days=` 1–3650; valida existência do mapa) — para compartilhar com assinantes/visitantes — **admin** |
+| GET | `/mindmap/{id}` | **PWA interativo** (`static/mindmap_pwa_template.html`) — lê `?token=` da URL (prioridade) ou `dz_token` do localStorage; cai em demo se não autenticado |
+| GET | `/pwa/{canal}` | **PWA hub por nicho** (`static/canal_pwa_template.html`) — serve o template com o slug injetado no serve-time; o JS busca `pwa-data` e monta cards de mindmaps + miniapps do canal (branding COMBO 05) |
+| GET | `/api/v1/channels/{slug}/pwa-data` | Dados do hub público: `{canal, branding, mindmaps[], miniapps[], access}` — token opcional (query `?token=` ou `Authorization: Bearer`) valida trial/subscription/admin; por padrão **só retorna publicados** (mindmaps `published`, miniapps `active`); `include_drafts=true` só honrado com token admin; 404 se o slug não existe |
+| GET | `/api/v1/blog-channels` | Lista canais de blog (hub de canais do ADM) — **admin** |
+
+### Vínculo Canal ⇄ Ativos (`canal_id` — Fase C/E, 09/08/2026)
+
+Cada **canal de blog** (ex: O Reino → `blg_50e26e`/`oreino`) é o hub agregador do seu PWA por nicho. Mapas mentais e miniapps são vinculados ao canal:
+
+- **FK:** `mindmaps.canal_id` / `miniapps.canal_id` → `blog_channels.id` (integridade) + **`canal_slug` denormalizado** (subdomain) para as rotas `/pwa/{slug}` e filtros rápidos. Colunas adicionadas por **migração idempotente no startup** (`_migrate_add_column`).
+- **Backfill idempotente no startup:** ativos ainda `canal_id IS NULL` são vinculados a canais cujo nome/subdomain aparece no título/tema do ativo (só refaz se estiver NULL; nunca desvincula). Backfill local: **"O Reino" → `blg_50e26e`/`oreino`**; mapas de Direito ficam "sem canal" (só no serviço de mapas, sem hub).
+- **Pipeline:** `run_mindmap_macro_pipeline` aceita `canal_id`/`canal_slug` (estado + `execute()` + `to_dict()` expõem o canal no progresso do admin); o endpoint `run-mindmap-factory` repassa.
+- **`get_db_assets_by_channel(canal_id, published_only=True)`** — retorna mindmaps + miniapps de um canal (filtro por status para o hub público).
+- **Hub de Canais (`/admin/canais`)** lista canais reais via `blog-channels` e mostra os ativos vinculados por canal; o botão **"Abrir PWA ↗"** leva para `/pwa/{slug}`.
+
+### Database Model (`mindmaps`)
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | VARCHAR(50) PK | ID único (mmap_xxxx) |
+| title | VARCHAR(500) | Título do mapa |
+| topic / niche | VARCHAR | Tema e nicho |
+| style_id | VARCHAR(30) | Estilo visual (minimalista/moderno/...) |
+| cover_url | VARCHAR(1000) | Capa de preview (`/outputs/...`) |
+| branding_json | TEXT | Identidade visual do Agente 2 (cores, icon_theme, image_prompt) — **nova coluna 09/08/2026** |
+| price_cents | INTEGER | Preço da assinatura (**default 1990**) |
+| status | VARCHAR(30) | draft/published |
+| map_json | TEXT | Estrutura hierárquica + quizzes |
+| sales_page_html / sales_page_slug / checkout_url | TEXT/VARCHAR | Página de vendas + checkout |
+| pipeline_run_id | VARCHAR(50) | FK do pipeline run |
+
+### Testes
+`tests/test_mindmap_multi_agent.py` — simula as 3 sub-etapas com LLMs mockados e fallback Pillow real (gera PNG em `outputs/` e limpa). Roda como script (`python tests/test_mindmap_multi_agent.py`) ou via pytest (6 testes).
+
+`tests/test_mindmap_pwa_token.py` — regressão dos tokens de acesso do PWA: `pwa-token` (10 min, 401 sem auth, 404 id inexistente, round-trip) **e `share-token`** (URL duradoura ~365 dias, `?days=` customizado com validação 1–3650, 401/404) — 7 testes.
+
+---
+
 ## 📢 FÁBRICA DE MARKETING (Nova)
 
 ### Visão Geral
@@ -1191,3 +1279,53 @@ SMTP_SENDER=...
 ---
 
 *Documentação gerada em 03/08/2026 — Dezafira Club v3.3*
+
+---
+
+## AionUi WebUI + Hermes Agent em produção (08/08/2026)
+
+**Serviços Railway (projeto `shimmering-possibility`):**
+
+1. **`hermes-agent`** — Hermes Agent oficial da Nous Research (imagem `nousresearch/hermes-agent:latest`). Roda o script de inicialização `railway-hermes/start-hermes.sh` que executa em paralelo:
+   - O **Gateway** OpenAI-compatível na porta interna `8642` (comunicação interna via `http://hermes-agent.railway.internal:8642/v1`).
+   - O **Hermes Dashboard oficial** (com o Kanban Board de tarefas) na porta pública `$PORT` exposta pelo Railway.
+   - Configurações seedadas via `railway-hermes/00-seed-config`.
+
+2. **`aionui-webui`** — AionUi WebUI (Cowork), Dockerfile corrigido em `railway-aionui/` (o do repo está quebrado: referencia `scripts/build-server.mjs` inexistente). Fluxo: `bun install` (workspaces) → `bun run package` (electron-vite renderer, com `AIONUI_WEB_BUILD=1` para desativar o `manualChunks` que criava ciclos de chunks e quebrava o SPA no browser com `Cannot read properties of undefined (reading 'createContext')`) → baixa `aioncore` (backend Rust, pin v0.1.62) → `bun scripts/webui.ts`. Domínio: `https://aionui-webui-production.up.railway.app`
+   - **Volume persistente**: `aionui-webui-volume` montado em `/data` (SQLite com credenciais, providers e conversas sobrevivem a deploys)
+   - Login atual: `admin` / `SmBqq*aA4bv$dUAH` (gerada via `POST /api/webui/reset-password` em 09/08/2026; se resetar de novo, pegar nos logs ou via reset-password)
+   - Provider configurado via API: `Hermes Oficial (Nous + DeepSeek)` → `https://hermes-agent-production-6c72.up.railway.app/v1`, modelo `deepseek-chat`
+
+3. **`dezafiraadm`** (backend Dezafira) — já apontando pro Hermes via rede interna (`engine: hermes_official`)
+
+**Nota:** o modelo no AionUi deve ser `deepseek-chat` (não `hermes-agent`) — o endpoint `/v1/chat/completions` do Hermes responde pelos modelos LLM configurados; `hermes-agent` retorna 404 nesse endpoint.
+
+**Memória do Hermes (onboarding da Dezafira, 09/08/2026):**
+- O Hermes Agent guarda memória persistente em `MEMORY.md` + `USER.md` dentro do diretório de memória da instalação (nesta imagem: `/opt/data/memories/`; home `/opt/data/home`). Entradas separadas por `§`; MEMORY.md tem limite ~2.200 chars.
+- A memória é injetada no system prompt a cada nova sessão — mudanças só aparecem na sessão seguinte.
+- Foi gravado um onboarding completo (identidade como Hermes da Dezafira, projeto, fábricas, agentes, infra Railway) via `POST /v1/chat/completions` instruindo o agente a salvar com suas tools de memória. Testado: nova sessão responde corretamente sobre a Dezafira.
+- Para atualizar: envie ao Hermes um novo texto de onboarding pedindo para gravar na memória (ele consolida entradas quando chega a ~93% da capacidade). Script reutilizável: `python seed_memory.py` (raiz do repo, usa `HERMES_API_KEY`; `--note "..."` adiciona bloco; `--dry-run` simula).
+
+### 🏗️ Arquitetura operacional: Hermes orquestrador + construtor (OpenCode/agente local)
+
+Divisão de papéis adotada (09/08/2026):
+
+| Papel | Quem | Onde | Exemplo |
+|---|---|---|---|
+| 🧠 **Orquestra** (decide, dispara, diagnostica) | Hermes Agent (Nous) | AionUi / chat admin | "Inicia a fábrica de ebooks sobre X" → chama os endpoints de pipeline |
+| 🔧 **Constrói** (implementa, corrige, deploya) | Agente de codificação local (OpenCode/Buffy) | Checkout do projeto (PC do Jonatas) | Editar `modules/ebook_factory.py`, rodar testes, `railway up` |
+| 📋 **Valida** | LiLi + testes | Backend | Score ≥70, healthchecks |
+
+**Fluxo recomendado:**
+1. Jonatas conversa com o Hermes no AionUi/celular → ele dispara fábricas pela API (`run-*-factory`, `marketing/start`, `miniapps/create`) e acompanha status.
+2. Quando uma fábrica falha, o Hermes usa o **playbook de diagnóstico** (bloco 7 da memória): `pipeline/{task_id}`, `active-tasks`, `logs`, `lili/ranking`, `factory/dashboard`, `obscura/status`, `marketing/history`.
+3. Se o erro é de conteúdo (LiLi reprova, artigo fraco) → Hermes ajusta/regenera via API. Se é de código/infra → Hermes reporta e o **construtor** corrige no checkout e deploya.
+
+**Acesso de serviço (SERVICE KEY):** em 09/08/2026 foi criada uma **service key** que dá ao Hermes acesso admin à API **sem JWT**: backend lê a env `SERVICE_API_KEY` (dezafiraadm) e aceita o header `X-Service-Key: <chave>` (comparação em tempo constante via `hmac.compare_digest`) nos endpoints de pipeline/diagnóstico (`require_admin_or_service` em `server.py`). A chave fica na env `DEZAFIRA_SERVICE_KEY` do container do hermes-agent (o agente lê com `echo $DEZAFIRA_SERVICE_KEY` e usa nos curls — nunca expõe em texto). Endpoints liberados: `run-blog-factory`, `run-ebook-factory` (+ status/history), `run-course-factory`, `marketing/start|stage|history`, `factory/dashboard`, `lili/ranking`. Para trocar a chave: gerar nova, setar `SERVICE_API_KEY` (dezafiraadm) e `DEZAFIRA_SERVICE_KEY` (hermes-agent), e re-semear a memória (`python seed_memory.py`).
+
+**Volume persistente do hermes-agent:** criado `hermes-agent-volume` montado em `/opt/data` — antes a memória (`/opt/data/memories/MEMORY.md` e `USER.md`) era **efêmera** e sumia a cada redeploy. Agora persiste; após qualquer troca de imagem/volume, re-rodar `HERMES_API_KEY=<key> python seed_memory.py` para re-semear.
+
+**Fix de rota (09/08/2026):** `GET /api/v1/pipeline/active-tasks` era engolido pela rota dinâmica `/api/v1/pipeline/{task_id}` (404). O endpoint foi movido para antes da rota dinâmica em `server.py` (ordem de registro do FastAPI) — o Hermes achou o bug no 1º diagnóstico real e o construtor corrigiu.
+
+**Limitações conhecidas:** o Hermes roda em VM cloud (sem acesso ao código); memória com limite ~2.200 chars (exige consolidação frequente).
+
