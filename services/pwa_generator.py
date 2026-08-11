@@ -218,9 +218,11 @@ class PWAGenerator:
             raw_data.append(0)  # filter byte None
             for x in range(size):
                 d = (x + y) / diag
-                r = int(c1[0] + (c2[0] - c1[0]) * d)
-                g = int(c1[1] + (c2[1] - c1[1]) * d)
-                b = int(c1[2] + (c2[2] - c1[2]) * d)
+                # Clamp: d pode exceder 1.0 nos cantos (diag = 1.5*size),
+                # o que extrapolaria os canais alem de 255.
+                r = int(min(255, max(0, c1[0] + (c2[0] - c1[0]) * d)))
+                g = int(min(255, max(0, c1[1] + (c2[1] - c1[1]) * d)))
+                b = int(min(255, max(0, c1[2] + (c2[2] - c1[2]) * d)))
                 a = 255
 
                 dx = x - cx
