@@ -75,11 +75,13 @@ class MiniAppFactory:
             {"role": "system", "content": (
                 "Voce e o Nexo, arquiteto de microSaaS da DEZAFIRA. Sua filosofia: "
                 "UMA DOR, UM APP (modelo microSaaS de nicho). "
-                "A partir do pedido do usuario, defina a dor aguda do publico, um nome curto "
-                "e comercial para o app e um slug limpo em minusculas com hifens. "
+                "A partir do pedido do usuario, defina a dor aguda do publico, um nome comercial "
+                "PROFISSIONAL de 2 a 4 palavras em portugues brasileiro, sem abreviacoes, siglas "
+                "nem jargao (ex: 'Calculadora de Deficit Calorico' e valido; 'CaloDef', 'CalcDC' "
+                "e 'Calculadora' sao INVALIDOS) e um slug limpo em minusculas com hifens. "
                 "Responda APENAS com JSON valido, sem markdown:\n"
-                "{\"pain\": \"dor principal em 1 frase\", \"app_name\": \"Nome Curto do App\", "
-                "\"slug\": \"nome-curto-do-app\", \"app_type\": \"Calculator|Quiz|Checklist|Scheduler|Tool\", "
+                "{\"pain\": \"dor principal em 1 frase\", \"app_name\": \"Nome Comercial Do App\", "
+                "\"slug\": \"nome-comercial-do-app\", \"app_type\": \"Calculator|Quiz|Checklist|Scheduler|Tool\", "
                 "\"features\": [\"feature 1\", \"feature 2\", \"feature 3\"]}"
             )},
             {"role": "user", "content": f"Pedido: {prompt}\nNicho: {niche}"},
@@ -87,6 +89,7 @@ class MiniAppFactory:
 
         data = _parse_json_response(resp) if resp and not resp.startswith(ERROR_PREFIX) else None
         pain, app_name, slug, app_type = "", "", "", ""
+        app_slug = ""
         features = []
         if isinstance(data, dict):
             pain = str(data.get("pain") or "").strip()
@@ -107,15 +110,19 @@ class MiniAppFactory:
         # ── Fallbacks deterministicos ──
         if not pain:
             pain = f"Resolva {prompt.strip().lower()[:80]} de forma rapida e pratica"
-        if not app_name:
+        if not app_name or len(app_name.split()) < 2 or len(app_name) < 8:
+            # Nome do LLM invalido (1 palavra, sigla ou muito curto) → deriva do prompt
             app_name = re.sub(r"[“”\"']", "", prompt.strip())
             for p in sorted(_APP_PREFIXES, key=len, reverse=True):
                 if app_name.lower().startswith(p):
                     app_name = app_name[len(p):].strip(" :;-–")
                     break
-            app_name = (app_name[:40] + "...") if len(app_name) > 40 else (app_name or "MiniApp")
+            app_name = re.sub(r"\s+", " ", app_name).strip(" .:;,-–")
+            words = [w.capitalize() for w in app_name.split() if w][:4]
+            app_name = " ".join(words) or "MiniApp"
+            slug = app_slug = PWAGenerator.slugify(app_name)
         if not slug:
-            slug = self._slug_from_prompt(prompt)
+            slug = app_slug or self._slug_from_prompt(prompt)
         if not app_type:
             pl = prompt.lower()
             if "quiz" in pl:
@@ -140,7 +147,9 @@ class MiniAppFactory:
             {"role": "system", "content": (
                 "Voce e o Carlao, redator-chefe da DEZAFIRA, especialista em copy de "
                 "microSaaS e apps de nicho. Escreva copy curta, direta e de alta conversao "
-                "em portugues brasileiro, falando a dor do usuario. "
+                "em PORTUGUES BRASILEIRO COM GRAMATICA PERFEITA — sem erros de concordancia, "
+                "sem palavras truncadas e sem frases incompletas (ex: 'Emagreca com Facilidade', "
+                "nunca 'Emagreca com Facil'). A headline fala a dor ou o resultado prometido. "
                 "Responda APENAS com JSON valido, sem markdown:\n"
                 "{\"headline\": \"titulo curto (max 8 palavras) falando a dor ou o resultado\", "
                 "\"subheadline\": \"1 frase (max 20 palavras) explicando a promessa\", "
