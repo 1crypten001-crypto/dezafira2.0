@@ -192,54 +192,6 @@ async def delete_miniapp_endpoint(app_id: str):
     return {"message": "MiniApp deletado com sucesso"}
 
 
-@app.post("/api/v1/miniapps/{app_id}/bidu-assets")
-async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin)):
-    """🦉 Bidu: regenera o kit de identidade visual (logo + mascote + banner)
-    de um MiniApp existente via Agnes AI. Para o piloto e upgrades visuais."""
-    import json as _json
-    from modules.database import get_db_miniapp, update_db_miniapp
-    from modules.bidu_visual import BiduVisualAgent
-
-    app = get_db_miniapp(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
-
-    # Reconstrói o brand a partir do theme persistido (Dona Célia)
-    theme = {}
-    if app.get("theme"):
-        try:
-            theme = _json.loads(app["theme"])
-        except Exception:
-            theme = {}
-    brand = {
-        "brand_name": app.get("brand_name") or app.get("app_name") or "",
-        "brand_voice": app.get("brand_voice") or "",
-        "theme": theme,
-        "header_symbol": theme.get("emoji", ""),
-    }
-
-    try:
-        agent = BiduVisualAgent()
-        result = await agent.generate_assets(
-            brand=brand,
-            pain=app.get("pain") or "",
-            app_name=app.get("app_name") or "",
-            slug=app.get("slug") or "",
-        )
-        update_db_miniapp(
-            app_id,
-            logo_url=result.get("logo_url") or "",
-            banner_url=result.get("banner_url") or "",
-            mascot_url=(result.get("mascot") or {}).get("front", ""),
-            character_brief=_json.dumps(result.get("character_brief") or {}, ensure_ascii=False),
-            assets_dir=result.get("assets_dir", ""),
-        )
-        result["app_id"] = app_id
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar kit Bidu: {str(e)}")
-
-
 def get_trial_expired_html(app_name: str, checkout_url: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1005,6 +957,55 @@ async def require_admin_or_service(
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
     return user
+
+
+@app.post("/api/v1/miniapps/{app_id}/bidu-assets")
+async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin_or_service)):
+    """🦉 Bidu: regenera o kit de identidade visual (logo + mascote + banner)
+    de um MiniApp existente via Agnes AI. Para o piloto e upgrades visuais."""
+    import json as _json
+    from modules.database import get_db_miniapp, update_db_miniapp
+    from modules.bidu_visual import BiduVisualAgent
+
+    app = get_db_miniapp(app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+
+    # Reconstrói o brand a partir do theme persistido (Dona Célia)
+    theme = {}
+    if app.get("theme"):
+        try:
+            theme = _json.loads(app["theme"])
+        except Exception:
+            theme = {}
+    brand = {
+        "brand_name": app.get("brand_name") or app.get("app_name") or "",
+        "brand_voice": app.get("brand_voice") or "",
+        "theme": theme,
+        "header_symbol": theme.get("emoji", ""),
+    }
+
+    try:
+        agent = BiduVisualAgent()
+        result = await agent.generate_assets(
+            brand=brand,
+            pain=app.get("pain") or "",
+            app_name=app.get("app_name") or "",
+            slug=app.get("slug") or "",
+        )
+        update_db_miniapp(
+            app_id,
+            logo_url=result.get("logo_url") or "",
+            banner_url=result.get("banner_url") or "",
+            mascot_url=(result.get("mascot") or {}).get("front", ""),
+            character_brief=_json.dumps(result.get("character_brief") or {}, ensure_ascii=False),
+            assets_dir=result.get("assets_dir", ""),
+        )
+        result["app_id"] = app_id
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar kit Bidu: {str(e)}")
+
 
 # Health check endpoint for Railway
 @app.get("/health")
