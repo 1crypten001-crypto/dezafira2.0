@@ -668,7 +668,11 @@ class ObscuraSerpRun(Base):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class MiniApp(Base):
-    """MiniApp PWA gerado pela fabrica de MiniApps."""
+    """MiniApp PWA gerado pela fabrica de MiniApps (padrao born-complete).
+
+    Todo app nasce com slug unico, dor posicionada (uma dor, um app), copy
+    (Carlao), branding (Dona Celia) e design (Ricardo) — alem do PWA completo.
+    """
     __tablename__ = "miniapps"
 
     id = Column(String(50), primary_key=True, index=True)
@@ -682,6 +686,18 @@ class MiniApp(Base):
     status = Column(String(20), default="draft")  # draft/active/archived
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True)
+
+    # ── Novo padrao born-complete ──────────────────────────────────────
+    slug = Column(String(120), nullable=True, index=True, unique=True)  # identidade permanente do PWA
+    pain = Column(Text, nullable=True)             # dor principal (uma dor, um app)
+    description = Column(Text, nullable=True)      # meta description / resumo
+    headline = Column(Text, nullable=True)         # copy Carlao — titulo da landing
+    subheadline = Column(Text, nullable=True)      # copy Carlao — subtitulo
+    cta_text = Column(String(120), nullable=True)  # copy Carlao — botao de acao
+    brand_name = Column(String(200), nullable=True)  # branding Dona Celia — nome de marca
+    brand_voice = Column(Text, nullable=True)        # branding Dona Celia — tom de voz
+    theme = Column(Text, nullable=True)              # branding Dona Celia — paleta JSON
+    pwa_check = Column(Text, nullable=True)          # relatorio de verificacao de completude
 
 
 class MiniAppDripContent(Base):
@@ -793,6 +809,27 @@ try:
         _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS checkout_url VARCHAR(500);", "books.checkout_url")
         _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS lili_score INTEGER;", "books.lili_score")
         _migrate_add_column(conn, "ALTER TABLE books ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(50);", "books.pipeline_run_id")
+
+        # --- Fabrica de MiniApps: novo padrao born-complete ---
+        # Todo MiniApp ganha identidade permanente (slug), dor posicionada,
+        # copy (Carlao), branding (Dona Celia) e verificacao de completude.
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS slug VARCHAR(120);", "miniapps.slug")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS pain TEXT;", "miniapps.pain")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS description TEXT;", "miniapps.description")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS headline TEXT;", "miniapps.headline")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS subheadline TEXT;", "miniapps.subheadline")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS cta_text VARCHAR(120);", "miniapps.cta_text")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS brand_name VARCHAR(200);", "miniapps.brand_name")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS brand_voice TEXT;", "miniapps.brand_voice")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS theme TEXT;", "miniapps.theme")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS pwa_check TEXT;", "miniapps.pwa_check")
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_miniapps_slug ON miniapps (slug);"))
+            conn.commit()
+            print("[Database] Migration OK: miniapps.slug unique index")
+        except Exception as idx_err:
+            conn.rollback()
+            print(f"[Database] Migration FAILED: miniapps.slug unique index: {idx_err}")
 
         # --- Fabrica de Mapas Mentais & Trial ---
         _migrate_add_column(conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMP;", "users.trial_started_at")
@@ -3194,8 +3231,12 @@ def get_db_obscura_serp_runs(limit: int = 20) -> list:
 
 def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PWA",
                       logo_url: str = "", banner_url: str = "",
-                      pwa_manifest: str = "", pwa_html: str = "") -> dict:
-    """Cria um MiniApp no banco principal PostgreSQL."""
+                      pwa_manifest: str = "", pwa_html: str = "",
+                      slug: str = "", pain: str = "", description: str = "",
+                      headline: str = "", subheadline: str = "", cta_text: str = "",
+                      brand_name: str = "", brand_voice: str = "", theme: str = "",
+                      pwa_check: str = "") -> dict:
+    """Cria um MiniApp no banco principal PostgreSQL (padrao born-complete)."""
     db = SessionLocal()
     try:
         app_id = f"app_{uuid.uuid4().hex[:8]}"
@@ -3203,12 +3244,18 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
             id=app_id, app_name=app_name, niche=niche, app_type=app_type,
             logo_url=logo_url, banner_url=banner_url,
             pwa_manifest=pwa_manifest, pwa_html=pwa_html, status="active",
+            slug=slug or None, pain=pain or None, description=description or None,
+            headline=headline or None, subheadline=subheadline or None,
+            cta_text=cta_text or None, brand_name=brand_name or None,
+            brand_voice=brand_voice or None, theme=theme or None,
+            pwa_check=pwa_check or None,
         )
         db.add(app)
         db.commit()
         return {
             "id": app.id, "app_name": app.app_name, "niche": app.niche,
-            "status": app.status, "created_at": app.created_at.isoformat() if app.created_at else None,
+            "slug": app.slug, "status": app.status,
+            "created_at": app.created_at.isoformat() if app.created_at else None,
         }
     finally:
         db.close()
@@ -3245,10 +3292,53 @@ def get_db_miniapp(app_id: str) -> dict:
             "id": app.id, "app_name": app.app_name, "niche": app.niche,
             "app_type": app.app_type, "logo_url": app.logo_url, "banner_url": app.banner_url,
             "pwa_manifest": app.pwa_manifest, "pwa_html": app.pwa_html,
-            "status": app.status,
+            "status": app.status, "slug": app.slug, "pain": app.pain,
+            "description": app.description, "headline": app.headline,
+            "subheadline": app.subheadline, "cta_text": app.cta_text,
+            "brand_name": app.brand_name, "brand_voice": app.brand_voice,
+            "theme": app.theme, "pwa_check": app.pwa_check,
             "created_at": app.created_at.isoformat() if app.created_at else None,
             "drip_contents": [{"day": d.unlock_day, "title": d.title, "type": d.content_type, "payload": d.payload} for d in drips],
         }
+    finally:
+        db.close()
+
+
+def get_db_miniapp_by_slug(slug: str) -> dict:
+    """Retorna um MiniApp pela identidade permanente (slug)."""
+    db = SessionLocal()
+    try:
+        app = db.query(MiniApp).filter(MiniApp.slug == slug).first()
+        if not app:
+            return {}
+        return {
+            "id": app.id, "app_name": app.app_name, "niche": app.niche,
+            "app_type": app.app_type, "logo_url": app.logo_url, "banner_url": app.banner_url,
+            "pwa_manifest": app.pwa_manifest, "pwa_html": app.pwa_html,
+            "status": app.status, "slug": app.slug, "pain": app.pain,
+            "description": app.description, "headline": app.headline,
+            "subheadline": app.subheadline, "cta_text": app.cta_text,
+            "brand_name": app.brand_name, "brand_voice": app.brand_voice,
+            "theme": app.theme, "pwa_check": app.pwa_check,
+            "created_at": app.created_at.isoformat() if app.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+def get_db_miniapps_without_slug(limit: int = 100) -> list:
+    """Lista MiniApps legados que ainda nao tem slug (para migracao)."""
+    db = SessionLocal()
+    try:
+        apps = db.query(MiniApp).filter(
+            (MiniApp.slug.is_(None)) | (MiniApp.slug == "")
+        ).order_by(MiniApp.created_at.asc()).limit(limit).all()
+        return [{
+            "id": a.id, "app_name": a.app_name, "niche": a.niche,
+            "app_type": a.app_type, "status": a.status, "logo_url": a.logo_url,
+            "pwa_html": a.pwa_html, "pwa_manifest": a.pwa_manifest,
+            "pain": a.pain, "created_at": a.created_at.isoformat() if a.created_at else None,
+        } for a in apps]
     finally:
         db.close()
 
@@ -3261,6 +3351,8 @@ def get_db_miniapps(limit: int = 50) -> list:
         return [{
             "id": a.id, "app_name": a.app_name, "niche": a.niche,
             "app_type": a.app_type, "status": a.status, "logo_url": a.logo_url,
+            "slug": a.slug, "pain": a.pain, "headline": a.headline,
+            "cta_text": a.cta_text, "brand_name": a.brand_name,
             "created_at": a.created_at.isoformat() if a.created_at else None,
         } for a in apps]
     finally:

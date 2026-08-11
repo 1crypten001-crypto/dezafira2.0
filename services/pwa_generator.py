@@ -104,6 +104,90 @@ class PWAGenerator:
         return dict(PWAGenerator.FALLBACK_THEME)
 
     @staticmethod
+    def record_theme(record: dict) -> dict:
+        """Tema do app: branding persistido (Dona Celia) > paleta do nicho."""
+        raw = record.get("theme") if isinstance(record, dict) else None
+        if raw:
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else raw
+                if isinstance(data, dict):
+                    theme = dict(PWAGenerator.FALLBACK_THEME)
+                    for k in ("primary", "accent", "gradient", "bg", "surface", "emoji", "tagline"):
+                        if data.get(k):
+                            theme[k] = str(data[k])
+                    return theme
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return PWAGenerator.niche_theme(record.get("niche", "Geral") if isinstance(record, dict) else "Geral")
+
+    @staticmethod
+    def resolve_copy(record: dict, theme: "dict | None" = None) -> dict:
+        """Copy do app (Carlao) com fallbacks deterministicos.
+
+        Retorna: headline, subheadline, tagline, cta_text, description.
+        """
+        if theme is None:
+            theme = PWAGenerator.record_theme(record)
+        app_name = record.get("app_name", "MiniApp")
+        pain = record.get("pain", "") or ""
+        headline = (record.get("headline") or "").strip()
+        subheadline = (record.get("subheadline") or "").strip()
+        cta_text = (record.get("cta_text") or "").strip()
+        description = (record.get("description") or "").strip()
+
+        if not headline:
+            headline = f"{app_name}: {pain}" if pain else app_name
+        if not subheadline:
+            subheadline = pain or theme.get("tagline", "Soluções inteligentes para você")
+        if not cta_text:
+            cta_text = "Começar Agora"
+        if not description:
+            description = f"{headline} — {theme.get('tagline', 'App Inteligente da DEZAFIRA')}"
+        return {
+            "headline": headline,
+            "subheadline": subheadline,
+            "tagline": theme.get("tagline", "Soluções inteligentes para você"),
+            "cta_text": cta_text,
+            "description": description,
+        }
+
+    @staticmethod
+    def completeness_check(record: dict) -> dict:
+        """Verifica se um MiniApp nasceu completo (padrao born-complete).
+
+        Checagens: slug valido, copy presente, branding presente, manifest
+        construivel, service worker construivel, icones geraveis.
+        """
+        import re as _re
+        checks = {}
+        slug = (record.get("slug") or "").strip()
+        checks["slug"] = bool(_re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", slug)) if slug else False
+        checks["copy"] = bool((record.get("headline") or "").strip()) and bool((record.get("cta_text") or "").strip())
+        checks["branding"] = bool((record.get("theme") or "").strip()) and bool((record.get("brand_name") or "").strip())
+        checks["pain"] = bool((record.get("pain") or "").strip())
+        try:
+            theme = PWAGenerator.record_theme(record)
+            manifest = PWAGenerator.build_manifest(record.get("id", "app"), slug or "app",
+                                                   record.get("app_name", "App"), theme,
+                                                   record.get("description", ""))
+            checks["manifest"] = bool(manifest.get("icons")) and bool(manifest.get("start_url"))
+        except Exception:
+            checks["manifest"] = False
+        try:
+            sw = PWAGenerator.build_service_worker(slug or "app", record.get("id", "app"))
+            checks["service_worker"] = "install" in sw and "fetch" in sw
+        except Exception:
+            checks["service_worker"] = False
+        try:
+            icon = PWAGenerator.generate_icons(record.get("app_name", "App"),
+                                               PWAGenerator.record_theme(record), size=192)
+            checks["icons"] = len(icon) > 100 and icon[:8] == b"\x89PNG\r\n\x1a\n"
+        except Exception:
+            checks["icons"] = False
+        missing = [k for k, v in checks.items() if not v]
+        return {"checks": checks, "passed": not missing, "missing": missing}
+
+    @staticmethod
     def generate_icons(app_name: str, theme: dict = None, size: int = 512) -> bytes:
         if theme is None:
             theme = PWAGenerator.FALLBACK_THEME
@@ -386,6 +470,9 @@ self.addEventListener("fetch", event => {{
             "{{LOGO_URL}}": "",
             "{{BANNER_URL}}": "",
             "{{DESCRIPTION}}": description,
+            "{{HEADLINE}}": title,
+            "{{SUBHEADLINE}}": theme.get("tagline", "Soluções inteligentes para você"),
+            "{{TAGLINE}}": theme.get("tagline", "Soluções inteligentes para você"),
         }
 
         html = template
@@ -428,8 +515,10 @@ self.addEventListener("fetch", event => {{
         with open(template_path, "r", encoding="utf-8") as f:
             template = f.read()
 
-        slug = PWAGenerator.slugify(app_name)
-        theme = PWAGenerator.niche_theme(niche)
+        # Identidade permanente: slug persistido > derivado do nome
+        slug = (record.get("slug") or "").strip() or PWAGenerator.slugify(app_name)
+        # Branding: tema persistido (Dona Celia) > paleta do nicho
+        theme = PWAGenerator.record_theme(record)
         theme_json = json.dumps({
             "primary": theme["primary"],
             "primary_dark": theme["accent"],
@@ -441,7 +530,9 @@ self.addEventListener("fetch", event => {{
             "tagline": theme["tagline"]
         })
 
-        description = f"{app_name} — {theme.get('tagline', 'App Inteligente da DEZAFIRA')}"
+        # Copy: campos persistidos (Carlao) com fallback deterministico
+        copy = PWAGenerator.resolve_copy(record, theme)
+        description = copy["description"]
         manifest = PWAGenerator.build_manifest(app_id, slug, app_name, theme, description)
         sw = PWAGenerator.build_service_worker(slug, app_id)
         drip_json = json.dumps(record.get("drip_contents", []))
@@ -464,7 +555,7 @@ self.addEventListener("fetch", event => {{
             "{{NICHE}}": niche or "Geral",
             "{{THEME}}": theme_json,
             "{{QUESTIONS_JSON}}": json.dumps([], ensure_ascii=False),
-            "{{CTA_TEXT}}": "Obter Relatório",
+            "{{CTA_TEXT}}": copy["cta_text"],
             "{{CHECKOUT_URL}}": "",
             "{{MANIFEST_URL}}": f"/app/{slug}/manifest.json",
             "{{SW_URL}}": f"/app/{slug}/sw.js",
@@ -474,6 +565,9 @@ self.addEventListener("fetch", event => {{
             "{{LOGO_URL}}": record.get("logo_url", ""),
             "{{BANNER_URL}}": record.get("banner_url", ""),
             "{{DESCRIPTION}}": description,
+            "{{HEADLINE}}": copy["headline"],
+            "{{SUBHEADLINE}}": copy["subheadline"],
+            "{{TAGLINE}}": copy["tagline"],
         }
 
         html = template

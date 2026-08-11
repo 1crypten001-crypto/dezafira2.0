@@ -1,169 +1,411 @@
 """
 ================================================================================
-DEZAFIRA — Fabrica de MiniApps Profissional (Sala de Agentes + Agnes AI + DB)
+DEZAFIRA — Fabrica de MiniApps (Padrao Born-Complete)
 ================================================================================
-Orquestra a criacao autonoma de MiniApps PWA para retencao e recorrencia (MRR):
-1. Arquiteto PWA (Nexo Agent): Mapeia conceito, calculadoras, quizzes e geradores.
-2. Diretor Visual (Agnes AI): Gera a Logo/Icone 3D personalizado (512x512).
-3. Desenvolvedor Frontend (Coder AI): Constrói a aplicacao PWA reativa instalavel.
-4. Gestor de Dados (DB Chronicler): Estrutura o banco com conteudo temporizado (Drip Content).
+Sala de Agentes: todo MiniApp nasce COMPLETO — identidade, copy, branding,
+design e PWA instalavel desde o dia zero. Nada de app orfao, nada de
+retrabalho pos-geracao.
 
-Migrado para PostgreSQL (banco principal) — dados sobrevivem deploy.
+1. Nexo (Arquiteto PWA)  : dor unica (uma dor, um app) + slug limpo + tipo + features
+2. Carlao (Copywriter)   : headline, subheadline, description, CTA
+3. Dona Celia (Branding) : paleta, tipografia, nome de marca, tom de voz
+4. Ricardo (Visual)      : logo + banner (imagens IA)
+5. Coder (Frontend)      : HTML PWA funcional
+6. Verificador           : completude (slug, copy, branding, manifest, sw, icons)
+7. DB Chronicler         : persistencia PostgreSQL com slug unico
+
+Persistido no PostgreSQL (banco principal) — sobrevive deploy.
 """
 
-import os
 import json
-import asyncio
 import logging
+import re
 from typing import Dict, Any, List
+
+from agents.llm import query_llm, ERROR_PREFIX
+from agents.specialists import miniapp_builder, _parse_json_response
 from modules.image_factory import ImageGeneratorAgent
-from agents.specialists import miniapp_builder
+from services.pwa_generator import PWAGenerator
 
 logger = logging.getLogger("miniapp_factory")
 logger.setLevel(logging.INFO)
+
+_APP_PREFIXES = ["criar miniapp", "crie miniapp", "criar app", "crie app", "novo miniapp",
+                 "novo app", "miniapp", "app", "criar", "crie", "gerar", "gere", "quero um",
+                 "quero uma", "faca um", "faca uma", "cria um", "cria uma"]
 
 
 class MiniAppFactory:
     def __init__(self):
         self.image_agent = ImageGeneratorAgent()
 
-    async def create_miniapp_with_room(self, prompt: str, niche: str = "Geral") -> Dict[str, Any]:
-        """
-        Orquestra a Sala de Agentes para gerar um MiniApp PWA completo.
-        Salva no PostgreSQL (banco principal) para persistir entre deploys.
-        """
-        from modules.database import create_db_miniapp, update_db_miniapp, create_db_miniapp_drip
+    # ─────────────────────────────────────────────────────────────────────────
+    # Agentes internos (cada um com fallback deterministico — a fabrica NUNCA
+    # entrega app incompleto por falha de LLM)
+    # ─────────────────────────────────────────────────────────────────────────
 
-        logger.info(f"[MiniAppFactory] Iniciando Sala de Agentes para: '{prompt}' (Nicho: {niche})")
+    @staticmethod
+    def _slug_from_prompt(prompt: str) -> str:
+        """Slug deterministico a partir do prompt (limpo, sem prefixos)."""
+        text = prompt.strip()
+        lower = text.lower()
+        for p in sorted(_APP_PREFIXES, key=len, reverse=True):
+            if lower.startswith(p):
+                text = text[len(p):].strip(" :;-–")
+                break
+        text = re.sub(r"[“”\"']", "", text)
+        words = [w for w in text.split() if w][:6]
+        return PWAGenerator.slugify(" ".join(words)) or "app"
+
+    def _ensure_unique_slug(self, slug: str) -> str:
+        """Garante slug unico no banco (sufixo -2, -3... em caso de colisao)."""
+        from modules.database import get_db_miniapp_by_slug
+        candidate, i = slug, 2
+        while get_db_miniapp_by_slug(candidate):
+            candidate = f"{slug}-{i}"
+            i += 1
+        return candidate
+
+    async def _nexo_arquiteto(self, prompt: str, niche: str) -> dict:
+        """Nexo: extrai dor unica, define slug, tipo e features do app."""
+        resp = await query_llm([
+            {"role": "system", "content": (
+                "Voce e o Nexo, arquiteto de microSaaS da DEZAFIRA. Sua filosofia: "
+                "UMA DOR, UM APP (modelo microSaaS de nicho). "
+                "A partir do pedido do usuario, defina a dor aguda do publico, um nome curto "
+                "e comercial para o app e um slug limpo em minusculas com hifens. "
+                "Responda APENAS com JSON valido, sem markdown:\n"
+                "{\"pain\": \"dor principal em 1 frase\", \"app_name\": \"Nome Curto do App\", "
+                "\"slug\": \"nome-curto-do-app\", \"app_type\": \"Calculator|Quiz|Checklist|Scheduler|Tool\", "
+                "\"features\": [\"feature 1\", \"feature 2\", \"feature 3\"]}"
+            )},
+            {"role": "user", "content": f"Pedido: {prompt}\nNicho: {niche}"},
+        ], max_tokens=1024, temperature=0.4)
+
+        data = _parse_json_response(resp) if resp and not resp.startswith(ERROR_PREFIX) else None
+        pain, app_name, slug, app_type = "", "", "", ""
+        features = []
+        if isinstance(data, dict):
+            pain = str(data.get("pain") or "").strip()
+            app_name = str(data.get("app_name") or "").strip()
+            slug = PWAGenerator.slugify(str(data.get("slug") or "")) or self._slug_from_prompt(prompt)
+            app_type = str(data.get("app_type") or "").strip()
+            raw_features = data.get("features")
+            if isinstance(raw_features, list):
+                features = raw_features
+
+        # ── Fallbacks deterministicos ──
+        if not pain:
+            pain = f"Resolva {prompt.strip().lower()[:80]} de forma rapida e pratica"
+        if not app_name:
+            app_name = re.sub(r"[“”\"']", "", prompt.strip())
+            for p in sorted(_APP_PREFIXES, key=len, reverse=True):
+                if app_name.lower().startswith(p):
+                    app_name = app_name[len(p):].strip(" :;-–")
+                    break
+            app_name = (app_name[:40] + "...") if len(app_name) > 40 else (app_name or "MiniApp")
+        if not slug:
+            slug = self._slug_from_prompt(prompt)
+        if not app_type:
+            pl = prompt.lower()
+            if "quiz" in pl:
+                app_type = "Quiz PWA"
+            elif "calculad" in pl or "juros" in pl or "simulad" in pl:
+                app_type = "Calculator PWA"
+            elif "checklist" in pl or "lista" in pl:
+                app_type = "Checklist PWA"
+            elif "agenda" in pl or "horario" in pl or "planej" in pl:
+                app_type = "Scheduler PWA"
+            else:
+                app_type = "Interactive PWA"
+        features = [str(f) for f in features if str(f).strip()][:6]
+        if not features:
+            features = ["Funcionalidade principal", "Design responsivo", "Tema escuro"]
+        return {"pain": pain, "app_name": app_name, "slug": slug,
+                "app_type": app_type, "features": features}
+
+    async def _carlao_copy(self, app_name: str, pain: str, niche: str) -> dict:
+        """Carlao: copy de conversao — headline, subheadline, description, CTA."""
+        resp = await query_llm([
+            {"role": "system", "content": (
+                "Voce e o Carlao, redator-chefe da DEZAFIRA, especialista em copy de "
+                "microSaaS e apps de nicho. Escreva copy curta, direta e de alta conversao "
+                "em portugues brasileiro, falando a dor do usuario. "
+                "Responda APENAS com JSON valido, sem markdown:\n"
+                "{\"headline\": \"titulo curto (max 8 palavras) falando a dor ou o resultado\", "
+                "\"subheadline\": \"1 frase (max 20 palavras) explicando a promessa\", "
+                "\"description\": \"resumo para meta description (max 25 palavras)\", "
+                "\"cta_text\": \"acao de 2-3 palavras (ex: Calcular Agora, Descobrir Meu Score)\"}"
+            )},
+            {"role": "user", "content": f"App: {app_name}\nDor principal: {pain}\nNicho: {niche}"},
+        ], max_tokens=700, temperature=0.6)
+
+        data = _parse_json_response(resp) if resp and not resp.startswith(ERROR_PREFIX) else None
+        headline = str(data.get("headline") or "").strip() if isinstance(data, dict) else ""
+        subheadline = str(data.get("subheadline") or "").strip() if isinstance(data, dict) else ""
+        description = str(data.get("description") or "").strip() if isinstance(data, dict) else ""
+        cta_text = str(data.get("cta_text") or "").strip() if isinstance(data, dict) else ""
+
+        if not headline:
+            headline = f"{app_name}: {pain}" if pain else app_name
+        if not subheadline:
+            subheadline = pain or f"Ferramenta inteligente para {niche}"
+        if not description:
+            description = f"{headline} — {subheadline}"
+        if not cta_text:
+            cta_text = "Começar Agora"
+        return {"headline": headline, "subheadline": subheadline,
+                "description": description, "cta_text": cta_text}
+
+    async def _dona_celia_branding(self, app_name: str, niche: str, pain: str = "") -> dict:
+        """Dona Celia: identidade visual (paleta, tipografia, simbolo) + tom de voz."""
+        from modules.brand_designer import BrandingDesignerAgent
+        try:
+            brand = await BrandingDesignerAgent().generate_branding(app_name, niche)
+        except Exception as e:
+            logger.warning(f"[Dona Celia] Falha no agente de branding: {e}")
+            brand = {}
+        theme = self._adapt_brand_to_theme(brand, niche, pain)
+        brand_name = app_name
+        brand_voice = (f"Tom direto, claro e executivo, com autoridade em {niche}. "
+                       f"Fala a dor do usuario e entrega resultado imediato.")
+        return {"brand_name": brand_name, "brand_voice": brand_voice,
+                "theme": theme, "logo_svg": brand.get("logo_svg", ""),
+                "favicon_svg": brand.get("favicon_svg", "")}
+
+    @staticmethod
+    def _adapt_brand_to_theme(brand: dict, niche: str, pain: str = "") -> dict:
+        """Adapta o branding (Dona Celia) para o tema PWA (fundo escuro, mobile-first)."""
+        theme = PWAGenerator.niche_theme(niche)
+        colors = brand.get("colors") or {}
+        colors_dark = brand.get("colors_dark") or {}
+        primary = colors.get("primary") or theme["primary"]
+        accent = colors.get("accent") or theme["accent"]
+        primary_dark = colors.get("primary_dark") or primary
+        bg = colors_dark.get("bg") or "#090D16"
+        surface = colors_dark.get("bg_dark") or "#131A2C"
+        theme.update({
+            "primary": primary,
+            "accent": accent,
+            "gradient": f"135deg, {primary_dark}, {primary}",
+            "bg": bg,
+            "surface": surface,
+            "emoji": brand.get("header_symbol") or theme["emoji"],
+        })
+        if pain:
+            theme["tagline"] = pain[:60] + ("..." if len(pain) > 60 else "")
+        return theme
+
+    async def _ricardo_visual(self, app_name: str) -> dict:
+        """Ricardo: gera logo e banner (cascata IA -> banco de imagens -> SVG)."""
+        logo_url, banner_url = "", ""
+        try:
+            logo_res = await self.image_agent.generate_for_ebook(f"Logo Icon {app_name}")
+            logo_url = logo_res.get("image_url", "")
+        except Exception as e:
+            logger.warning(f"[Ricardo] Falha logo: {e}")
+        try:
+            banner_res = await self.image_agent.generate_for_storefront(app_name)
+            banner_url = banner_res.get("image_url", "")
+        except Exception as e:
+            logger.warning(f"[Ricardo] Falha banner: {e}")
+        return {"logo_url": logo_url, "banner_url": banner_url}
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Fluxo principal: criar MiniApp born-complete
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def create_miniapp_with_room(self, prompt: str, niche: str = "Geral") -> Dict[str, Any]:
+        """Orquestra a Sala de Agentes para gerar um MiniApp PWA born-complete."""
+        from modules.database import create_db_miniapp, create_db_miniapp_drip
+
+        logger.info(f"[MiniAppFactory] Iniciando Sala de Agentes: '{prompt}' (Nicho: {niche})")
         logs = []
 
-        # -------------------------------------------------------------------
-        # PASSO 1: Arquiteto PWA (Nexo Agent) — Estrutura e Funcionalidades
-        # -------------------------------------------------------------------
-        logs.append({"agent": "📐 Arquiteto PWA (Nexo)", "message": f"Mapeando arquitetura reativa para '{prompt}'..."})
+        # ── PASSO 1: Nexo (Arquiteto PWA) — dor + slug + tipo + features ──
+        logs.append({"agent": "📐 Nexo (Arquiteto PWA)", "message": f"Mapeando a dor unica de '{prompt}'..."})
+        nexo = await self._nexo_arquiteto(prompt, niche)
+        app_name, pain, slug = nexo["app_name"], nexo["pain"], nexo["slug"]
+        app_type, features = nexo["app_type"], nexo["features"]
+        slug = self._ensure_unique_slug(slug)
+        logs.append({"agent": "📐 Nexo (Arquiteto PWA)",
+                     "message": f"Dor: {pain} | Slug: {slug} | Tipo: {app_type}"})
 
-        app_name = prompt.replace("Criar MiniApp:", "").replace("MiniApp", "").strip() or "Calculadora & Gestor de Alta Performance"
+        # ── PASSO 2: Carlao (Copywriter) — copy de conversao ──
+        logs.append({"agent": "✍️ Carlão (Copywriter)", "message": "Escrevendo headline, subtitulo e CTA..."})
+        copy = await self._carlao_copy(app_name, pain, niche)
+        logs.append({"agent": "✍️ Carlão (Copywriter)",
+                     "message": f"Headline: {copy['headline']} | CTA: {copy['cta_text']}"})
 
-        # Detectar tipo de app baseado no prompt
-        app_type = "Interactive PWA"
-        features = ["Calculadora basica", "Design responsivo", "Tema escuro"]
-        prompt_lower = prompt.lower()
-        if "quiz" in prompt_lower:
-            app_type = "Quiz PWA"
-            features = ["Quiz interativo", "Score automatico", "Compartilhamento"]
-        elif "calculad" in prompt_lower:
-            app_type = "Calculator PWA"
-            features = ["Calculadora avancada", "Historico", "Exportar resultados"]
-        elif "checklist" in prompt_lower:
-            app_type = "Checklist PWA"
-            features = ["Checklist interativo", "Progresso salvo", "Notificacoes"]
-        elif "agenda" in prompt_lower or "horario" in prompt_lower:
-            app_type = "Scheduler PWA"
-            features = ["Agenda interativa", "Lembretes", "Calendario visual"]
+        # ── PASSO 3: Dona Celia (Branding) — identidade visual ──
+        logs.append({"agent": "🎨 Dona Célia (Branding)", "message": "Definindo paleta, tipografia e tom de voz..."})
+        brand = await self._dona_celia_branding(app_name, niche, pain)
+        logs.append({"agent": "🎨 Dona Célia (Branding)",
+                     "message": f"Tema: {brand['theme'].get('primary')} | Marca: {brand['brand_name']}"})
 
-        logs.append({"agent": "📐 Arquiteto PWA (Nexo)", "message": f"Tipo definido: {app_type} | Features: {', '.join(features)}"})
+        # ── PASSO 4: Ricardo (Visual) — logo + banner ──
+        logs.append({"agent": "🖼️ Ricardo (Diretor Visual)", "message": "Gerando logo e banner..."})
+        visual = await self._ricardo_visual(app_name)
+        logs.append({"agent": "🖼️ Ricardo (Diretor Visual)",
+                     "message": "Logo: " + ("OK" if visual["logo_url"] else "fallback SVG")})
 
-        # -------------------------------------------------------------------
-        # PASSO 2: Diretor Visual (Agnes AI) — Logo 3D Personalizada & Banner
-        # -------------------------------------------------------------------
-        logs.append({"agent": "🎨 Diretor Visual (Agnes AI)", "message": "Gerando Logo 3D personalizada e Banner de capa via Agnes AI..."})
-
-        logo_res = await self.image_agent.generate_for_ebook(f"Logo Icon {app_name}")
-        logo_url = logo_res.get("image_url", "")
-
-        banner_res = await self.image_agent.generate_for_storefront(app_name)
-        banner_url = banner_res.get("image_url", "")
-
-        # -------------------------------------------------------------------
-        # PASSO 3: Desenvolvedor Frontend (Coder AI) — Codigo PWA Instalavel
-        # -------------------------------------------------------------------
-        logs.append({"agent": "💻 Desenvolvedor Frontend (Coder)", "message": "Construindo interface PWA instalavel com suporte offline e Glassmorphism..."})
-
-        # Usar o MiniAppBuilderAgent para gerar HTML real
+        # ── PASSO 5: Coder (Frontend) — HTML PWA funcional ──
+        logs.append({"agent": "💻 Coder (Desenvolvedor Frontend)", "message": "Construindo a interface funcional..."})
         pwa_result = await miniapp_builder.build_pwa(
-            app_name=app_name,
-            niche=niche,
-            app_type=app_type,
-            features=features,
-            logo_url=logo_url,
+            app_name=app_name, niche=niche, app_type=app_type,
+            features=features, logo_url=visual["logo_url"],
         )
         pwa_html = pwa_result.get("html", "")
+        logs.append({"agent": "💻 Coder (Desenvolvedor Frontend)",
+                     "message": f"PWA gerada com {len(pwa_html)} caracteres de HTML"})
 
-        logs.append({"agent": "💻 Desenvolvedor Frontend (Coder)", "message": f"PWA gerada com {len(pwa_html)} caracteres de HTML funcional"})
-
-        pwa_manifest = {
-            "name": app_name,
-            "short_name": app_name[:12],
-            "description": f"Aplicativo oficial de utilidade diaria para {app_name}",
-            "start_url": "/",
-            "display": "standalone",
-            "background_color": "#0a0a1a",
-            "theme_color": "#38bdf8",
-            "icons": [{"src": logo_url, "sizes": "512x512", "type": "image/png"}] if logo_url else [],
+        # ── PASSO 6: Verificador — completude born-complete ──
+        record = {
+            "id": "pending", "app_name": app_name, "niche": niche,
+            "app_type": app_type, "slug": slug, "pain": pain,
+            "headline": copy["headline"], "subheadline": copy["subheadline"],
+            "description": copy["description"], "cta_text": copy["cta_text"],
+            "brand_name": brand["brand_name"], "brand_voice": brand["brand_voice"],
+            "theme": json.dumps(brand["theme"], ensure_ascii=False),
+            "logo_url": visual["logo_url"], "banner_url": visual["banner_url"],
+            "pwa_html": pwa_html,
         }
+        check = PWAGenerator.completeness_check(record)
+        status = "active" if check["passed"] else "draft"
+        logs.append({"agent": "✅ Verificador de Completude",
+                     "message": (f"PWA COMPLETO ({len(check['checks'])-len(check['missing'])}/{len(check['checks'])} checks)"
+                                 if check["passed"] else f"Faltando: {', '.join(check['missing'])} — corrigindo...")})
 
-        # -------------------------------------------------------------------
-        # PASSO 4: Salvar no Banco Principal (PostgreSQL)
-        # -------------------------------------------------------------------
-        logs.append({"agent": "🗄️ Gestor de Conteudos (DB Chronicler)", "message": "Gravando no banco PostgreSQL (sobrevive deploy)..."})
+        # Correcao automatica: re-materializa copy/tema com fallback deterministico
+        if not check["passed"]:
+            copy_fixed = PWAGenerator.resolve_copy(record)
+            record.update({
+                "headline": copy_fixed["headline"], "subheadline": copy_fixed["subheadline"],
+                "description": copy_fixed["description"], "cta_text": copy_fixed["cta_text"],
+                "theme": json.dumps(PWAGenerator.record_theme(record), ensure_ascii=False),
+            })
+            check = PWAGenerator.completeness_check(record)
+            status = "active" if check["passed"] else "draft"
 
+        pwa_manifest = json.dumps(PWAGenerator.build_manifest(
+            "pending", slug, app_name, PWAGenerator.record_theme(record), copy["description"]),
+            ensure_ascii=False)
+        pwa_check = json.dumps(check, ensure_ascii=False)
+
+        # ── PASSO 7: DB Chronicler — persistencia com slug unico ──
+        logs.append({"agent": "🗄️ DB Chronicler", "message": f"Gravando MiniApp '{app_name}' (slug: {slug}) no PostgreSQL..."})
         try:
             app_record = create_db_miniapp(
-                app_name=app_name,
-                niche=niche,
-                app_type=app_type,
-                logo_url=logo_url,
-                banner_url=banner_url,
-                pwa_manifest=json.dumps(pwa_manifest),
-                pwa_html=pwa_html,
+                app_name=app_name, niche=niche, app_type=app_type,
+                logo_url=visual["logo_url"], banner_url=visual["banner_url"],
+                pwa_manifest=pwa_manifest, pwa_html=pwa_html,
+                slug=slug, pain=pain, description=copy["description"],
+                headline=copy["headline"], subheadline=copy["subheadline"],
+                cta_text=copy["cta_text"], brand_name=brand["brand_name"],
+                brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
+                pwa_check=pwa_check,
             )
             app_id = app_record["id"]
-            logs.append({"agent": "🗄️ Gestor de Conteudos (DB Chronicler)", "message": f"MiniApp salvo no PostgreSQL com ID: {app_id}"})
+            logs.append({"agent": "🗄️ DB Chronicler", "message": f"MiniApp salvo com ID: {app_id} (status: {status})"})
         except Exception as e:
             logger.error(f"Erro ao salvar no PostgreSQL: {e}")
             app_id = f"app_{abs(hash(prompt)) % 100000:05d}"
-            logs.append({"agent": "🗄️ Gestor de Conteudos (DB Chronicler)", "message": f"Aviso: ID temporario {app_id} (erro no DB)"})
+            logs.append({"agent": "🗄️ DB Chronicler", "message": f"Aviso: ID temporario {app_id} (erro no DB)"})
 
-        # -------------------------------------------------------------------
-        # PASSO 5: Drip Content Temporizado
-        # -------------------------------------------------------------------
-        logs.append({"agent": "🗄️ Gestor de Conteudos (DB Chronicler)", "message": "Configurando trilha de conteudos recorrentes (Dia 1, 7, 14, 30)..."})
-
+        # ── PASSO 8: Drip Content temporizado ──
+        logs.append({"agent": "🗄️ DB Chronicler", "message": "Configurando trilha de conteudos recorrentes (Dia 1, 7, 14, 30)..."})
         drip_items = [
-            {"day": 1, "title": "🎯 Boas-Vindas & Diagnostico Inicial", "type": "quiz", "payload": {"status": "unlocked", "desc": "Defina suas metas e calcule seu ponto de partida."}},
-            {"day": 7, "title": "⚡ Modulo 2: Automacao e Ferramentas Pro", "type": "tools", "payload": {"status": "scheduled", "desc": "Modelos prontos de copias e rotinas diarias."}},
-            {"day": 14, "title": "🚀 Modulo 3: Escala e Retencao de Assinantes", "type": "masterclass", "payload": {"status": "scheduled", "desc": "Roteiro de conversao para dobrar o LTV."}},
-            {"day": 30, "title": "👑 Modulo VIP: Acesso a Comunidade de Elite", "type": "vip", "payload": {"status": "scheduled", "desc": "Encontros mensais de mentoria ao vivo."}},
+            {"day": 1, "title": "🎯 Boas-Vindas & Diagnostico Inicial", "type": "quiz",
+             "payload": {"status": "unlocked", "desc": "Defina suas metas e calcule seu ponto de partida."}},
+            {"day": 7, "title": "⚡ Modulo 2: Automacao e Ferramentas Pro", "type": "tools",
+             "payload": {"status": "scheduled", "desc": "Modelos prontos de copias e rotinas diarias."}},
+            {"day": 14, "title": "🚀 Modulo 3: Escala e Retencao de Assinantes", "type": "masterclass",
+             "payload": {"status": "scheduled", "desc": "Roteiro de conversao para dobrar o LTV."}},
+            {"day": 30, "title": "👑 Modulo VIP: Acesso a Comunidade de Elite", "type": "vip",
+             "payload": {"status": "scheduled", "desc": "Encontros mensais de mentoria ao vivo."}},
         ]
-
         for item in drip_items:
             try:
-                create_db_miniapp_drip(
-                    miniapp_id=app_id,
-                    unlock_day=item["day"],
-                    title=item["title"],
-                    content_type=item["type"],
-                    payload=json.dumps(item["payload"]),
-                )
+                create_db_miniapp_drip(miniapp_id=app_id, unlock_day=item["day"],
+                                       title=item["title"], content_type=item["type"],
+                                       payload=json.dumps(item["payload"]))
             except Exception as e:
                 logger.warning(f"Erro ao salvar drip content: {e}")
 
-        logs.append({"agent": "🎉 Sala de Agentes", "message": f"MiniApp PWA '{app_name}' construido e publicado com sucesso no ecossistema!"})
+        logs.append({"agent": "🎉 Sala de Agentes",
+                     "message": f"MiniApp '{app_name}' nasceu COMPLETO no padrao born-complete! Acesse /app/{slug}"})
 
         result = {
             "app_id": app_id,
             "app_name": app_name,
             "niche": niche,
             "app_type": app_type,
-            "logo_url": logo_url,
-            "banner_url": banner_url,
+            "slug": slug,
+            "app_url": f"/app/{slug}",
+            "pain": pain,
+            "copy": copy,
+            "branding": {"brand_name": brand["brand_name"], "brand_voice": brand["brand_voice"], "theme": brand["theme"]},
+            "logo_url": visual["logo_url"],
+            "banner_url": visual["banner_url"],
             "pwa_manifest": pwa_manifest,
             "pwa_html": pwa_html,
+            "pwa_check": check,
+            "status": status,
             "drip_contents": drip_items,
             "logs": logs,
-            "status": "active",
         }
         return result
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Migracao: apps legados entram no padrao born-complete (dados preservados)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def upgrade_legacy_miniapp(self, record: dict) -> dict:
+        """Migra um app legado para o novo padrao — atribui slug, gera copy e
+        branding, reescreve o pacote PWA. Mantem dados e funcionalidade existentes."""
+        from modules.database import get_db_miniapp_by_slug
+
+        app_name = record.get("app_name", "MiniApp")
+        niche = record.get("niche", "Geral") or "Geral"
+        app_id = record.get("id", "")
+
+        # 1) Slug: derivado do nome, garantido unico
+        base_slug = PWAGenerator.slugify(app_name)
+        slug, i = base_slug, 2
+        while get_db_miniapp_by_slug(slug) and get_db_miniapp_by_slug(slug).get("id") != app_id:
+            slug = f"{base_slug}-{i}"
+            i += 1
+
+        # 2) Dor: o proprio app legado e a dor (uma dor, um app) — usa o nome como conceito
+        nexo = await self._nexo_arquiteto(app_name, niche)
+        pain = nexo["pain"]
+
+        # 3) Copy (Carlao) + Branding (Dona Celia) — com fallback deterministico
+        copy = await self._carlao_copy(app_name, pain, niche)
+        brand = await self._dona_celia_branding(app_name, niche, pain)
+
+        updated = dict(record)
+        updated.update({
+            "slug": slug,
+            "pain": pain,
+            "headline": copy["headline"],
+            "subheadline": copy["subheadline"],
+            "description": copy["description"],
+            "cta_text": copy["cta_text"],
+            "brand_name": brand["brand_name"],
+            "brand_voice": brand["brand_voice"],
+            "theme": json.dumps(brand["theme"], ensure_ascii=False),
+        })
+
+        # 4) Pacote PWA reescrito com o slug persistido (mantem pwa_html original)
+        manifest = PWAGenerator.build_manifest(app_id or "app", slug, app_name,
+                                               brand["theme"], copy["description"])
+        updated["pwa_manifest"] = json.dumps(manifest, ensure_ascii=False)
+
+        # 5) Verificacao de completude
+        check = PWAGenerator.completeness_check(updated)
+        updated["pwa_check"] = json.dumps(check, ensure_ascii=False)
+        return {"updated": updated, "check": check, "slug": slug}
 
 
 miniapp_factory = MiniAppFactory()

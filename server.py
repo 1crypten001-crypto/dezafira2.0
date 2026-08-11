@@ -1138,25 +1138,35 @@ async def serve_ui(token: str = "", authorization: str = Header(None)):
     with open(template_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read(), headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"})
 
+def _resolve_miniapp_record(slug: str) -> dict:
+    """Resolve um MiniApp pelo slug (novo padrao born-complete).
+
+    Ordem: 1) slug persistido no banco (identidade permanente)
+           2) ID do app
+           3) fallback legado — slugify(app_name)
+    """
+    from modules.database import get_db_miniapp, get_db_miniapp_by_slug, get_db_miniapps
+    from services.pwa_generator import PWAGenerator
+
+    record = get_db_miniapp_by_slug(slug)
+    if record and record.get("id"):
+        return record
+    app = get_db_miniapp(slug)
+    if app and app.get("id"):
+        return app
+    apps = get_db_miniapps(limit=200)
+    for a in apps:
+        if PWAGenerator.slugify(a.get("app_name", "")) == slug:
+            return get_db_miniapp(a["id"])
+    return {}
+
+
 @app.get("/app/{slug}", response_class=HTMLResponse)
 async def serve_pwa_app(slug: str, request: Request):
     """Serve o PWA personalizado para o slug (resolve do banco de dados)."""
     from services.pwa_generator import PWAGenerator
-    from modules.database import get_db_miniapp, get_db_miniapps
 
-    record = None
-    # Tentativa 1: match exato pelo ID
-    app = get_db_miniapp(slug)
-    if app and app.get("id"):
-        record = app
-    else:
-        # Tentativa 2: fallback — scan e slugify(app_name)
-        apps = get_db_miniapps(limit=200)
-        for a in apps:
-            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
-                record = get_db_miniapp(a["id"])
-                break
-
+    record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
@@ -1169,31 +1179,21 @@ async def serve_pwa_app(slug: str, request: Request):
 
 @app.get("/app/{slug}/manifest.json")
 async def serve_pwa_manifest(slug: str):
-    """Serve o manifest.json dinamico para o PWA."""
+    """Serve o manifest.json dinamico para o PWA (branding Dona Celia + copy Carlao)."""
     from services.pwa_generator import PWAGenerator
-    from modules.database import get_db_miniapp, get_db_miniapps
 
-    record = None
-    app = get_db_miniapp(slug)
-    if app and app.get("id"):
-        record = app
-    else:
-        apps = get_db_miniapps(limit=200)
-        for a in apps:
-            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
-                record = get_db_miniapp(a["id"])
-                break
-
+    record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
-    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    theme = PWAGenerator.record_theme(record)
+    copy = PWAGenerator.resolve_copy(record, theme)
     manifest = PWAGenerator.build_manifest(
         app_id=record.get("id", slug),
-        slug=slug,
+        slug=record.get("slug") or slug,
         app_name=record.get("app_name", "Dezafira App"),
         theme=theme,
-        description=f"{record.get('app_name', 'App')} — {theme.get('tagline', 'App Inteligente')}"
+        description=copy["description"],
     )
     return manifest
 
@@ -1202,24 +1202,13 @@ async def serve_pwa_manifest(slug: str):
 async def serve_pwa_service_worker(slug: str):
     """Serve o service worker dinamico para o PWA."""
     from services.pwa_generator import PWAGenerator
-    from modules.database import get_db_miniapp, get_db_miniapps
 
-    record = None
-    app = get_db_miniapp(slug)
-    if app and app.get("id"):
-        record = app
-    else:
-        apps = get_db_miniapps(limit=200)
-        for a in apps:
-            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
-                record = get_db_miniapp(a["id"])
-                break
-
+    record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
     app_id = record.get("id", slug)
-    sw_content = PWAGenerator.build_service_worker(slug, app_id)
+    sw_content = PWAGenerator.build_service_worker(record.get("slug") or slug, app_id)
     from starlette.responses import Response as StarletteResponse
     return StarletteResponse(
         content=sw_content,
@@ -1233,25 +1222,14 @@ async def serve_pwa_service_worker(slug: str):
 
 @app.get("/app/{slug}/icon-192.png")
 async def serve_pwa_icon_192(slug: str):
-    """Serve o icone 192x192 em PNG gerado dinamicamente."""
+    """Serve o icone 192x192 em PNG gerado dinamicamente (design Ricardo/Dona Celia)."""
     from services.pwa_generator import PWAGenerator
-    from modules.database import get_db_miniapp, get_db_miniapps
 
-    record = None
-    app = get_db_miniapp(slug)
-    if app and app.get("id"):
-        record = app
-    else:
-        apps = get_db_miniapps(limit=200)
-        for a in apps:
-            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
-                record = get_db_miniapp(a["id"])
-                break
-
+    record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
-    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    theme = PWAGenerator.record_theme(record)
     png_bytes = PWAGenerator.generate_icons(record.get("app_name", "App"), theme, size=192)
     from starlette.responses import Response as StarletteResponse
     return StarletteResponse(
@@ -1263,25 +1241,14 @@ async def serve_pwa_icon_192(slug: str):
 
 @app.get("/app/{slug}/icon-512.png")
 async def serve_pwa_icon_512(slug: str):
-    """Serve o icone 512x512 em PNG gerado dinamicamente."""
+    """Serve o icone 512x512 em PNG gerado dinamicamente (design Ricardo/Dona Celia)."""
     from services.pwa_generator import PWAGenerator
-    from modules.database import get_db_miniapp, get_db_miniapps
 
-    record = None
-    app = get_db_miniapp(slug)
-    if app and app.get("id"):
-        record = app
-    else:
-        apps = get_db_miniapps(limit=200)
-        for a in apps:
-            if PWAGenerator.slugify(a.get("app_name", "")) == slug:
-                record = get_db_miniapp(a["id"])
-                break
-
+    record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
-    theme = PWAGenerator.niche_theme(record.get("niche", "Geral"))
+    theme = PWAGenerator.record_theme(record)
     png_bytes = PWAGenerator.generate_icons(record.get("app_name", "App"), theme, size=512)
     from starlette.responses import Response as StarletteResponse
     return StarletteResponse(
@@ -1289,6 +1256,56 @@ async def serve_pwa_icon_512(slug: str):
         media_type="image/png",
         headers={"Cache-Control": "public, max-age=604800", "ETag": hashlib.md5(png_bytes).hexdigest()}
     )
+
+
+@app.post("/api/v1/miniapps/migrate-legacy")
+async def migrate_legacy_miniapps_endpoint(_admin=Depends(require_admin_or_service)):
+    """Migra MiniApps legados (sem slug) para o padrao born-complete.
+
+    Para cada app legado: atribui slug unico, gera dor + copy (Carlao) +
+    branding (Dona Celia), reescreve o pacote PWA. Dados e funcionalidade
+    existentes sao preservados. Depois da migracao, /app/{slug} entrega
+    PWA instalavel completo (manifest + service worker + icones).
+    """
+    from modules.database import get_db_miniapps_without_slug, update_db_miniapp
+    from modules.miniapp_factory import miniapp_factory
+
+    legacy = get_db_miniapps_without_slug()
+    if not legacy:
+        return {"success": True, "message": "Nenhum MiniApp legado para migrar", "migrated": 0, "apps": []}
+
+    results = []
+    for app in legacy:
+        try:
+            outcome = await miniapp_factory.upgrade_legacy_miniapp(app)
+            updated = outcome["updated"]
+            ok = update_db_miniapp(
+                app["id"],
+                slug=updated["slug"],
+                pain=updated.get("pain", ""),
+                headline=updated.get("headline", ""),
+                subheadline=updated.get("subheadline", ""),
+                description=updated.get("description", ""),
+                cta_text=updated.get("cta_text", ""),
+                brand_name=updated.get("brand_name", ""),
+                brand_voice=updated.get("brand_voice", ""),
+                theme=updated.get("theme", ""),
+                pwa_manifest=updated.get("pwa_manifest", ""),
+                pwa_check=updated.get("pwa_check", ""),
+            )
+            results.append({
+                "app_id": app["id"],
+                "app_name": app["app_name"],
+                "slug": updated["slug"],
+                "check": outcome["check"],
+                "saved": bool(ok),
+            })
+        except Exception as e:
+            results.append({"app_id": app["id"], "app_name": app.get("app_name", ""),
+                            "error": str(e), "saved": False})
+
+    ok_count = sum(1 for r in results if r.get("saved") and not r.get("error"))
+    return {"success": True, "migrated": ok_count, "total": len(results), "apps": results}
 
 
 @app.get("/mindmap/{slug}", response_class=HTMLResponse)
@@ -3407,7 +3424,8 @@ async def build_mini_app(payload: dict, _admin=Depends(require_admin_or_service)
                 app_name=title,
                 niche=nicho,
                 pwa_html=html_content,
-                pwa_manifest=manifest_json
+                pwa_manifest=manifest_json,
+                slug=slug,
             )
         else:
             db = SessionLocal()
@@ -3416,7 +3434,7 @@ async def build_mini_app(payload: dict, _admin=Depends(require_admin_or_service)
                     id=app_id, app_name=title, niche=nicho,
                     app_type="Interactive PWA",
                     pwa_manifest=manifest_json, pwa_html=html_content,
-                    status="active"
+                    status="active", slug=slug,
                 )
                 db.add(new_app)
                 db.commit()
