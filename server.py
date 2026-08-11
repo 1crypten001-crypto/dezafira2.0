@@ -2,6 +2,7 @@ import asyncio
 import os
 import uuid
 import json
+import logging
 import html as html_mod
 import httpx
 from dotenv import load_dotenv
@@ -14,6 +15,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import hashlib
 import hmac
+
+logger = logging.getLogger("dezafira")
 import secrets
 
 def esc(text):
@@ -120,13 +123,42 @@ async def get_postiz_integration_status():
 # FABRICA DE MINIAPPS — API DA SALA DE AGENTES & BANCO POSTGRESQL
 # ═════════════════════════════════════════════════════════════════════════
 @app.post("/api/v1/miniapps/create")
-async def create_miniapp_endpoint(payload: Dict[str, Any]):
-    """Cria um MiniApp PWA completo orquestrando a Sala de Agentes."""
+async def create_miniapp_endpoint(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    """Cria um MiniApp PWA born-complete orquestrando a Sala de Agentes.
+
+    Assincrono: responde na hora com status 'creating' e a Sala de Agentes
+    roda em segundo plano (a geracao leva ~2-3 min por causa das imagens —
+    sincrono estourava o timeout do proxy e devolvia 502). O app nasce
+    'active' (completo) ou 'draft' (incompleto); consulte o progresso em
+    GET /api/v1/miniapps/{app_id}.
+    """
     from modules.miniapp_factory import miniapp_factory
-    prompt = payload.get("prompt", "Calculadora de Alta Performance")
-    niche = payload.get("niche", "Geral")
-    result = await miniapp_factory.create_miniapp_with_room(prompt, niche)
-    return {"success": True, "miniapp": result}
+    from modules.database import create_db_miniapp, update_db_miniapp
+    prompt = (payload.get("prompt") or "").strip() or "Calculadora de Alta Performance"
+    niche = payload.get("niche") or "Geral"
+
+    # Placeholder imediato — o app ja nasce no banco com status 'creating'
+    provisional_slug = miniapp_factory._ensure_unique_slug(miniapp_factory._slug_from_prompt(prompt))
+    placeholder = create_db_miniapp(
+        app_name=prompt[:48], niche=niche, status="creating",
+        slug=provisional_slug,
+    )
+    app_id = placeholder["id"]
+
+    async def _run_room(app_id: str, prompt: str, niche: str):
+        try:
+            await miniapp_factory.create_miniapp_with_room(prompt, niche, app_id=app_id)
+        except Exception as e:
+            logger.error(f"[MiniAppFactory] Falha na Sala de Agentes ({app_id}): {e}")
+            update_db_miniapp(app_id, status="error",
+                              pwa_check=json.dumps({"error": str(e)[:500]}, ensure_ascii=False))
+
+    background_tasks.add_task(_run_room, app_id, prompt, niche)
+    return {
+        "success": True, "app_id": app_id, "status": "creating",
+        "message": "MiniApp sendo criado pela Sala de Agentes em segundo plano",
+        "check_url": f"/api/v1/miniapps/{app_id}",
+    }
 
 
 @app.get("/api/v1/miniapps")

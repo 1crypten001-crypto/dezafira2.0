@@ -3235,7 +3235,7 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
                       slug: str = "", pain: str = "", description: str = "",
                       headline: str = "", subheadline: str = "", cta_text: str = "",
                       brand_name: str = "", brand_voice: str = "", theme: str = "",
-                      pwa_check: str = "") -> dict:
+                      pwa_check: str = "", status: str = "active") -> dict:
     """Cria um MiniApp no banco principal PostgreSQL (padrao born-complete)."""
     db = SessionLocal()
     try:
@@ -3243,7 +3243,7 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
         app = MiniApp(
             id=app_id, app_name=app_name, niche=niche, app_type=app_type,
             logo_url=logo_url, banner_url=banner_url,
-            pwa_manifest=pwa_manifest, pwa_html=pwa_html, status="active",
+            pwa_manifest=pwa_manifest, pwa_html=pwa_html, status=status,
             slug=slug or None, pain=pain or None, description=description or None,
             headline=headline or None, subheadline=subheadline or None,
             cta_text=cta_text or None, brand_name=brand_name or None,

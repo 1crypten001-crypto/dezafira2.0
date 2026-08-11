@@ -57,11 +57,14 @@ class MiniAppFactory:
         words = [w for w in text.split() if w][:6]
         return PWAGenerator.slugify(" ".join(words)) or "app"
 
-    def _ensure_unique_slug(self, slug: str) -> str:
+    def _ensure_unique_slug(self, slug: str, ignore_id: str = "") -> str:
         """Garante slug unico no banco (sufixo -2, -3... em caso de colisao)."""
         from modules.database import get_db_miniapp_by_slug
         candidate, i = slug, 2
-        while get_db_miniapp_by_slug(candidate):
+        while True:
+            existing = get_db_miniapp_by_slug(candidate)
+            if not existing or (ignore_id and existing.get("id") == ignore_id):
+                return candidate
             candidate = f"{slug}-{i}"
             i += 1
         return candidate
@@ -88,7 +91,14 @@ class MiniAppFactory:
         if isinstance(data, dict):
             pain = str(data.get("pain") or "").strip()
             app_name = str(data.get("app_name") or "").strip()
-            slug = PWAGenerator.slugify(str(data.get("slug") or "")) or self._slug_from_prompt(prompt)
+            # Slug so e aceito se compartilhar palavras com o nome comercial —
+            # evita slug caprichoso do LLM (ex: 'calo-def') desconectado da marca.
+            app_slug = PWAGenerator.slugify(app_name)
+            raw_slug = PWAGenerator.slugify(str(data.get("slug") or ""))
+            if len(raw_slug) >= 5 and set(raw_slug.split("-")) & set(app_slug.split("-")):
+                slug = raw_slug
+            else:
+                slug = app_slug or self._slug_from_prompt(prompt)
             app_type = str(data.get("app_type") or "").strip()
             raw_features = data.get("features")
             if isinstance(raw_features, list):
@@ -215,9 +225,15 @@ class MiniAppFactory:
     # Fluxo principal: criar MiniApp born-complete
     # ─────────────────────────────────────────────────────────────────────────
 
-    async def create_miniapp_with_room(self, prompt: str, niche: str = "Geral") -> Dict[str, Any]:
-        """Orquestra a Sala de Agentes para gerar um MiniApp PWA born-complete."""
-        from modules.database import create_db_miniapp, create_db_miniapp_drip
+    async def create_miniapp_with_room(self, prompt: str, niche: str = "Geral",
+                                       app_id: str = "") -> Dict[str, Any]:
+        """Orquestra a Sala de Agentes para gerar um MiniApp PWA born-complete.
+
+        Se app_id for fornecido (criacao assincrona), o registro placeholder ja
+        existente no banco e ATUALIZADO com o resultado final; caso contrario,
+        um novo registro e criado (fluxo sincrono legado).
+        """
+        from modules.database import create_db_miniapp, update_db_miniapp, create_db_miniapp_drip
 
         logger.info(f"[MiniAppFactory] Iniciando Sala de Agentes: '{prompt}' (Nicho: {niche})")
         logs = []
@@ -227,7 +243,7 @@ class MiniAppFactory:
         nexo = await self._nexo_arquiteto(prompt, niche)
         app_name, pain, slug = nexo["app_name"], nexo["pain"], nexo["slug"]
         app_type, features = nexo["app_type"], nexo["features"]
-        slug = self._ensure_unique_slug(slug)
+        slug = self._ensure_unique_slug(slug, ignore_id=app_id or "")
         logs.append({"agent": "📐 Nexo (Arquiteto PWA)",
                      "message": f"Dor: {pain} | Slug: {slug} | Tipo: {app_type}"})
 
@@ -293,24 +309,45 @@ class MiniAppFactory:
         pwa_check = json.dumps(check, ensure_ascii=False)
 
         # ── PASSO 7: DB Chronicler — persistencia com slug unico ──
-        logs.append({"agent": "🗄️ DB Chronicler", "message": f"Gravando MiniApp '{app_name}' (slug: {slug}) no PostgreSQL..."})
-        try:
-            app_record = create_db_miniapp(
-                app_name=app_name, niche=niche, app_type=app_type,
-                logo_url=visual["logo_url"], banner_url=visual["banner_url"],
-                pwa_manifest=pwa_manifest, pwa_html=pwa_html,
-                slug=slug, pain=pain, description=copy["description"],
-                headline=copy["headline"], subheadline=copy["subheadline"],
-                cta_text=copy["cta_text"], brand_name=brand["brand_name"],
-                brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
-                pwa_check=pwa_check,
-            )
-            app_id = app_record["id"]
-            logs.append({"agent": "🗄️ DB Chronicler", "message": f"MiniApp salvo com ID: {app_id} (status: {status})"})
-        except Exception as e:
-            logger.error(f"Erro ao salvar no PostgreSQL: {e}")
-            app_id = f"app_{abs(hash(prompt)) % 100000:05d}"
-            logs.append({"agent": "🗄️ DB Chronicler", "message": f"Aviso: ID temporario {app_id} (erro no DB)"})
+        if app_id:
+            logs.append({"agent": "🗄️ DB Chronicler", "message": f"Atualizando MiniApp '{app_name}' (slug: {slug}) no PostgreSQL..."})
+            try:
+                updated = update_db_miniapp(
+                    app_id,
+                    app_name=app_name, niche=niche, app_type=app_type,
+                    logo_url=visual["logo_url"], banner_url=visual["banner_url"],
+                    pwa_manifest=pwa_manifest, pwa_html=pwa_html,
+                    slug=slug, pain=pain, description=copy["description"],
+                    headline=copy["headline"], subheadline=copy["subheadline"],
+                    cta_text=copy["cta_text"], brand_name=brand["brand_name"],
+                    brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
+                    pwa_check=pwa_check, status=status,
+                )
+                if not updated:
+                    raise RuntimeError("MiniApp placeholder nao encontrado para atualizar")
+                logs.append({"agent": "🗄️ DB Chronicler", "message": f"MiniApp atualizado (ID: {app_id}, status: {status})"})
+            except Exception as e:
+                logger.error(f"Erro ao atualizar MiniApp {app_id}: {e}")
+                logs.append({"agent": "🗄️ DB Chronicler", "message": f"Aviso: falha ao atualizar ({e})"})
+        else:
+            logs.append({"agent": "🗄️ DB Chronicler", "message": f"Gravando MiniApp '{app_name}' (slug: {slug}) no PostgreSQL..."})
+            try:
+                app_record = create_db_miniapp(
+                    app_name=app_name, niche=niche, app_type=app_type,
+                    logo_url=visual["logo_url"], banner_url=visual["banner_url"],
+                    pwa_manifest=pwa_manifest, pwa_html=pwa_html,
+                    slug=slug, pain=pain, description=copy["description"],
+                    headline=copy["headline"], subheadline=copy["subheadline"],
+                    cta_text=copy["cta_text"], brand_name=brand["brand_name"],
+                    brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
+                    pwa_check=pwa_check,
+                )
+                app_id = app_record["id"]
+                logs.append({"agent": "🗄️ DB Chronicler", "message": f"MiniApp salvo com ID: {app_id} (status: {status})"})
+            except Exception as e:
+                logger.error(f"Erro ao salvar no PostgreSQL: {e}")
+                app_id = f"app_{abs(hash(prompt)) % 100000:05d}"
+                logs.append({"agent": "🗄️ DB Chronicler", "message": f"Aviso: ID temporario {app_id} (erro no DB)"})
 
         # ── PASSO 8: Drip Content temporizado ──
         logs.append({"agent": "🗄️ DB Chronicler", "message": "Configurando trilha de conteudos recorrentes (Dia 1, 7, 14, 30)..."})
