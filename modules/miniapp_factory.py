@@ -20,6 +20,7 @@ Persistido no PostgreSQL (banco principal) — sobrevive deploy.
 import json
 import logging
 import re
+import unicodedata
 from typing import Dict, Any, List
 
 from agents.llm import query_llm, ERROR_PREFIX
@@ -33,6 +34,20 @@ logger.setLevel(logging.INFO)
 _APP_PREFIXES = ["criar miniapp", "crie miniapp", "criar app", "crie app", "novo miniapp",
                  "novo app", "miniapp", "app", "criar", "crie", "gerar", "gere", "quero um",
                  "quero uma", "faca um", "faca uma", "cria um", "cria uma"]
+
+_STOPWORDS = {"do", "de", "da", "um", "uma", "para", "com", "e", "o", "a", "os",
+              "as", "que", "em", "no", "na", "por", "se", "mais", "mas", "dos",
+              "das", "num", "numa", "la", "ele", "ela", "eles", "elas", "nos",
+              "vos", "eu", "tu", "voce", "meu", "minha", "seu", "sua", "pelo",
+              "pela", "aos", "as", "ate", "sobre", "entre", "depois", "antes",
+              "durante", "sem", "sob", "ate", "como", "ja", "muito", "pouco",
+              "tudo", "nada", "tambem", "ainda", "quando", "onde", "porque",
+              "pois", "entao", "assim", "todos", "todas", "alguns", "algumas",
+              "nenhum", "nenhuma", "outro", "outra", "outros", "outras",
+              "quem", "qual", "quais", "cada", "mais", "menos"}
+
+_EXTRA_FILTER_WORDS = {"criar", "crie", "novo", "nova", "app", "miniapp",
+                       "gerar", "gere", "faca", "cria"}
 
 
 class MiniAppFactory:
@@ -56,6 +71,18 @@ class MiniAppFactory:
         text = re.sub(r"[“”\"']", "", text)
         words = [w for w in text.split() if w][:6]
         return PWAGenerator.slugify(" ".join(words)) or "app"
+
+    @staticmethod
+    def _normalize(s: str) -> str:
+        s = unicodedata.normalize('NFKD', s)
+        return s.encode('ASCII', 'ignore').decode('ASCII').lower()
+
+    @staticmethod
+    def _extract_keywords(text: str) -> set:
+        """Extrai termos-chave: palavras com 4+ letras, sem stopwords nem prefixos."""
+        normalized = MiniAppFactory._normalize(text)
+        words = set(normalized.split())
+        return {w for w in words if len(w) >= 4 and w not in _STOPWORDS and w not in _EXTRA_FILTER_WORDS}
 
     def _ensure_unique_slug(self, slug: str, ignore_id: str = "") -> str:
         """Garante slug unico no banco (sufixo -2, -3... em caso de colisao)."""
@@ -121,6 +148,27 @@ class MiniAppFactory:
             words = [w.capitalize() for w in app_name.split() if w][:4]
             app_name = " ".join(words) or "MiniApp"
             slug = app_slug = PWAGenerator.slugify(app_name)
+        # ── Validacao de cobertura: nome deve cobrir a dor inteira ──
+        if app_name:
+            keywords = self._extract_keywords(prompt)
+            if keywords:
+                normalized_name = self._normalize(app_name)
+                missing = [kw for kw in keywords if kw not in normalized_name]
+                if missing:
+                    name = re.sub(r"[“”\"']", "", prompt.strip())
+                    for p in sorted(_APP_PREFIXES, key=len, reverse=True):
+                        if name.lower().startswith(p):
+                            name = name[len(p):].strip(" :;-–")
+                            break
+                    name = re.sub(r"\s+", " ", name).strip(" .:;,-–")
+                    words = name.split()
+                    normalized_words = [self._normalize(w) for w in words]
+                    stopwords = _STOPWORDS | _EXTRA_FILTER_WORDS
+                    filtered = [w for w, nw in zip(words, normalized_words) if len(nw) >= 4 and nw not in stopwords][:6]
+                    if not filtered:
+                        filtered = words[:6]
+                    app_name = " ".join(w.capitalize() for w in filtered) or "MiniApp"
+                    slug = app_slug = PWAGenerator.slugify(app_name)
         if not slug:
             slug = app_slug or self._slug_from_prompt(prompt)
         if not app_type:

@@ -316,6 +316,19 @@ class PWAGenerator:
         return normalized
 
     @staticmethod
+    def _short_name(app_name: str, max_len: int = 12) -> str:
+        """Nome curto para o manifest: max 12 chars, sem espacos nas bordas,
+        truncando em limite de palavra (sem cortar palavra no meio)."""
+        name = (app_name or "").strip()
+        if len(name) <= max_len:
+            return name or "App"
+        cut = name[:max_len]
+        if " " in cut:
+            cut = cut[:cut.rfind(" ")]
+        cut = cut.strip()
+        return cut or name[:max_len]
+
+    @staticmethod
     def build_manifest(app_id: str, slug: str, app_name: str, theme: dict, description: str = "") -> dict:
         start_url = f"/app/{slug}"
         scope = f"/app/{slug}/"
@@ -323,7 +336,7 @@ class PWAGenerator:
         primary = theme.get("primary", "#3B82F6")
         return {
             "name": app_name,
-            "short_name": app_name[:12] if len(app_name) > 12 else app_name,
+            "short_name": PWAGenerator._short_name(app_name),
             "description": description or f"{app_name} — {theme.get('tagline', 'App Inteligente')}",
             "start_url": start_url,
             "scope": scope,

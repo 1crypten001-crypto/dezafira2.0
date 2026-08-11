@@ -78,6 +78,26 @@ class TestBuildManifest(unittest.TestCase):
         m = PWAGenerator.build_manifest("a", "s", "Nome Muito Longo Aqui", theme)
         self.assertLessEqual(len(m["short_name"]), 12)
 
+    def test_short_name_no_trailing_space(self):
+        """Regressao: 'Calculadora de Juros Cartao' nao pode virar 'Calculadora '."""
+        s = PWAGenerator._short_name("Calculadora de Juros Cartao")
+        self.assertEqual(s, "Calculadora")
+        self.assertFalse(s.startswith(" ") or s.endswith(" "))
+
+    def test_short_name_word_boundary(self):
+        """Regressao: truncar em limite de palavra, sem cortar palavra no meio."""
+        s = PWAGenerator._short_name("Nome Muito Longo Aqui")
+        self.assertEqual(s, "Nome Muito")
+
+    def test_short_name_short_and_empty(self):
+        self.assertEqual(PWAGenerator._short_name("Calculadora"), "Calculadora")
+        self.assertEqual(PWAGenerator._short_name(""), "App")
+
+    def test_short_name_single_word_long(self):
+        s = PWAGenerator._short_name("PalavraUnicaMuitoGrande")
+        self.assertEqual(s, "PalavraUnica")
+        self.assertLessEqual(len(s), 12)
+
     def test_manifest_icons(self):
         theme = PWAGenerator.FALLBACK_THEME
         m = PWAGenerator.build_manifest("x", "slug-x", "X", theme)
