@@ -699,6 +699,11 @@ class MiniApp(Base):
     theme = Column(Text, nullable=True)              # branding Dona Celia — paleta JSON
     pwa_check = Column(Text, nullable=True)          # relatorio de verificacao de completude
 
+    # ── Identidade Visual (Bidu) ──────────────────────────────────────────
+    mascot_url = Column(String(1000), nullable=True)     # URL do mascote principal (frente)
+    character_brief = Column(Text, nullable=True)        # JSON — brief do personagem (reuso/regeneracao)
+    assets_dir = Column(String(500), nullable=True)      # diretorio local do kit de assets
+
 
 class MiniAppDripContent(Base):
     """Conteudo temporizado (drip) de um MiniApp."""
@@ -823,6 +828,10 @@ try:
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS brand_voice TEXT;", "miniapps.brand_voice")
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS theme TEXT;", "miniapps.theme")
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS pwa_check TEXT;", "miniapps.pwa_check")
+        # --- Bidu (Identidade Visual): mascote + character-brief + diretorio de assets ---
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS mascot_url VARCHAR(1000);", "miniapps.mascot_url")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS character_brief TEXT;", "miniapps.character_brief")
+        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS assets_dir VARCHAR(500);", "miniapps.assets_dir")
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_miniapps_slug ON miniapps (slug);"))
             conn.commit()
@@ -3235,7 +3244,9 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
                       slug: str = "", pain: str = "", description: str = "",
                       headline: str = "", subheadline: str = "", cta_text: str = "",
                       brand_name: str = "", brand_voice: str = "", theme: str = "",
-                      pwa_check: str = "", status: str = "active") -> dict:
+                      pwa_check: str = "", status: str = "active",
+                      mascot_url: str = "", character_brief: str = "",
+                      assets_dir: str = "") -> dict:
     """Cria um MiniApp no banco principal PostgreSQL (padrao born-complete)."""
     db = SessionLocal()
     try:
@@ -3249,6 +3260,8 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
             cta_text=cta_text or None, brand_name=brand_name or None,
             brand_voice=brand_voice or None, theme=theme or None,
             pwa_check=pwa_check or None,
+            mascot_url=mascot_url or None, character_brief=character_brief or None,
+            assets_dir=assets_dir or None,
         )
         db.add(app)
         db.commit()
@@ -3297,6 +3310,8 @@ def get_db_miniapp(app_id: str) -> dict:
             "subheadline": app.subheadline, "cta_text": app.cta_text,
             "brand_name": app.brand_name, "brand_voice": app.brand_voice,
             "theme": app.theme, "pwa_check": app.pwa_check,
+            "mascot_url": app.mascot_url, "character_brief": app.character_brief,
+            "assets_dir": app.assets_dir,
             "created_at": app.created_at.isoformat() if app.created_at else None,
             "drip_contents": [{"day": d.unlock_day, "title": d.title, "type": d.content_type, "payload": d.payload} for d in drips],
         }
@@ -3320,6 +3335,8 @@ def get_db_miniapp_by_slug(slug: str) -> dict:
             "subheadline": app.subheadline, "cta_text": app.cta_text,
             "brand_name": app.brand_name, "brand_voice": app.brand_voice,
             "theme": app.theme, "pwa_check": app.pwa_check,
+            "mascot_url": app.mascot_url, "character_brief": app.character_brief,
+            "assets_dir": app.assets_dir,
             "created_at": app.created_at.isoformat() if app.created_at else None,
         }
     finally:
@@ -3353,6 +3370,7 @@ def get_db_miniapps(limit: int = 50) -> list:
             "app_type": a.app_type, "status": a.status, "logo_url": a.logo_url,
             "slug": a.slug, "pain": a.pain, "headline": a.headline,
             "cta_text": a.cta_text, "brand_name": a.brand_name,
+            "mascot_url": a.mascot_url,
             "created_at": a.created_at.isoformat() if a.created_at else None,
         } for a in apps]
     finally:
