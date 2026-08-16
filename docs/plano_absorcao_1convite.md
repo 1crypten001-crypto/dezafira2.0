@@ -109,7 +109,7 @@ Domínio dedicado do produto 1Convite:
 - [x] **Bundle BUILDADO** — Node 22 portátil (sem instalar nada na máquina) → `npm install && vite build` → `web/1convite/dist/` (SPA 626KB + mídias, ~52MB). Pipeline automatizado: `scripts/build_convite_pwa.sh`. SPA real servido no domínio dedicado verificado (raiz, /assets, sw.js, fallback, API) ✅
 - [x] **Blueprint do 1Convite criado** — `bp_7f93b831a1` (status review, `external_link=https://1convite.com.br`, format app) via ConviteFactory
 - [~] **Publish TESTADO (falha segura)** — com `.env` carregado, o bridge tentou conectar no Clube (`CLUBE_PUBLIC_URL=http://localhost:5173`, sem servidor local) → "All connection attempts failed". **Nada externo foi criado.** Quando o Clube estiver no ar (ou apontar pro real), rodar `ConviteFactory.publish('bp_7f93b831a1')`
-- [ ] Publicar blueprint no Clube — repete o publish quando o Clube estiver acessível
+- [x] **Publish em PRODUÇÃO CONCLUÍDO (16/08)** — blueprint **`bp_9f086a77ad`** criado e publicado no Clube real: **product_id 18, slug `1convite`, R$ 19,90 (price_cents 1900), resource_type=link, descrição completa** → página `https://www.dezafira.com.br/product/1convite` (HTTP 200, renderiza título + descrição + preço). Publish_log: produto ok, bundle/blog/landing/membros skipped (correto p/ formato app). *Necessário: fix de compatibilidade Python 3.11 (f-string com backslash em blueprint_engine.py:634) — módulo não compilava no Railway e o publish quebrava no import; corrigido e deployado*
 
 ### Fase 4 — Conselheiros IA (LWC) — ✅ PORTADO (proxy + sidecar)
 - [x] Sidecar Node `web/1convite/backend-lwc/` (handler oficial, mesma chave) + `railway.toml` (Nixpacks, healthcheck /healthz)
@@ -127,8 +127,10 @@ Domínio dedicado do produto 1Convite:
 - [x] **Blueprint preenchido** — `bp_7f93b831a1` completo: price **R$ 19,90** (editar antes de publicar), descrição/vendas, benefícios, pitch, CTA, `checkout_provider=asaas`, `external_link=https://1convite.com.br`, status review
 - [x] **Asaas na venda** — módulo + endpoints prontos (ver Fase 4b); o checkout do app usa PIX real
 - [x] **UI da Fábrica de Convites** — `club-frontend/app/admin/fabrica-convite/page.tsx` (status miniapp/domínio/Asaas/blueprints + branding + criar blueprint + publicar) + item "👑 1Convite" no menu admin + endpoint `GET /api/v1/convite/factory/blueprints` (401 sem auth) — testado
-- [ ] **Publicar no Clube** — falta Clube acessível (CLUBE_PUBLIC_URL=localhost:5173 sem servidor) OU apontar pro real
-- [ ] **Push pro GitHub — ⚠️ BLOQUEADO**: credenciais locais são de `JonatasOliveira1983` (403 sem permissão no repo `1crypten001-crypto/dezafira2.0`). Precisa push da conta dona ou PAT. Patches em `C:/tmp/dezafira_patches/`
+- [x] **Publicar no Clube (16/08)** — feito em produção, ver Fase 3: `/product/1convite` no ar (product_id 18)
+- [x] **Push pro GitHub CONCLUÍDO (16/08)** — merge em `main` (`b0fea9d..c736493` → `14c8b8e` → `1115cb2`). Foram 3 commits: integração 1Convite/Asaas/Dario/Fábrica; fix TS do admin (32 erros) + fix binário do Obscura (usava `obscura-worker` no lugar de `obscura`); fix Python 3.11 (f-string com backslash) + admin sem senha padrão
+- [x] **Builds de produção 5/5 SUCCESS (16/08)** — dezafiraadm, dezafiraadm-frontend, dezafiraclube, obscura, Chrome — todos verdes após os fixes. Obscura: CDP ativo (log "CDP do Obscura ativo em 127.0.0.1:9225" + healthcheck OK; `json/version` responde Chrome/145)
+- [x] **Credenciais do admin** — `admin@dezafira.com` (login validado em produção). Senha **trocada** (não é mais `admin123`; nova senha forte aplicada direto no Postgres). Seed do código agora lê `ADMIN_PASSWORD` do ambiente (sem valor → não cria o usuário)
 
 ### Fase 5 — Deletes (✅ EXECUTADO em 15/08)
 - [x] **Deletes executados via API** (`serviceDelete`): `1convite-frontend`, `1convite-backend`, `1convite-App`, `Postgres-UgL5`, `Redis-S2x0` — confirmados fora do projeto (10 serviços restantes, todos Dezafira)
