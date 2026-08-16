@@ -11,6 +11,21 @@
 >
 > **Status atual:** Deploy completo · foco nas fábricas de conteúdo (Blog · Ebook · Curso · Marketing)
 
+---
+
+## ⚠️ Status Railway (16/08/2026) — PROBLEMAS NO DEPLOY
+
+> **Estamos com problemas no Railway.** Por enquanto:
+>
+> - **As atualizações vão SOMENTE para o GitHub** (push em `main` no repositório oficial).
+> - **A execução/validação roda APENAS no LOCAL** (veja "Como Rodar Localmente" abaixo).
+> - **NÃO aguardar nem depender de redeploy automático do Railway** — o deploy pode falhar ou ficar em fila; o código atualizado vive no Git, não na nuvem.
+>
+> Quando o Railway estabilizar, retomamos o deploy normal (ver `docs/plano_absorcao_1convite.md` para o estado da oferta 1Convite).
+
+---
+
+
 A Dezafira é um ecossistema de **fábricas de conteúdo digital** — **Blogs, Ebooks, Cursos e Marketing** — orquestradas por agentes inteligentes com nomes brasileiros (Seu Hermes, Carlão, LiLi, Dona Célia, Seu Pereira, etc.), com motor headless (Obscura/Chrome), distribuição social e publicação WordPress.
 
 O ecossistema é dividido em **dois serviços**:
