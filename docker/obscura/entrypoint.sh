@@ -12,8 +12,16 @@
 # ============================================================
 set -e
 
-BIN=$(find /opt/obscura -type f -executable 2>/dev/null | head -1)
-if [ -z "$BIN" ]; then
+# O tarball oficial traz DOIS binarios: `obscura` (CLI com o subcomando
+# `serve`) e `obscura-worker` (helper usado pelo `scrape` paralelo). O
+# `find | head -1` podia escolher o worker, que NAO sobe CDP e morre em
+# silencio (log vazio). Sempre preferimos o binario exato `obscura`.
+if [ -x /opt/obscura/obscura ]; then
+    BIN=/opt/obscura/obscura
+else
+    BIN=$(find /opt/obscura -type f -executable ! -name 'obscura-worker' 2>/dev/null | head -1)
+fi
+if [ -z "$BIN" ] || [ "$(basename "$BIN")" = "obscura-worker" ]; then
     echo "[entrypoint] ERRO: binario do Obscura nao encontrado em /opt/obscura" >&2
     exit 1
 fi

@@ -389,14 +389,14 @@ export default function FabricaOfertasPage() {
                       </div>
 
                       {/* Facebook Ads */}
-                      {selectedOffer.investigation?.facebook_ads?.length > 0 && (
+                      {(selectedOffer.investigation?.facebook_ads?.length ?? 0) > 0 && (
                         <div>
                           <h4 className="font-semibold mb-3 flex items-center gap-2">
                             <span className="text-blue-400">📘</span>
-                            Anúncios Facebook ({selectedOffer.investigation.facebook_ads.length})
+                            Anúncios Facebook ({selectedOffer.investigation?.facebook_ads?.length})
                           </h4>
                           <div className="space-y-3 max-h-96 overflow-y-auto">
-                            {selectedOffer.investigation.facebook_ads.map((ad, idx) => (
+                            {selectedOffer.investigation?.facebook_ads?.map((ad, idx) => (
                               <div key={idx} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-4">
                                 <p className="font-medium text-sm text-blue-300">{ad.page_name}</p>
                                 <p className="text-xs text-gray-400 mt-1 line-clamp-2">{ad.ad_copy}</p>
@@ -411,14 +411,14 @@ export default function FabricaOfertasPage() {
                       )}
 
                       {/* Keywords SEO */}
-                      {selectedOffer.keywords?.length > 0 && (
+                      {(selectedOffer.keywords?.length ?? 0) > 0 && (
                         <div>
                           <h4 className="font-semibold mb-3 flex items-center gap-2">
                             <span className="text-green-400">🔑</span>
-                            Keywords SEO ({selectedOffer.keywords.length})
+                            Keywords SEO ({selectedOffer.keywords?.length})
                           </h4>
                           <div className="grid grid-cols-2 gap-3">
-                            {selectedOffer.keywords.map((kw) => (
+                            {selectedOffer.keywords?.map((kw) => (
                               <div key={kw.id} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3">
                                 <p className="font-medium text-sm">{kw.keyword}</p>
                                 <div className="mt-2 flex gap-2 text-xs text-gray-400">
@@ -435,14 +435,14 @@ export default function FabricaOfertasPage() {
                       )}
 
                       {/* Backlinks */}
-                      {selectedOffer.backlinks?.length > 0 && (
+                      {(selectedOffer.backlinks?.length ?? 0) > 0 && (
                         <div>
                           <h4 className="font-semibold mb-3 flex items-center gap-2">
                             <span className="text-purple-400">🔗</span>
-                            Backlinks Potenciais ({selectedOffer.backlinks.length})
+                            Backlinks Potenciais ({selectedOffer.backlinks?.length})
                           </h4>
                           <div className="space-y-2">
-                            {selectedOffer.backlinks.map((bl) => (
+                            {selectedOffer.backlinks?.map((bl) => (
                               <div key={bl.id} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3 flex items-center justify-between">
                                 <div>
                                   <p className="font-medium text-sm">{bl.domain}</p>
@@ -553,11 +553,11 @@ export default function FabricaOfertasPage() {
                       <h3 className="text-lg font-semibold">Copy da Oferta</h3>
                       
                       {/* Headlines */}
-                      {selectedOffer.headlines?.length > 0 && (
+                      {(selectedOffer.headlines?.length ?? 0) > 0 && (
                         <div>
-                          <h4 className="font-medium mb-3">Headlines ({selectedOffer.headlines.length})</h4>
+                          <h4 className="font-medium mb-3">Headlines ({selectedOffer.headlines?.length})</h4>
                           <div className="space-y-2">
-                            {selectedOffer.headlines.map((h, idx) => (
+                            {selectedOffer.headlines?.map((h, idx) => (
                               <div key={idx} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3 flex items-center gap-3">
                                 <span className="px-2 py-1 bg-[#8b5cf6] rounded-lg text-xs font-bold">
                                   {String.fromCharCode(65 + idx)}
@@ -582,11 +582,11 @@ export default function FabricaOfertasPage() {
                       )}
 
                       {/* CTAs */}
-                      {selectedOffer.ctas?.length > 0 && (
+                      {(selectedOffer.ctas?.length ?? 0) > 0 && (
                         <div>
-                          <h4 className="font-medium mb-3">CTAs ({selectedOffer.ctas.length})</h4>
+                          <h4 className="font-medium mb-3">CTAs ({selectedOffer.ctas?.length})</h4>
                           <div className="flex flex-wrap gap-2">
-                            {selectedOffer.ctas.map((cta, idx) => (
+                            {selectedOffer.ctas?.map((cta, idx) => (
                               <span
                                 key={idx}
                                 className="px-4 py-2 bg-gradient-to-r from-[#8b5cf6] to-[#ec4899] rounded-xl text-sm font-medium"

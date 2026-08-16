@@ -8,7 +8,7 @@ import BrandKitEditor from "../../../components/BrandKitEditor";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dezafiraadm-production.up.railway.app";
-const authH = () => { const t = localStorage.getItem('dz_token'); return t ? { Authorization: 'Bearer '+t } : {}; };
+const authH = (): Record<string, string> => { const t = localStorage.getItem('dz_token'); return t ? { Authorization: 'Bearer '+t } : {}; };
 
 export default function FabricaEbookPage() {
   const [title, setTitle] = useState("");

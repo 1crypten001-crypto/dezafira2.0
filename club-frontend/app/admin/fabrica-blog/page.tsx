@@ -10,9 +10,11 @@ import BrandKitEditor from '../../../components/BrandKitEditor';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
-const authH = () => {
+const authH = (): Record<string, string> => {
   const t = typeof window !== 'undefined' ? localStorage.getItem('dz_token') : null;
-  return t ? { 'Authorization': 'Bearer '+t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  return h;
 };
 
 type Channel = {
@@ -322,7 +324,7 @@ export default function FabricaBlogPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 flex-wrap justify-end">
-                        <AgnesCoverButton entityType="post" entityId={p.id} onDone={() => fetchPostsForChannel(selectedChannel.slug)} />
+                        <AgnesCoverButton entityType="post" entityId={String(p.id)} onDone={() => fetchPostsForChannel(selectedChannel.slug)} />
                         <button 
                           onClick={() => handleSendToClub(p.id)}
                           className="bg-[var(--brand)] text-white font-medium px-4 py-2 rounded-md hover:bg-[#ff702b] transition-colors text-sm whitespace-nowrap"

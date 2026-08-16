@@ -30,8 +30,8 @@ RUN set -eux; \
     tar xzf /tmp/obscura.tar.gz -C /opt/obscura; \
     find /opt/obscura -type f -exec chmod +x {} \;; \
     rm -f /tmp/obscura.tar.gz; \
-    BIN=$(find /opt/obscura -type f -executable | head -1); \
-    test -n "$BIN" || (echo "ERRO: Binario nao encontrado" >&2 && exit 1); \
+    BIN=/opt/obscura/obscura; \
+    test -x "$BIN" || (echo "ERRO: Binario obscura nao encontrado" >&2 && exit 1); \
     "$BIN" --version 2>&1 || true
 
 COPY entrypoint.sh /usr/local/bin/obscura_entrypoint.sh

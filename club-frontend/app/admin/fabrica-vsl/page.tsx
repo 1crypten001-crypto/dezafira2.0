@@ -7,9 +7,11 @@ import Link from "next/link";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, '');
 
-const authH = () => {
+const authH = (): Record<string, string> => {
   const t = typeof window !== 'undefined' ? localStorage.getItem('dz_token') : null;
-  return t ? { 'Authorization': 'Bearer '+t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  return h;
 }
 
 export default function FabricaVslPage() {

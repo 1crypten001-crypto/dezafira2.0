@@ -181,13 +181,13 @@ export default function AdminDashboard() {
       await Promise.all([
         safeFetch(`${API_URL}/healthz`, null as any),
         safeFetch(`${API_URL}/api/v1/admin/stats`, null as any),
-        safeFetch(`${API_URL}/api/v1/vsl`, { videos: [] }),
-        safeFetch(`${API_URL}/api/v1/biosites`, { biosites: [] }),
-        safeFetch(`${API_URL}/api/v1/miniapps`, { miniapps: [] }),
-        safeFetch(`${API_URL}/api/v1/mindmaps`, { mindmaps: [] }),
-        safeFetch(`${API_URL}/api/v1/ebooks`, { books: [] }),
-        safeFetch(`${API_URL}/api/v1/courses`, { courses: [] }),
-        safeFetch(`${API_URL}/api/v1/channels`, { channels: [] }),
+        safeFetch(`${API_URL}/api/v1/vsl`, { videos: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/biosites`, { biosites: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/miniapps`, { miniapps: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/mindmaps`, { mindmaps: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/ebooks`, { books: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/courses`, { courses: [] as any[] }),
+        safeFetch(`${API_URL}/api/v1/channels`, { channels: [] as any[] }),
         api.getAdminUsers().catch(() => ({ users: [] })),
       ]);
 
