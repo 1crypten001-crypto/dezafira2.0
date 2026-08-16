@@ -958,18 +958,22 @@ try:
     _existing_user = _db_setup.query(User).filter(User.email == _admin_email).first()
     if not _existing_user:
         import bcrypt as _bcrypt_raw
-        _hashed_password = _bcrypt_raw.hashpw("admin123".encode("utf-8"), _bcrypt_raw.gensalt()).decode("utf-8")
-        _new_admin = User(
-            id=f"user_{uuid.uuid4().hex[:12]}",
-            email=_admin_email,
-            name="Admin Dezafira",
-            password_hash=_hashed_password,
-            role="admin",
-            plan="pro",
-        )
-        _db_setup.add(_new_admin)
-        _db_setup.commit()
-        print(f"[Database] Usuario de teste '{_admin_email}' criado com sucesso (plano PRO).")
+        _admin_password = os.environ.get("ADMIN_PASSWORD", "")
+        if not _admin_password:
+            print("[Database] AVISO: ADMIN_PASSWORD nao configurado — admin nao sera criado.")
+        else:
+            _hashed_password = _bcrypt_raw.hashpw(_admin_password.encode("utf-8"), _bcrypt_raw.gensalt()).decode("utf-8")
+            _new_admin = User(
+                id=f"user_{uuid.uuid4().hex[:12]}",
+                email=_admin_email,
+                name="Admin Dezafira",
+                password_hash=_hashed_password,
+                role="admin",
+                plan="pro",
+            )
+            _db_setup.add(_new_admin)
+            _db_setup.commit()
+            print(f"[Database] Admin '{_admin_email}' criado (senha de ADMIN_PASSWORD).")
     else:
         if _existing_user.plan != "pro" or _existing_user.role != "admin":
             _existing_user.plan = "pro"

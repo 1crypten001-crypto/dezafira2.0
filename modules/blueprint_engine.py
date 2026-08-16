@@ -627,11 +627,12 @@ async def _stage_promo_video(bp: Dict[str, Any], content: Dict[str, Any],
     env = os.environ.copy()
     env["PATH"] = node_dir + ";" + env.get("PATH", "")
     
+    _props_arg = "--props=" + props_path.replace("\\", "/")
     cmd = [
         "npx.cmd", "remotion", "render",
         "src/index.ts", "CinematicPromo",
         final_video_path.replace("\\", "/"),
-        f"--props={props_path.replace('\\', '/')}",
+        _props_arg,
         "--browser-arg=--no-sandbox",
         "--browser-arg=--disable-setuid-sandbox",
         "--browser-arg=--disable-gpu",
