@@ -1,0 +1,164 @@
+# 🚀 Plano de Execução — Absorção do 1Convite no Ecossistema Dezafira
+
+> **Status:** em andamento (fase 1: conteúdo + infra de domínio dedicado)
+> **Última atualização:** 15/08/2026
+> **Objetivo final:** o 1Convite deixa de ser um sistema separado e vira um
+> **produto da fábrica** (DezafiraADM), com conteúdo no banco do ADM, PWA no
+> padrão Dezafira e entrega via DezafiraClub — com domínio dedicado
+> (`1convite.com.br`).
+
+---
+
+## 1. Arquitetura-alvo
+
+```
+┌────────────────────────── DEZAFIRAADM (a fábrica) ──────────────────────────┐
+│  dezafiraadm (FastAPI)          ──  banco PostgreSQL (Postgres)             │
+│   ├── Fábricas (ofertas, blog, ebook, curso, imagens, mapas, biosites…)      │
+│   ├── Blueprint Engine (branding + artefatos por produto)                   │
+│   ├── Fábrica de PWAs (miniapps → /app/{slug} + manifest/sw/icons)          │
+│   └── [NOVO] Conteúdo 1Convite (convite_* tables) + rota por Host           │
+│                                                                             │
+│  dezafiraadm-frontend (adm.dezafira.com.br)  ← UI da fábrica                │
+└──────────────────────────────────────────────────────────────────────────────┘
+        │  ponte CLUBE_IMPORT_KEY → /api/import/product, /member-course
+        ▼
+┌────────────────────────── DEZAFIRACLUB (a vitrine) ─────────────────────────┐
+│  dezafiraclube (www.dezafira.com.br) — venda, área de membros, entrega      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Domínio dedicado do produto 1Convite:
+  DNS 1convite.com.br → serviço dezafiraadm (Railway custom domain)
+  Host header 1convite.com.br → middleware serve /app/1convite na raiz (/)
+  Outros PWAs: /app/{slug} sem domínio próprio (inalterado)
+```
+
+**Decisões do dono (já confirmadas):**
+1. Dados de usuário do 1Convite: **começar do zero** (só conteúdo: Bíblia, matriz diária, trilhas, jogos, dicionário).
+2. Conselheiros IA: **manter chave do ChatGPT (LWC)** — portar o fluxo LWC pro backend Python do ADM.
+3. PWA: funcionar como os outros PWAs (banco do ADM + gerador) **com domínio dedicado**.
+4. Repo GitHub `spcompensa-glitch/1convite`: **pode remover tudo** após absorver o código/conteúdo pro repo Dezafira.
+
+---
+
+## 2. Estado atual (o que existe)
+
+### 2.1 Serviços Railway no projeto `shimmering-possibility` (production)
+
+| Serviço | Repo | Papel | Status |
+|---|---|---|---|
+| dezafiraadm | dezafira2.0 (`/`) | Backend fábrica (FastAPI) | ✅ |
+| dezafiraadm-frontend | dezafira2.0 (`/club-frontend`) | Admin fábrica (Next.js) | ✅ |
+| dezafiraclube | dezafira2.0 (`/Blog_..._v1.8`) ⚠️ | Vitrine/área de membros (SvelteKit) | ✅ (roda v1.8, atual é v1.9) |
+| libsql-server / Postgres / Redis | imagem/plugin | Bancos da Dezafira | ✅ |
+| Chrome / obscura / hermes-agent / aionui-webui | imagem/repo | Motores da fábrica | ⚠️ obscura FAILED 15/08 |
+| 1convite-frontend | spcompensa-glitch/1convite (`/frontend`) | PWA do 1Convite | ✅ |
+| 1convite-backend | spcompensa-glitch/1convite (`/backend`) | API Express do 1Convite | ✅ |
+| 1convite-App | spcompensa-glitch/1convite (`/frontend/android/app`) | APK Android | ❌ FAILED |
+| Postgres-UgL5 / Redis-S2x0 | plugin | Banco/cache do 1Convite (criados 08/08) | ✅ |
+
+### 2.2 Conteúdo do 1Convite (repo público, clone em `/tmp/1convite-src`)
+
+| Conteúdo | Onde vive hoje | Destino |
+|---|---|---|
+| Bíblia ACF (~31k versículos) | Postgres-UgL5 `tb_biblia` (importado de JSON público) | `convite_biblia` (reimportável) |
+| Matriz diária 365 dias | `tb_matriz_diaria` — 7 dias reais + 358 gerados por template (meditação/IA no app) | `convite_matriz_diaria` |
+| Dicionário teológico (8 termos) | `tb_dicionario` (seed) | `convite_dicionario` |
+| Trilhas de crescimento (4 temas × 30 dias) | `tb_trilhas` (seed) | `convite_trilhas` |
+| Jogos: Quiz (30), Charadas (15), Forca (30), Caça-Palavras (37) | `frontend/src/data/arcadeData.js` | `convite_jogos_*` |
+| Trilha do Reino (plano 540/365 dias + devocionais + ações) | `frontend/src/data/trailData.js` | `convite_trilha_reino_*` |
+| Leads (landing) | `tb_leads` | começar do zero (decisão) |
+| Usuários/progresso/moedas | `tb_usuario_progresso` etc. | começar do zero (decisão) |
+| Áudio narrado (Bíblia) | Librivox (stream externo via API) | manter stream externo |
+| Conselheiros IA | ChatGPT via LWC (`LWC_SECRET`) | manter, portar pra FastAPI |
+
+---
+
+## 3. Fases de execução
+
+### Fase 1 — Conteúdo no banco do ADM (✅ código pronto, ⏳ aguarda seed em produção)
+- [x] Mapear conteúdo (clone + análise)
+- [x] Converter dados para JSON canônico: `data/convite/*.json`
+  (matriz diária real, arcade, trilha do reino)
+- [x] Modelos SQLAlchemy: `modules/convite_models.py`
+  (matriz, dicionário, trilhas, bíblia, jogos, trilha do reino, `miniapp_domains`)
+- [x] Seed/import: `scripts/seed_convite.py`
+  (dicionário, trilhas, matriz 1–365, jogos, trilha do reino; `--with-bible` importa ACF)
+- [x] Seed VALIDADO em SQLite de teste (365 matriz · 120 trilhas · 112 jogos · 590 dias trilha · 16 dicionário · 9 marcos · 31.106 versículos Bíblia)
+- [ ] Rodar seed no banco real (local dev = SQLite; produção = Postgres `Postgres`) — ⚠️ precisa aprovação
+- [ ] Migrar rotas de conteúdo 1Convite pro FastAPI (`modules/convite_api.py`, fase 1b)
+
+### Fase 2 — Infra de domínio dedicado (✅ PRONTO E TESTADO)
+- [x] Modelo `miniapp_domains` (domínio → slug do miniapp)
+- [x] Middleware Host-routing no `server.py` (1convite.com.br → /app/1convite)
+- [x] Manifest/SW domain-aware (start_url `/`, scope `/` no domínio dedicado)
+- [x] Endpoints admin para gerir domínios (`GET/POST/DELETE /api/v1/miniapps/{slug}/domains`)
+- [x] 11 testes de Host-routing passando (TestClient + banco de teste)
+
+### Fase 3 — PWA como produto da fábrica (✅ base pronta, ⏳ PWA React + publicação)
+- [x] Registrar o 1Convite como miniapp (`/app/1convite`) com branding — `seed_convite.py --register-miniapp`
+- [x] Associar domínio dedicado `1convite.com.br` → `/app/1convite` (Host-routing testado: 17/17)
+- [x] API de conteúdo FastAPI — `modules/convite_api.py` (Bíblia, matriz, dicionário, trilhas, trilha do reino, 4 jogos) — registrada no server.py, 17/17 testes
+- [x] **Fábrica de Convites** — `modules/convite_factory.py`: branding (paleta/nome/copy/logo no miniapp) + blueprint (`formats=app`, `external_link` = domínio dedicado) + publish via ponte. Endpoints admin: `POST /api/v1/convite/factory/{branding,blueprint,publish/{bp_id}}` — 7/7 testes
+- [x] **Seed em PRODUÇÃO** (Postgres Railway via `altaria.proxy.rlwy.net`): conteúdo completo + miniapp `1Convite` (b67c0154) + domínio `1convite.com.br` ✅
+- [x] **PWA absorvido** — código completo (App.jsx 5.9k linhas, componentes, dados dos jogos, mídias 51MB, backend Express de referência, skill de sites animados) em `web/1convite/` (README com build/arquitetura)
+- [x] **Compat API `/api/v1/*`** — `modules/convite_compat_api.py`: contrato EXATO do Express original (usuario, codigo-dia, biblia livros/capitulos/texto/busca/aleatorio/audio+streams, dicionario, trilhas lista/ativa/iniciar/completar/cancelar, contatos, historico, checkpoint, avancar/reiniciar dia, pagamentos, admin plano, leads, health) — 42/42 testes
+- [x] **Middleware fix + SPA estático** — `/api/*` NÃO é mais reescrito no domínio dedicado (bug crítico corrigido: o PWA chamava `/app/1convite/api/...` → 404); quando existe `web/{slug}/dist/index.html` o domínio dedicado serve o bundle SPA na raiz (com fallback p/ `/_pwa_build/...` e index.html), senão fallback p/ PWA gerado
+- [x] **Conselheiros IA (LWC)** — sidecar Node mínimo `web/1convite/backend-lwc/` (handler oficial `@opencoredev/loginwithchatgpt-server`, mesmo `LWC_SECRET`) + proxy `/api/v1/chatgpt/*` no FastAPI (`LWC_SIDECAR_URL`); sem sidecar → 503 JSON gracioso (PWA mostra "offline" sem quebrar)
+- [x] `/auth/convite` — o PWA absorvido chama `/auth/convite` (e não `/auth/google`, que é do NextAuth do admin) — 4 call sites ajustados em App.jsx
+- [x] **Bundle BUILDADO** — Node 22 portátil (sem instalar nada na máquina) → `npm install && vite build` → `web/1convite/dist/` (SPA 626KB + mídias, ~52MB). Pipeline automatizado: `scripts/build_convite_pwa.sh`. SPA real servido no domínio dedicado verificado (raiz, /assets, sw.js, fallback, API) ✅
+- [x] **Blueprint do 1Convite criado** — `bp_7f93b831a1` (status review, `external_link=https://1convite.com.br`, format app) via ConviteFactory
+- [~] **Publish TESTADO (falha segura)** — com `.env` carregado, o bridge tentou conectar no Clube (`CLUBE_PUBLIC_URL=http://localhost:5173`, sem servidor local) → "All connection attempts failed". **Nada externo foi criado.** Quando o Clube estiver no ar (ou apontar pro real), rodar `ConviteFactory.publish('bp_7f93b831a1')`
+- [ ] Publicar blueprint no Clube — repete o publish quando o Clube estiver acessível
+
+### Fase 4 — Conselheiros IA (LWC) — ✅ PORTADO (proxy + sidecar)
+- [x] Sidecar Node `web/1convite/backend-lwc/` (handler oficial, mesma chave) + `railway.toml` (Nixpacks, healthcheck /healthz)
+- [x] Proxy `/api/v1/chatgpt/*` no FastAPI (`LWC_SIDECAR_URL`) — 503 gracioso sem sidecar
+- [ ] Deploy do sidecar (Railway) — ⚠️ **BLOQUEADO no push do GitHub** (web/1convite só existe localmente; token permite serviceCreate, mas o build viria de um repo sem o código). Após push: criar serviço com root dir `web/1convite/backend-lwc` + `LWC_SECRET`, e setar `LWC_SIDECAR_URL` no `dezafiraadm`
+
+### Fase 4b — PAGAMENTOS & DESCOBERTA (integração com tokens reais) — ✅ 15/08
+- [x] **Asaas integrado (produção)** — token `$aact_prod_...` (1crypten001@gmail.com) validado via API. `modules/asaas_client.py`: customer upsert, cobrança PIX (invoiceUrl + QR), cartão, webhook (PAYMENT_*), status. Endpoints `/api/v1/asaas/{status,cobranca-pix,webhook,cobranca/{id}}` + `/api/v1/pagamentos/*` do 1Convite agora criam cobrança PIX real (fallback fake só sem chave). Testes: status real, 404, webhook, validações OK
+- [x] **Agente Dário ativado com as chaves** — Facebook (`FACEBOOK_ACCESS_TOKEN`, já no .env) via `FacebookAdsSpy` (API Graph + fallback Obscura/Chrome); Google via `GoogleSEOSpy` com o **CSE do dono** (`GOOGLE_CSE_ID=8699036eeda444a95`): caminho API precisa de `GOOGLE_API_KEY` (não fornecida) → **fallback novo: scraping da página do CSE via Chrome/Obscura** (`_search_via_cse_scraper`) para gerar palavras-chave de artigos/backlinks
+- [x] `.env.example` atualizado (ASAAS_API_KEY, GOOGLE_CSE_ID, GOOGLE_API_KEY, LWC_SIDECAR_URL)
+- [ ] `GOOGLE_API_KEY` (Google Custom Search JSON API) — opcional, desbloqueia o caminho de API do Dario SEO
+
+### Fase 4c — PRIMEIRA OFERTA (produção) — ✅ 15/08
+- [x] **Banners do 1Convite no blog O Reino (produção)** — blog `o-reino` (blg_50e26e, 21 posts) encontrado no ADM de produção; **21/21 artigos** receberam o banner-CTA do 1Convite (bloco HTML/CSS com branding dourado → botão "COMEÇAR AGORA" → **https://1convite.com.br** — página de venda + checkout Asaas PIX). Banner do canal gerado (pollinations)
+- [x] **Blueprint preenchido** — `bp_7f93b831a1` completo: price **R$ 19,90** (editar antes de publicar), descrição/vendas, benefícios, pitch, CTA, `checkout_provider=asaas`, `external_link=https://1convite.com.br`, status review
+- [x] **Asaas na venda** — módulo + endpoints prontos (ver Fase 4b); o checkout do app usa PIX real
+- [x] **UI da Fábrica de Convites** — `club-frontend/app/admin/fabrica-convite/page.tsx` (status miniapp/domínio/Asaas/blueprints + branding + criar blueprint + publicar) + item "👑 1Convite" no menu admin + endpoint `GET /api/v1/convite/factory/blueprints` (401 sem auth) — testado
+- [ ] **Publicar no Clube** — falta Clube acessível (CLUBE_PUBLIC_URL=localhost:5173 sem servidor) OU apontar pro real
+- [ ] **Push pro GitHub — ⚠️ BLOQUEADO**: credenciais locais são de `JonatasOliveira1983` (403 sem permissão no repo `1crypten001-crypto/dezafira2.0`). Precisa push da conta dona ou PAT. Patches em `C:/tmp/dezafira_patches/`
+
+### Fase 5 — Deletes (✅ EXECUTADO em 15/08)
+- [x] **Deletes executados via API** (`serviceDelete`): `1convite-frontend`, `1convite-backend`, `1convite-App`, `Postgres-UgL5`, `Redis-S2x0` — confirmados fora do projeto (10 serviços restantes, todos Dezafira)
+- [ ] ~~Backup dump~~ — pg_dump indisponível e DB interno; conteúdo preservado em `data/convite/*.json` + banco local (decisão do dono: dados de usuário começam do zero)
+- [ ] Apagar repo GitHub `spcompensa-glitch/1convite` (pendente — precisa das credenciais do dono; conteúdo já absorvido)
+- [ ] Corrigir `dezafiraclube` → root dir `v1.9` — **⚠️ BLOQUEADO: históricos DIVERGENTES** (GitHub main tem commits que o local não tem — bidu, miniapps born-complete, hermes). **NÃO push** (seria rejeitado/misturado). Patches gerados em `C:/tmp/dezafira_patches/` — aplicar no checkout que pusha pro GitHub
+- [x] **obscura**: causa raiz (Xvfb display 99) + fix COMMITADO localmente (deba515). **Redeploy bloqueado** até o fix chegar no GitHub (Railway builda do GitHub)
+- [x] **Seed banco real (local)**: conteúdo completo + miniapp `1Convite` + domínio `1convite.com.br` registrados no `dezafira.db`
+
+---
+
+## 4. Riscos e mitigação
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| Perder conteúdo do 1Convite ao apagar | Alto | JSON canônico em `data/convite/` + dump do Postgres-UgL5 antes do delete |
+| Quebrar `/app/{slug}` existente dos miniapps | Médio | Middleware só age quando Host está no mapa `miniapp_domains`; caminhos `/app/*` passam direto |
+| Bíblia grande (31k linhas) lenta no seed | Baixo | Inserção em lotes (batch 1000) com transação única |
+| Domínio dedicado com scope/start_url errado no install | Médio | Manifest domain-aware (start_url `/` quando Host dedicado) |
+| LWC/chat segredo exposto | Alto | Nunca logar valores de variáveis; usar `LWC_SECRET` do mesmo jeito que o Clube |
+
+## 5. Rollback
+
+- **Banco:** tabelas `convite_*` e `miniapp_domains` são novas — `DROP TABLE` remove tudo sem tocar no resto.
+- **server.py:** middleware é aditivo e condicionado ao mapa de domínios (vazio por padrão → nenhum efeito).
+- **Railway:** serviços deletados podem ser recriados do repo GitHub até ele ser apagado; depois, do JSON/backup.
+
+## 6. Pendências que dependem de você
+
+1. Aprovar o **dump do Postgres-UgL5** (read-only) antes dos deletes — quer que eu peça as credenciais ou o dump via `railway volume/ssh`?
+2. Confirmar se o **obscura** (motor de busca) é crítico — investigo o build log em paralelo.
+3. Confirmar troca do `dezafiraclube` pra **v1.9** + redeploy.
+4. Onde mora o DNS do `1convite.com.br` (registro/provedor) pra eu apontar pro serviço `dezafiraadm`.

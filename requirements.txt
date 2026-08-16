@@ -40,14 +40,18 @@ apscheduler>=3.10.0
 # ─── Obscura Bridge (headless browser via CDP) ───────────────────────
 websockets>=13.0
 
+# ─── Agnes Studio (capas HTML → PNG com fallback local) ────────────────
+pillow>=10.0.0
+edge-tts>=6.1.0
+imageio-ffmpeg>=0.5.0
+
 # ─── Auth & Security ─────────────────────────────────────────────────
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 python-multipart>=0.0.18
 
 
-# ─── Chainlit AI Interface ──────────────────────────────────────────
-chainlit>=1.0.0
+# ─── PostgreSQL async (reserva) ───────────────────────────────────
 asyncpg
 
 

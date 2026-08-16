@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npx serve -s dist -l 8080"
+
+[variables]
+NODE_ENV = "production"

@@ -17,7 +17,7 @@ O ecossistema é dividido em **dois serviços**:
 
 | Serviço | O que é | Stack | Onde |
 |---|---|---|---|
-| **DezafiraClube** | Site público, blog SEO e área de membros | SvelteKit 2 + Svelte 5 | `Blog_Inteligente_SEO_com_IA_-_v1.8/` |
+| **DezafiraClube** | Site público, blog SEO, área de membros, landing pages e comunidade (**v1.9**) | SvelteKit 2 + Svelte 5 | `Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9/` |
 | **Dezafira Adm** | Painel administrativo de fábricas + API | FastAPI + Next.js 14 | `server.py` + `modules/` + `club-frontend/` |
 
 > ⚠️ Pagamentos, **gamificação, combos e ranking** foram removidos do Dezafira Adm (commits recentes) — o ecossistema prioriza produção e distribuição de conteúdo. A área de membros (checkout, tokens de acesso, leitor de ebooks) é responsabilidade do **DezafiraClube**, que processa pagamentos via **Asaas** (`src/lib/server/asaas.ts` — falta só configurar as credenciais). A integração **Polar foi removida**.
@@ -69,9 +69,10 @@ O **Dezafira Adm** é o painel de administração focado **100% nas fábricas de
 | Feature | Descrição |
 |---------|-----------|
 | **Auth** | Email/senha + Google OAuth + recuperação de senha |
-| **Fábricas** | Blog, Ebook, Curso e Marketing (4 pipelines completas) |
+| **Fábricas** | Blog, Ebook, Curso, Marketing e Bio Sites (5 pipelines completas) |
 | **Admin** | Cursos CRUD, trilhas de aprendizagem, analytics, usuários e stats |
 | **Painel** | Dashboard do usuário logado (`/painel` — dados de `/auth/me`, cursos e ebooks) |
+| **Chat Hermes** | O chat do admin (`/chat`) redireciona para o **AionUi WebUI** (`HERMES_WEBUI_PUBLIC_URL`) **só se o WebUI estiver no ar**; caso contrário serve a página embutida do backend (14/08/2026). O Hermes (Nous Agent) dispara fábricas pela API com service key — **Chainlit removido** (12/08/2026) |
 
 ### Frontend (Next.js 14)
 
@@ -83,12 +84,17 @@ club-frontend/
 │   ├── painel/page.tsx         # Dashboard do usuário (overview, cursos, ebooks)
 │   ├── healthz/                # Healthcheck do frontend
 │   └── admin/
-│       ├── page.tsx            # Painel admin (stats, users, fábricas, trilhas, analytics, marketing)
-│       ├── fabrica-blog/       # Fábrica de Blogs (iframe do painel → #blogs)
-│       ├── fabrica-ebook/      # Fábrica de Ebooks (iframe do painel → #books)
-│       ├── fabrica-curso/      # Fábrica de Cursos (pipeline nativa)
+│       ├── page.tsx            # Painel admin (Widescreen 3-Col, status do sistema, atividade recente)
+│       ├── canais/             # Hub de Canais (lista de canais e criação via formulário integrado)
+│       ├── fabrica-blog/       # Fábrica de Blogs (nativa com 3 abas, pipeline IA e envio ao Club)
+│       ├── fabrica-ebook/      # Fábrica de Ebooks (nativa com 6 fases e envio ao Club)
+│       ├── fabrica-curso/      # Fábrica de Cursos (nativa por abas e publicação)
+│       ├── fabrica-vsl/        # Fábrica de VSLs (nativa com aba geradora IA de 5 passos e A/B/C metrics)
+│       ├── fabrica-biosites/   # Fábrica de Bio Sites (nativa com mockup de preview mobile)
+│       ├── fabrica-mapas/      # Fábrica de Mapas (nativa com visualizador JSON e envio ao Club)
+│       ├── fabrica-miniapp/    # Fábrica de MiniApps (nativa com log de agentes ao vivo e preview PWA)
 │       ├── trilhas/            # Learning paths
-│       └── analytics/          # Métricas
+│       └── analytics/          # Métricas e gerenciamento de usuários
 ├── lib/
 │   ├── api.ts                  # Cliente API com todas as endpoints (injeta Bearer token)
 │   └── auth-context.tsx        # React AuthProvider + useAuth (restaura sessão via /me)
@@ -143,6 +149,17 @@ club-frontend/
 | GET | `/api/v1/pipeline/ebook-factory/status/{task_id}` | Status |
 | POST | `/api/v1/pipeline/run-blog-factory` | Iniciar fábrica de blogs |
 | GET | `/api/v1/pipeline/blog-factory/status/{task_id}` | Status |
+
+**Fábrica de Bio Sites**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/biosites/create` | Geração de Bio Site via pipeline de IA |
+| GET | `/api/v1/biosites` | Listar todos os Bio Sites cadastrados |
+| GET | `/api/v1/biosites/{bio_id}` | Detalhes de um Bio Site específico |
+| PUT | `/api/v1/biosites/{bio_id}` | Atualizar informações, cores e links do Bio Site |
+| DELETE | `/api/v1/biosites/{bio_id}` | Deletar Bio Site |
+| GET | `/bio/{slug}` | Serve HTML final do Bio Site (público / preview) |
+
 
 **Distribuição Social** *(exigem `require_admin` — módulo `modules/distributor.py`)*
 | Método | Rota | Descrição |
@@ -257,6 +274,21 @@ Blog (CTA) → Landing de captura (lead magnet) → Newsletter/Resend (lead)
 - **Chave compartilhada**: `CLUBE_IMPORT_KEY` (Adm) == `IMPORT_API_KEY` (Clube) — comparação timing-safe.
 - **`CLUBE_PUBLIC_URL`** (Adm): URL pública do Clube usada pela ponte.
 
+### Landing Pages via CLI (v1.9)
+
+O **Seu Hermes** (fábrica de Marketing) publica landings de oferta completas **direto via API** do Clube, sem builder no Adm:
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/cli/landing-pages/schema` | Contratos dos blocos (hero, product-showcase, posts-grid, pricing, faq, cta, testemunhos…) |
+| GET | `/api/cli/landing-pages/resources` | Produtos e posts reais do catálogo do Clube |
+| POST | `/api/cli/landing-pages` | Cria/publica landing em `/p/{slug}` |
+| PUT/DELETE | `/api/cli/landing-pages/{slug}` | Atualiza/remove landing |
+
+- Auth: `Authorization: Bearer <token>` — token gerado em `admin/cli` do Clube (hash + expiração na v1.9; **regenerar no pós-deploy**).
+- Exemplo pronto: `Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9/scripts/landing-via-cli.sh`
+- Guia completo: `Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9/docs/integracao-adm-clube.md`
+
 ### Esteira de Produtos (upsell/downsell)
 
 Produtos no Clube têm `upsell_product_id` e `downsell_product_id`. Após o pagamento, o comprador é redirecionado para `/checkout/obrigado/{id}`:
@@ -292,6 +324,98 @@ Compra confirmada → UPSELL (comprar?) → recusou → DOWNSEL (oferta menor) �
 - **Newsletter do blog** (`modules/blog_viewer.py`): form POST em `/api/v1/newsletter/subscribe` (Adm) → encaminha ao Clube + backup local `data/newsletter_leads.jsonl`.
 - **CTA configurável** por canal (`brand_config.cta`): card no fim dos artigos apontando para landing/produto.
 - **Landing pages** do Clube: builder visual com bloco **newsletter** nativo (captura direto na lista do Clube, Resend).
+
+---
+
+## 🎯 Blueprint de Produto (NOVO — substitui a Fábrica de Produtos)
+
+**Receita de produto:** tema + nicho + preço → a IA gera **tudo** (produto no catálogo, blog + banners, landing page, funil bump/upsell/downsell, área de membros) e a **ponte** publica no DezafiraClube. A UI fica em `/admin/blueprint` (o antigo `fabrica-produtos` redireciona para lá).
+
+**Estágios do motor** (`modules/blueprint_engine.py`): `fundacao` (LLM) → `conteudo` (pipelines existentes) → `assets` (**Agnes AI** → cascata, com super prompt) → `landing` (blocos do Clube via `modules/landing_templates.py`) → `funil` (bump/upsell/downsell) → `revisao` → `publicacao` (ponte).
+
+**Revisão visual de imagens** (`components/AssetSlot.tsx`): miniatura → clique abre a imagem em **tamanho real com dimensões (W×H)** + provedor; **super prompt copiável** ao lado; botões 🔄 **Regenerar** (nova seed), 📤 **Upload** (sua imagem substitui a gerada — nunca é sobrescrita pelo motor) e 🖌️ **Capa Agnes** (capa editorial do Agnes Studio com seletor de estilo — alternativa à imagem por prompt).
+
+**🎨 Brand kit** (por blueprint, persistido em `config.brand_kit`): cores (fundo/destaque/texto) + fontes customizadas — as capas Agnes Studio usam automaticamente. Form na página de detalhe + `PATCH /api/v1/blueprints/{id}`. Aceita **dois formatos**: canônico `{colors: {bg, bg2, accent, text, muted}, font, font_sans}` e plano `{primary_color, accent_color, logo_text}` (normalizado no motor `agnes_studio._make_design`/`landing_templates._kit_colors` e na UI da página de detalhe).
+
+**Capa Agnes automática**: o estágio `assets` gera o slot **`product_image_agnes`** (capa editorial do produto) automaticamente ao lado da imagem por prompt — regenerar/rodar de novo mantém o estilo.
+
+**Publicação** (etapa 6, log por etapa em `publish_log`): filhos upsell/downsell **primeiro** → produto principal (com `youtube_video_url`, `category`, bump e ids da esteira) → `sync-blog` generalizado (posts + banners) → landing via CLI (`Bearer CLI_TOKEN`) → área de membros (`member-course`).
+
+| Método | Rota (Adm, `require_admin`) | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/blueprints` | Criar receita (draft) |
+| GET | `/api/v1/blueprints` · `/{id}` | Listar / estado completo |
+| POST | `/api/v1/blueprints/{id}/run` | Disparar o motor (0–5) |
+| POST | `/api/v1/blueprints/{id}/assets/regenerate` | Regenerar slot (`{slot}`) |
+| PATCH | `/api/v1/blueprints/{id}` | Atualizar `config` (merge — ex: brand kit) |
+| POST | `/api/v1/blueprints/{id}/assets/agnes-cover` | Capa editorial Agnes Studio (`{slot, style_id}`) |
+| POST | `/api/v1/blueprints/{id}/assets/upload` | Upload `{slot, data_url}` |
+| POST | `/api/v1/blueprints/{id}/publish` | Publicar no Clube (ponte) |
+| DELETE | `/api/v1/blueprints/{id}` | Remover |
+
+> 📖 Guia completo: `docs/blueprint_guia.md` · Demo/E2E: `scripts/blueprint_demo.sh` · Env: `CLUBE_PUBLIC_URL`, `CLUBE_IMPORT_KEY`, `BACKEND_URL`, `CLI_TOKEN`, `AGNES_API_KEY`.
+
+---
+
+## 🎨 Agnes Studio (capas com design editorial — HTML → PNG)
+
+`modules/agnes_studio.py` compõe capas com **design real** (tipografia + autor + créditos + identidade do canal) e renderiza HTML → PNG via **Obscura** (`ObscuraBridge.screenshot`, CDP `Page.captureScreenshot` com `clip` explícito para dimensões exatas), com **fallback local Pillow** para nunca falhar:
+
+- **Capa de curso** 16:9 (1280×720) · **Capa de ebook** livro (1200×1600) · **Imagem de artigo** (1200×630) · **Capa de produto** quadrada (1024×1024, usada no Blueprint)
+- 5 estilos determinísticos (`moderno`, `elegante`, `tech`, `minimal`, `dark-gold`); o **design é persistido** no produto (`cover_design`) para que regenerações mantenham a identidade visual
+- Salva `{slug}_{uuid}.png` em `outputs/agnes/` e retorna `{cover_url, design}` — a **galeria** (`/api/v1/agnes/gallery`) lista e `use-cover` aplica qualquer versão
+- Endpoints: `POST /api/v1/courses/{id}/agnes-cover` · `POST /api/v1/ebooks/{id}/agnes-cover` · `POST /api/v1/blog/post/{id}/agnes-cover` — todos aceitam `{style_id}` e `{brand_kit}` no body (todos `require_admin`)
+- **Seletor de estilo na UI**: componente `AgnesCoverButton` (estilo + gerar + preview) nas fábricas de curso/ebook/blog
+- **Brand kit global**: componente `BrandKitEditor` (cores + fontes em `localStorage`) nas 3 fábricas — o `AgnesCoverButton` envia o brand kit junto e as capas saem já com a identidade
+- **Brand kit na landing**: `modules/landing_templates.py` injeta as cores/fontes do `config.brand_kit` nos blocos publicados (hero, oferta, prova, FAQ, CTA) — landing nasce com a identidade visual
+- **Templates de landing variados**: `dezafira` (padrão) · `dark-sales` (escuro, urgência, `compareAtPrice`, badge "Últimas vagas") · `clean-soft` (claro, minimalista, `posts-grid`) — seletor na página de detalhe do Blueprint (`config.template_landing`)
+- **Comparador de variantes**: `POST /api/v1/blueprints/{id}/assets/agnes-variants` (gera 5 estilos do slot) e `POST .../agnes-apply-variant` (aplica um deles) — modal lado a lado no `AssetSlot` (`{variant, index}`) com dimensões
+
+## 🎬 Agnes Video (image-to-video — `agnes-video-v2.0`)
+
+A assinatura Agnes inclui **vídeo** além de imagens (`modules/agnes_video.py`, API `https://apihub.agnes-ai.com/v1/videos`):
+
+- **`POST /api/v1/agnes/video`** `{prompt, image, wait}` — `image` aceita URL pública **ou base64/data URL**; `wait=true` faz polling síncrono, baixa o MP4 para `outputs/vsl/` e devolve `local_url`; `wait=false` (padrão) devolve a task para polling via GET
+- **`GET /api/v1/agnes/video/{task_id}`** — status da task (a URL final vem em `metadata.url`)
+- Vídeo real validado: **5s · h264 1088×832 · 24fps · áudio AAC** — demo da marca Dezafira em `outputs/agnes/dezafira_demo.html` (imagem com fundo Agnes + tipografia CDP e o vídeo gerado a partir dela)
+- **No Blueprint** (`config.video.enabled`): o motor gera um **slot `promo_video`** automático por produto — usa a capa (Agnes Studio local → base64, ou remota → URL) como frame inicial, gera o clipe e salva em `outputs/vsl/bp_*_promo.mp4`; o `AssetSlot` renderiza `<video>` (slot marcado `video: true`). Obs.: a API da Agnes retorna **`503 video_queue_full`** quando a fila está cheia — o motor trata como fallback gracioso (`generated: false` sem quebrar o run) e a regeneração do slot pode ser re-tentada depois
+- **URLs locais nos slots**: o `AssetSlot` resolve URLs `/outputs/...` contra o `apiBase` do backend (imagens e vídeo) — sem isso o `<video>`/`<img>` quebrava no admin (:3000 não serve /outputs)
+- **Na fábrica de VSL**: botão **"🎬 Gerar vídeo IA (Agnes)"** ao lado do render TTS — `POST /api/v1/vsl/{id}/render-agnes-video` (task assíncrona) + `GET /api/v1/vsl/{id}/agnes-video` (polling; ao concluir baixa o MP4 e atualiza `video_url` da VSL, que o player do Clube passa a rodar)
+- Scripts: `scripts/agnes_brand_demo.py` (fundo Agnes + tipografia/copy com o branding Dezafira → PNG) e `scripts/agnes_video_demo.py` (imagem → vídeo → MP4)
+- **Histórico e diff de assets**: cada regeneração/upload/capa/variante empilha a versão anterior em `assets.slots[].history` (máx. 8); `POST .../assets/restore` restaura uma versão (a atual volta pro histórico) e o `AssetSlot` compara lado a lado (antes × atual)
+- **Combo/pacote nativo (fase 2)**: `funil.bundle` no blueprint (desconto %, incluir upsell/downsell) → o motor publica um produto **Pacote** com `bundle_items` (ids dos incluídos) e a landing promove o combo (slug `{slug}-pacote`, **preço riscado** `compareAtPrice` = soma dos itens + CTA dedicado "Quero o pacote completo"); no Clube, a compra do bundle desbloqueia todos os itens (`unlockBundleForUser` nos webhooks Asaas/Stripe), a página do produto lista o conteúdo e o **pós-compra oferece o pacote** (`checkout/obrigado`: reverse lookup `findBundleForProduct` → estágio "Pacote completo" antes do upsell)
+- **Fábrica de VSL no blueprint**: `config.vsl.enabled` → o motor gera **script completo + headlines A/B/C** (novo `modules/vsl_factory.py`, LLM + fallback determinístico) com thumbnail da capa do produto; `content.vsl` alimenta o bloco de vídeo da landing e o `youtube_video_url` do produto
+- **VSL com TTS e vídeo**: novo `modules/vsl_video.py` — roteiro → **cenas editoriais** (HTML→PNG via Chrome, fallback Pillow) + **narração pt-BR** (`edge-tts`, sem chave) → **MP4** (ffmpeg estático via `imageio-ffmpeg`). `POST /api/v1/vsl/{id}/render-video` + botão 🎬 na fábrica de VSL (player + cenas). Validado: vídeo real 1280×720 h264+aac, 15s
+- **Player de VSL na landing**: o Clube **já tem** o `VslPlayer` (bloco `vsl`: vídeo MP4, autoplay mudo, progress bar de neuromarketing, **headlines A/B/C por visitante** e **analytics de retenção** → `POST /api/v1/vsl/analytics`). A geração de landing agora **emite o bloco `vsl`** com `vslId`/`src`/`thumbnail`/`headline_a..c` quando o blueprint tem VSL com MP4 (fallback: iframe do YouTube via `config.youtube_video_url`). A URL do ADM usada pelo player é configurável: `PUBLIC_ADM_API_URL` no `.env` do Clube (default produção)
+- **Galeria visual**: página `/admin/agnes` — grid com zoom (dimensões/tamanho), botões **Aplicar** (via `/use-cover`) e 🗑 **remover** (`DELETE /api/v1/agnes/gallery/{filename}`)
+- **CI com Chrome**: `.github/workflows/ci.yml` — `pytest` (banco temporário, isolado) + teste CDP real de render com Chrome headless (inclui o teste de render sem falhar quando o Chrome não está disponível)
+- **Validação do render real**: `scripts/agnes_studio_render_check.py` sobe um Chrome headless local e valida HTML→PNG de ponta a ponta (validado: capa 1280×720 exata via CDP); também coberto por teste na suíte (`tests/test_agnes_studio_render_cdp.py`, pula sem Chrome)
+
+> ⚠️ Requer `pillow` (no `requirements.txt`). Com `OBSCURA_ENABLED=false` (padrão local) as capas saem pelo fallback Pillow; com o Chrome/Obscura no ar, saem pelo render HTML real (tipografia/fontes).
+
+---
+
+## 🧪 Testes (isolados do banco real)
+
+`tests/conftest.py` define `DATABASE_URL` para um **SQLite temporário** (`tests/.pytest_state/`, gitignored) ANTES de qualquer import — nenhum teste toca/polui o `dezafira.db` real (validado: 0 registros residuais). Requer `server.py` com `load_dotenv(override=False)` (variáveis de ambiente do usuário têm prioridade sobre `.env`).
+
+```bash
+.venv/Scripts/python -m pytest tests/ -q --timeout=120 --ignore=tests/test_hermes_pipeline.py
+```
+
+E2E do combo/pacote no Clube (sobe o SvelteKit com DB isolado, importa itens +
+pacote via HTTP, simula o webhook Asaas e confere o desbloqueio):
+
+```bash
+bash scripts/clube_combo_e2e.sh
+```
+
+> O shell não tem `node` no PATH — use o Node portátil do projeto
+> (`.tools/node/node-v22.23.2-win-x64/`, gitignored):
+> `export PATH="$(pwd)/.tools/node/node-v22.23.2-win-x64:$PATH"`
+> (o E2E já faz isso sozinho). O v22 é o que casa com o `better-sqlite3` do Clube.
+
+> `test_hermes_pipeline` e `test_obscura_telemetry_sources` chamam LLM/SERP reais — rodam só com chaves configuradas (ambientais).
 
 ---
 
@@ -343,7 +467,7 @@ Cada artigo passa por todas as etapas obrigatórias:
 
 | Item | O que foi feito |
 |------|-----------------|
-| **Cascata LLM unificada** | `agents/llm.py` agora é a ÚNICA fonte da verdade: **OpenRouter → Gemini → NVIDIA NIM → HuggingFace → DeepSeek**. `blog_writer._call_llm` virou delegador fino (mesma assinatura, mantém `RuntimeError` em falha total para os fallbacks por seção); o `query_llm` só-NVIDIA do `server.py` foi removido (usa o `agents.llm`). ~500 linhas de duplicação eliminadas |
+| **Cascata LLM unificada** | `agents/llm.py` agora é a ÚNICA fonte da verdade: **Agnes AI (agnes-2.5-flash, IA OFICIAL) → OpenRouter → Gemini → NVIDIA NIM → HuggingFace → DeepSeek**. `blog_writer._call_llm` virou delegador fino (mesma assinatura, mantém `RuntimeError` em falha total para os fallbacks por seção); o `query_llm` só-NVIDIA do `server.py` foi removido (usa o `agents.llm`). ~500 linhas de duplicação eliminadas |
 | **Bloco duplicado removido** | 14 endpoints duplicados (blogs/seed, books, courses, images, rag) em `server.py` — o segundo registro era inalcançável (a primeira rota vence no Starlette). −281 linhas de código morto |
 | **Página de registro removida** | `auth/register/page.tsx` virou stub que redireciona para `/auth/login` |
 
@@ -442,7 +566,9 @@ dezafira/
 │   ├── blog_revisor.py        # Revisão gramatical
 │   ├── brand_designer.py      # Identidade visual via LLM
 │   ├── brand_themes.py        # Temas visuais por nicho
-│   ├── image_factory.py       # Geração de imagens (Pexels + SVG)
+│   ├── image_factory.py       # Geração de imagens (Agnes → Gemini → FLUX → Pexels → SVG)
+│   ├── agnes_studio.py        # 🎨 Capas com design real (HTML → PNG via Obscura/Pillow)
+│   ├── blueprint_engine.py    # Motor do Blueprint de Produto (6 estágios + publicação)
 │   ├── lili.py                # Revisora de qualidade auto-corretiva
 │   ├── ricardo.py             # Gera imagem de destaque por artigo
 │   ├── seu_pereira.py         # Analista de monetização
@@ -493,7 +619,8 @@ dezafira/
 ├── docs/                       # Guias (Obscura, indexação Google)
 ├── tests/                      # Testes pytest
 ├── scripts/                    # Scripts utilitários
-├── Blog_Inteligente_SEO_com_IA_-_v1.8/  # 🟢 DezafiraClube (SvelteKit) — site público + membros
+├── Versões do dezafiraClub/
+│   └── Blog_Inteligente_SEO_com_IA_-_v1.9/  # 🟢 DezafiraClube (SvelteKit) — site público + membros (v1.8 preservado como backup)
 ├── club-frontend/             # 🟢 Dezafira Adm frontend (Next.js 14)
 ├── requirements.txt
 ├── Dockerfile
@@ -538,6 +665,7 @@ dezafira/
 - [x] **📬 Landing + Lead Magnet** — bloco newsletter nativo no builder de landing do Clube; landing pública `/p/guia-emagrecimento-gratis` capturando via `/api/newsletter` (Resend)
 - [x] **🔒 Player de curso protegido** — `GET /curso/{id}?token=` com HMAC compartilhado (30 dias), entrega por link decorado no Clube, capa gerada via Pollinations/Gemini/Pexels
 - [x] **⏰ Nurturing automático** — agendamento da régua de 4 e-mails via APScheduler (`/api/v1/marketing/nurture/schedule`) + disparo imediato (`send-nurturing`)
+- [x] **🎯 Blueprint de Produto** — receita tema+nicho gera produto, blog/banners, landing, funil e área de membros com revisão de imagens (super prompt + upload + zoom) e publicação via ponte; **Agnes AI** = IA oficial de imagens (provedor #0) — `docs/blueprint_guia.md`
 
 ### 🔜 Próximos Passos
 - [ ] Google Search Console — Verificação e monitoramento

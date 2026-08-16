@@ -1,0 +1,1858 @@
+{
+  "config": {
+    "durations": [
+      {
+        "id": "18m",
+        "label": "18 meses",
+        "days": 540
+      },
+      {
+        "id": "12m",
+        "label": "12 meses",
+        "days": 365
+      }
+    ],
+    "milestones": [
+      {
+        "id": "criacao",
+        "name": "Criação & Queda",
+        "icon": "🌍",
+        "startDay18": 1,
+        "startDay12": 1
+      },
+      {
+        "id": "patriarcas",
+        "name": "Os Patriarcas",
+        "icon": "⛺",
+        "startDay18": 6,
+        "startDay12": 4
+      },
+      {
+        "id": "exodo",
+        "name": "Êxodo & Lei",
+        "icon": "🔥",
+        "startDay18": 43,
+        "startDay12": 29
+      },
+      {
+        "id": "conquista",
+        "name": "Conquista & Juízes",
+        "icon": "⚔️",
+        "startDay18": 105,
+        "startDay12": 71
+      },
+      {
+        "id": "reis",
+        "name": "Reis & Profetas",
+        "icon": "👑",
+        "startDay18": 128,
+        "startDay12": 86
+      },
+      {
+        "id": "exilio",
+        "name": "Exilo & Retorno",
+        "icon": "🏚️",
+        "startDay18": 320,
+        "startDay12": 216
+      },
+      {
+        "id": "evangelhos",
+        "name": "Jesus & Evangelhos",
+        "icon": "✝️",
+        "startDay18": 391,
+        "startDay12": 264
+      },
+      {
+        "id": "igreja",
+        "name": "A Igreja Primitiva",
+        "icon": "🕊️",
+        "startDay18": 441,
+        "startDay12": 298
+      },
+      {
+        "id": "apocalipse",
+        "name": "Apocalipse & Nova Criação",
+        "icon": "⭐",
+        "startDay18": 520,
+        "startDay12": 352
+      }
+    ]
+  },
+  "acoes": [
+    "Agradeça a Deus por algo específico que Ele fez na sua vida hoje.",
+    "Perdoe alguém que te magoou. Ore por essa pessoa.",
+    "Ajude um vizinho ou desconhecido com algo simples.",
+    "Ore por alguém que está passando por dificuldade.",
+    "Compartilhe um versículo que te tocou com um amigo.",
+    "Leia um salmo em voz alta como oração.",
+    "Escreva3 coisas pelas quais você é grato hoje.",
+    "Sorria para alguém que parece triste hoje.",
+    "Ofereça seu tempo para ajudar alguém na igreja.",
+    "Desligue o celular por30 minutos e passe tempo com Deus.",
+    "Visite alguém que está doente ou sozinho.",
+    "Perdoe a si mesmo por algo que você guardou por tempo demais.",
+    "Faça uma refeição para alguém que precisa.",
+    "Camine e admire a criação de Deus.",
+    "Ore pelos seus inimigos.",
+    "Escreva uma carta de agradecimento para alguém.",
+    "Dê algo que você gosta para alguém que precisa.",
+    "Ouça uma música de louvor e deixe seu coração adorar.",
+    "Leia a Bíblia para uma criança.",
+    "Ajude alguém com um serviço doméstico.",
+    "Reconheça publicamente algo bom que alguém fez.",
+    "Perdoe uma pessoa que te decepcionou.",
+    "Ore pela paz de Jerusalém e pelo Israel.",
+    "Faça uma doação para uma causa cristã.",
+    "Ensine algo da Bíblia para alguém mais novo.",
+    "Ore por um líder da igreja.",
+    "Sorria e diga \"Deus te abençoe\" para alguém hoje.",
+    "Ajude alguém a carregar uma carga pesada.",
+    "Ore por um familiar que não conhece a Jesus.",
+    "Leia um proverbio e aplique na prática.",
+    "Faça uma pausa para respirar e orar no meio da correria.",
+    "Envie uma mensagem de encorajamento para alguém.",
+    "Reze antes de cada refeição hoje com gratidão.",
+    "Ajude alguém que perdeu algo.",
+    "Ore por paz no mundo.",
+    "Perdoe uma injustiça que você sofreu.",
+    "Faça algo gentil sem que ninguém saiba.",
+    "Ore por alguém que está em luto.",
+    "Leia um versículo de cor e medite nele.",
+    "Faça uma oração de gratidão ao acordar.",
+    "Compartilhe o evangelho com alguém de forma natural.",
+    "Ore por um país onde os cristãos são perseguidos.",
+    "Ajude alguém que está passando por um momento difícil.",
+    "Dê um abraço em alguém que precisa de carinho.",
+    "Leia a Palavra antes de dormir.",
+    "Ore pela sua família.",
+    "Seja paciente com alguém difícil hoje.",
+    "Agradeça a Deus pelas provações que te fortaleceram.",
+    "Faça uma oração espontânea de louvor."
+  ],
+  "plan_18m": [
+    [
+      "gn",
+      1,
+      3
+    ],
+    [
+      "gn",
+      4,
+      7
+    ],
+    [
+      "gn",
+      8,
+      11
+    ],
+    [
+      "gn",
+      12,
+      15
+    ],
+    [
+      "gn",
+      16,
+      18
+    ],
+    [
+      "gn",
+      19,
+      21
+    ],
+    [
+      "gn",
+      22,
+      24
+    ],
+    [
+      "gn",
+      25,
+      27
+    ],
+    [
+      "gn",
+      28,
+      30
+    ],
+    [
+      "gn",
+      31,
+      33
+    ],
+    [
+      "gn",
+      34,
+      36
+    ],
+    [
+      "gn",
+      37,
+      39
+    ],
+    [
+      "gn",
+      40,
+      42
+    ],
+    [
+      "gn",
+      43,
+      45
+    ],
+    [
+      "gn",
+      46,
+      47
+    ],
+    [
+      "gn",
+      48,
+      50
+    ],
+    [
+      "job",
+      1,
+      4
+    ],
+    [
+      "job",
+      5,
+      7
+    ],
+    [
+      "job",
+      8,
+      10
+    ],
+    [
+      "job",
+      11,
+      14
+    ],
+    [
+      "job",
+      15,
+      17
+    ],
+    [
+      "job",
+      18,
+      20
+    ],
+    [
+      "job",
+      21,
+      23
+    ],
+    [
+      "job",
+      24,
+      27
+    ],
+    [
+      "job",
+      28,
+      31
+    ],
+    [
+      "job",
+      32,
+      34
+    ],
+    [
+      "job",
+      35,
+      37
+    ],
+    [
+      "job",
+      38,
+      40
+    ],
+    [
+      "job",
+      41,
+      42
+    ],
+    [
+      "ex",
+      1,
+      3
+    ],
+    [
+      "ex",
+      4,
+      6
+    ],
+    [
+      "ex",
+      7,
+      9
+    ],
+    [
+      "ex",
+      10,
+      12
+    ],
+    [
+      "ex",
+      13,
+      15
+    ],
+    [
+      "ex",
+      16,
+      18
+    ],
+    [
+      "ex",
+      19,
+      21
+    ],
+    [
+      "ex",
+      22,
+      24
+    ],
+    [
+      "ex",
+      25,
+      27
+    ],
+    [
+      "ex",
+      28,
+      30
+    ],
+    [
+      "ex",
+      31,
+      33
+    ],
+    [
+      "ex",
+      34,
+      36
+    ],
+    [
+      "ex",
+      37,
+      39
+    ],
+    [
+      "ex",
+      40,
+      40
+    ],
+    [
+      "lv",
+      1,
+      4
+    ],
+    [
+      "lv",
+      5,
+      7
+    ],
+    [
+      "lv",
+      8,
+      10
+    ],
+    [
+      "lv",
+      11,
+      13
+    ],
+    [
+      "lv",
+      14,
+      16
+    ],
+    [
+      "lv",
+      17,
+      19
+    ],
+    [
+      "lv",
+      20,
+      22
+    ],
+    [
+      "lv",
+      23,
+      25
+    ],
+    [
+      "lv",
+      26,
+      27
+    ],
+    [
+      "nm",
+      1,
+      3
+    ],
+    [
+      "nm",
+      4,
+      6
+    ],
+    [
+      "nm",
+      7,
+      9
+    ],
+    [
+      "nm",
+      10,
+      12
+    ],
+    [
+      "nm",
+      13,
+      15
+    ],
+    [
+      "nm",
+      16,
+      18
+    ],
+    [
+      "nm",
+      19,
+      21
+    ],
+    [
+      "nm",
+      22,
+      24
+    ],
+    [
+      "nm",
+      25,
+      27
+    ],
+    [
+      "nm",
+      28,
+      30
+    ],
+    [
+      "nm",
+      31,
+      33
+    ],
+    [
+      "nm",
+      34,
+      36
+    ],
+    [
+      "dt",
+      1,
+      3
+    ],
+    [
+      "dt",
+      4,
+      6
+    ],
+    [
+      "dt",
+      7,
+      9
+    ],
+    [
+      "dt",
+      10,
+      12
+    ],
+    [
+      "dt",
+      13,
+      15
+    ],
+    [
+      "dt",
+      16,
+      18
+    ],
+    [
+      "dt",
+      19,
+      21
+    ],
+    [
+      "dt",
+      22,
+      24
+    ],
+    [
+      "dt",
+      25,
+      27
+    ],
+    [
+      "dt",
+      28,
+      30
+    ],
+    [
+      "dt",
+      31,
+      34
+    ],
+    [
+      "js",
+      1,
+      3
+    ],
+    [
+      "js",
+      4,
+      6
+    ],
+    [
+      "js",
+      7,
+      9
+    ],
+    [
+      "js",
+      10,
+      12
+    ],
+    [
+      "js",
+      13,
+      15
+    ],
+    [
+      "js",
+      16,
+      18
+    ],
+    [
+      "js",
+      19,
+      21
+    ],
+    [
+      "js",
+      22,
+      24
+    ],
+    [
+      "jz",
+      1,
+      3
+    ],
+    [
+      "jz",
+      4,
+      6
+    ],
+    [
+      "jz",
+      7,
+      9
+    ],
+    [
+      "jz",
+      10,
+      12
+    ],
+    [
+      "jz",
+      13,
+      15
+    ],
+    [
+      "jz",
+      16,
+      18
+    ],
+    [
+      "jz",
+      19,
+      21
+    ],
+    [
+      "rt",
+      1,
+      4
+    ],
+    [
+      "1sm",
+      1,
+      4
+    ],
+    [
+      "1sm",
+      5,
+      8
+    ],
+    [
+      "1sm",
+      9,
+      12
+    ],
+    [
+      "1sm",
+      13,
+      16
+    ],
+    [
+      "1sm",
+      17,
+      20
+    ],
+    [
+      "1sm",
+      21,
+      24
+    ],
+    [
+      "1sm",
+      25,
+      28
+    ],
+    [
+      "1sm",
+      29,
+      31
+    ],
+    [
+      "2sm",
+      1,
+      4
+    ],
+    [
+      "2sm",
+      5,
+      8
+    ],
+    [
+      "2sm",
+      9,
+      12
+    ],
+    [
+      "2sm",
+      13,
+      16
+    ],
+    [
+      "2sm",
+      17,
+      20
+    ],
+    [
+      "2sm",
+      21,
+      24
+    ],
+    [
+      "1rs",
+      1,
+      4
+    ],
+    [
+      "1rs",
+      5,
+      8
+    ],
+    [
+      "1rs",
+      9,
+      12
+    ],
+    [
+      "1rs",
+      13,
+      16
+    ],
+    [
+      "1rs",
+      17,
+      20
+    ],
+    [
+      "1rs",
+      21,
+      22
+    ],
+    [
+      "2rs",
+      1,
+      4
+    ],
+    [
+      "2rs",
+      5,
+      8
+    ],
+    [
+      "2rs",
+      9,
+      12
+    ],
+    [
+      "2rs",
+      13,
+      16
+    ],
+    [
+      "2rs",
+      17,
+      20
+    ],
+    [
+      "2rs",
+      21,
+      25
+    ],
+    [
+      "1cr",
+      1,
+      4
+    ],
+    [
+      "1cr",
+      5,
+      8
+    ],
+    [
+      "1cr",
+      9,
+      12
+    ],
+    [
+      "1cr",
+      13,
+      16
+    ],
+    [
+      "1cr",
+      17,
+      20
+    ],
+    [
+      "1cr",
+      21,
+      24
+    ],
+    [
+      "1cr",
+      25,
+      29
+    ],
+    [
+      "2cr",
+      1,
+      4
+    ],
+    [
+      "2cr",
+      5,
+      8
+    ],
+    [
+      "2cr",
+      9,
+      12
+    ],
+    [
+      "2cr",
+      13,
+      16
+    ],
+    [
+      "2cr",
+      17,
+      20
+    ],
+    [
+      "2cr",
+      21,
+      24
+    ],
+    [
+      "2cr",
+      25,
+      28
+    ],
+    [
+      "2cr",
+      29,
+      32
+    ],
+    [
+      "2cr",
+      33,
+      36
+    ],
+    [
+      "sl",
+      1,
+      10
+    ],
+    [
+      "sl",
+      11,
+      18
+    ],
+    [
+      "sl",
+      19,
+      26
+    ],
+    [
+      "sl",
+      27,
+      34
+    ],
+    [
+      "sl",
+      35,
+      41
+    ],
+    [
+      "sl",
+      42,
+      50
+    ],
+    [
+      "sl",
+      51,
+      59
+    ],
+    [
+      "sl",
+      60,
+      68
+    ],
+    [
+      "sl",
+      69,
+      76
+    ],
+    [
+      "sl",
+      77,
+      84
+    ],
+    [
+      "sl",
+      85,
+      92
+    ],
+    [
+      "sl",
+      93,
+      100
+    ],
+    [
+      "sl",
+      101,
+      108
+    ],
+    [
+      "sl",
+      109,
+      116
+    ],
+    [
+      "sl",
+      117,
+      124
+    ],
+    [
+      "sl",
+      125,
+      132
+    ],
+    [
+      "sl",
+      133,
+      140
+    ],
+    [
+      "sl",
+      141,
+      150
+    ],
+    [
+      "pv",
+      1,
+      6
+    ],
+    [
+      "pv",
+      7,
+      12
+    ],
+    [
+      "pv",
+      13,
+      18
+    ],
+    [
+      "pv",
+      19,
+      24
+    ],
+    [
+      "pv",
+      25,
+      31
+    ],
+    [
+      "ec",
+      1,
+      6
+    ],
+    [
+      "ec",
+      7,
+      12
+    ],
+    [
+      "ct",
+      1,
+      4
+    ],
+    [
+      "ct",
+      5,
+      8
+    ],
+    [
+      "is",
+      1,
+      6
+    ],
+    [
+      "is",
+      7,
+      12
+    ],
+    [
+      "is",
+      13,
+      18
+    ],
+    [
+      "is",
+      19,
+      24
+    ],
+    [
+      "is",
+      25,
+      30
+    ],
+    [
+      "is",
+      31,
+      36
+    ],
+    [
+      "is",
+      37,
+      42
+    ],
+    [
+      "is",
+      43,
+      48
+    ],
+    [
+      "is",
+      49,
+      54
+    ],
+    [
+      "is",
+      55,
+      60
+    ],
+    [
+      "is",
+      61,
+      66
+    ],
+    [
+      "jr",
+      1,
+      5
+    ],
+    [
+      "jr",
+      6,
+      10
+    ],
+    [
+      "jr",
+      11,
+      16
+    ],
+    [
+      "jr",
+      17,
+      22
+    ],
+    [
+      "jr",
+      23,
+      28
+    ],
+    [
+      "jr",
+      29,
+      34
+    ],
+    [
+      "jr",
+      35,
+      40
+    ],
+    [
+      "jr",
+      41,
+      46
+    ],
+    [
+      "jr",
+      47,
+      52
+    ],
+    [
+      "lm",
+      1,
+      5
+    ],
+    [
+      "ez",
+      1,
+      6
+    ],
+    [
+      "ez",
+      7,
+      12
+    ],
+    [
+      "ez",
+      13,
+      18
+    ],
+    [
+      "ez",
+      19,
+      24
+    ],
+    [
+      "ez",
+      25,
+      30
+    ],
+    [
+      "ez",
+      31,
+      36
+    ],
+    [
+      "ez",
+      37,
+      42
+    ],
+    [
+      "ez",
+      43,
+      48
+    ],
+    [
+      "dn",
+      1,
+      4
+    ],
+    [
+      "dn",
+      5,
+      8
+    ],
+    [
+      "dn",
+      9,
+      12
+    ],
+    [
+      "os",
+      1,
+      5
+    ],
+    [
+      "os",
+      6,
+      8
+    ],
+    [
+      "os",
+      9,
+      14
+    ],
+    [
+      "jl",
+      1,
+      3
+    ],
+    [
+      "am",
+      1,
+      5
+    ],
+    [
+      "am",
+      6,
+      9
+    ],
+    [
+      "ob",
+      1,
+      1
+    ],
+    [
+      "jn",
+      1,
+      4
+    ],
+    [
+      "mq",
+      1,
+      4
+    ],
+    [
+      "mq",
+      5,
+      7
+    ],
+    [
+      "na",
+      1,
+      3
+    ],
+    [
+      "hc",
+      1,
+      3
+    ],
+    [
+      "sf",
+      1,
+      3
+    ],
+    [
+      "ag",
+      1,
+      2
+    ],
+    [
+      "zc",
+      1,
+      5
+    ],
+    [
+      "zc",
+      6,
+      10
+    ],
+    [
+      "zc",
+      11,
+      14
+    ],
+    [
+      "ml",
+      1,
+      4
+    ],
+    [
+      "ed",
+      1,
+      4
+    ],
+    [
+      "ed",
+      5,
+      6
+    ],
+    [
+      "ed",
+      7,
+      10
+    ],
+    [
+      "ne",
+      1,
+      4
+    ],
+    [
+      "ne",
+      5,
+      8
+    ],
+    [
+      "ne",
+      9,
+      13
+    ],
+    [
+      "et",
+      1,
+      5
+    ],
+    [
+      "et",
+      6,
+      10
+    ],
+    [
+      "ag",
+      1,
+      2
+    ],
+    [
+      "zc",
+      1,
+      7
+    ],
+    [
+      "zc",
+      8,
+      14
+    ],
+    [
+      "ml",
+      1,
+      4
+    ],
+    [
+      "mt",
+      1,
+      5
+    ],
+    [
+      "mt",
+      6,
+      9
+    ],
+    [
+      "mt",
+      10,
+      13
+    ],
+    [
+      "mt",
+      14,
+      17
+    ],
+    [
+      "mt",
+      18,
+      21
+    ],
+    [
+      "mt",
+      22,
+      25
+    ],
+    [
+      "mt",
+      26,
+      28
+    ],
+    [
+      "mc",
+      1,
+      4
+    ],
+    [
+      "mc",
+      5,
+      8
+    ],
+    [
+      "mc",
+      9,
+      12
+    ],
+    [
+      "mc",
+      13,
+      16
+    ],
+    [
+      "lc",
+      1,
+      4
+    ],
+    [
+      "lc",
+      5,
+      8
+    ],
+    [
+      "lc",
+      9,
+      12
+    ],
+    [
+      "lc",
+      13,
+      16
+    ],
+    [
+      "lc",
+      17,
+      20
+    ],
+    [
+      "lc",
+      21,
+      24
+    ],
+    [
+      "jo",
+      1,
+      4
+    ],
+    [
+      "jo",
+      5,
+      7
+    ],
+    [
+      "jo",
+      8,
+      11
+    ],
+    [
+      "jo",
+      12,
+      15
+    ],
+    [
+      "jo",
+      16,
+      18
+    ],
+    [
+      "jo",
+      19,
+      21
+    ],
+    [
+      "at",
+      1,
+      4
+    ],
+    [
+      "at",
+      5,
+      8
+    ],
+    [
+      "at",
+      9,
+      12
+    ],
+    [
+      "at",
+      13,
+      16
+    ],
+    [
+      "at",
+      17,
+      20
+    ],
+    [
+      "at",
+      21,
+      24
+    ],
+    [
+      "at",
+      25,
+      28
+    ],
+    [
+      "rm",
+      1,
+      4
+    ],
+    [
+      "rm",
+      5,
+      8
+    ],
+    [
+      "rm",
+      9,
+      12
+    ],
+    [
+      "rm",
+      13,
+      16
+    ],
+    [
+      "1co",
+      1,
+      4
+    ],
+    [
+      "1co",
+      5,
+      8
+    ],
+    [
+      "1co",
+      9,
+      12
+    ],
+    [
+      "1co",
+      13,
+      16
+    ],
+    [
+      "2co",
+      1,
+      4
+    ],
+    [
+      "2co",
+      5,
+      8
+    ],
+    [
+      "2co",
+      9,
+      13
+    ],
+    [
+      "gl",
+      1,
+      3
+    ],
+    [
+      "gl",
+      4,
+      6
+    ],
+    [
+      "ef",
+      1,
+      3
+    ],
+    [
+      "ef",
+      4,
+      6
+    ],
+    [
+      "fp",
+      1,
+      2
+    ],
+    [
+      "fp",
+      3,
+      4
+    ],
+    [
+      "cl",
+      1,
+      2
+    ],
+    [
+      "cl",
+      3,
+      4
+    ],
+    [
+      "1ts",
+      1,
+      3
+    ],
+    [
+      "1ts",
+      4,
+      5
+    ],
+    [
+      "2ts",
+      1,
+      3
+    ],
+    [
+      "1tm",
+      1,
+      3
+    ],
+    [
+      "1tm",
+      4,
+      6
+    ],
+    [
+      "2tm",
+      1,
+      2
+    ],
+    [
+      "2tm",
+      3,
+      4
+    ],
+    [
+      "tt",
+      1,
+      3
+    ],
+    [
+      "fm",
+      1,
+      1
+    ],
+    [
+      "hb",
+      1,
+      3
+    ],
+    [
+      "hb",
+      4,
+      6
+    ],
+    [
+      "hb",
+      7,
+      9
+    ],
+    [
+      "hb",
+      10,
+      13
+    ],
+    [
+      "tg",
+      1,
+      5
+    ],
+    [
+      "1pe",
+      1,
+      3
+    ],
+    [
+      "1pe",
+      4,
+      5
+    ],
+    [
+      "2pe",
+      1,
+      3
+    ],
+    [
+      "1jo",
+      1,
+      3
+    ],
+    [
+      "1jo",
+      4,
+      5
+    ],
+    [
+      "2jo",
+      1,
+      1
+    ],
+    [
+      "3jo",
+      1,
+      1
+    ],
+    [
+      "jd",
+      1,
+      1
+    ],
+    [
+      "ap",
+      1,
+      3
+    ],
+    [
+      "ap",
+      4,
+      6
+    ],
+    [
+      "ap",
+      7,
+      9
+    ],
+    [
+      "ap",
+      10,
+      12
+    ],
+    [
+      "ap",
+      13,
+      15
+    ],
+    [
+      "ap",
+      16,
+      18
+    ],
+    [
+      "ap",
+      19,
+      22
+    ]
+  ],
+  "book_names": {
+    "gn": "Gênesis",
+    "ex": "Êxodo",
+    "lv": "Levíticos",
+    "nm": "Números",
+    "dt": "Deuteronômio",
+    "js": "Josué",
+    "jz": "Juízes",
+    "rt": "Rute",
+    "1sm": "1 Samuel",
+    "2sm": "2 Samuel",
+    "1rs": "1 Reis",
+    "2rs": "2 Reis",
+    "1cr": "1 Crônicas",
+    "2cr": "2 Crônicas",
+    "ed": "Esdras",
+    "ne": "Neemias",
+    "et": "Ester",
+    "job": "Jó",
+    "sl": "Salmos",
+    "pv": "Provébbs",
+    "ec": "Eclesiastes",
+    "ct": "Cânticos",
+    "is": "Isaías",
+    "jr": "Jeremias",
+    "lm": "Lamentações",
+    "ez": "Ezequiel",
+    "dn": "Daniel",
+    "os": "Oséias",
+    "jl": "Joel",
+    "am": "Amós",
+    "ob": "Obadias",
+    "jn": "Jonas",
+    "mq": "Miquéias",
+    "na": "Naum",
+    "hc": "Habacuque",
+    "sf": "Sofonias",
+    "ag": "Ageu",
+    "zc": "Zacarias",
+    "ml": "Malaquias",
+    "mt": "Mateus",
+    "mc": "Marcos",
+    "lc": "Lucas",
+    "jo": "João",
+    "at": "Atos",
+    "rm": "Romanos",
+    "1co": "1 Coríntios",
+    "2co": "2 Coríntios",
+    "gl": "Gálatas",
+    "ef": "Efésios",
+    "fp": "Filipenses",
+    "cl": "Colossenses",
+    "1ts": "1 Tessalonicenses",
+    "2ts": "2 Tessalonicenses",
+    "1tm": "1 Timóteo",
+    "2tm": "2 Timóteo",
+    "tt": "Tito",
+    "fm": "Filemom",
+    "hb": "Hebreus",
+    "tg": "Tiago",
+    "1pe": "1 Pedro",
+    "2pe": "2 Pedro",
+    "1jo": "1 João",
+    "2jo": "2 João",
+    "3jo": "3 João",
+    "jd": "Judas",
+    "ap": "Apocalipse"
+  },
+  "devocionais": [
+    "Criou tudo do nada! Cada estrela, cada flor, cada você. Que tal agradecer hoje por algo específico que Deus criou?",
+    "Mesmo após a queda, Deus não desistiu da humanidade. Ele sempre tem um plano de restauração.",
+    "Deus cuidou de Adão e Eva mesmo depois do erro. Ele cuida de você também, todos os dias.",
+    "A terra era sem forma e vazia, mas Deus trouxe ordem. Ele pode trazer ordem na sua vida também.",
+    "Deus criou a luz antes de tudo. Quando tudo parece escuro, lembre-se: Ele é a luz.",
+    "A promessa de Deus a Abraão era impossível. Mas Ele é o Deus do impossível.",
+    "José foi traído pelos próprios irmãos, mas Deus usou isso para salvar nações. Seu sofrimento tem propósito.",
+    "Deus fez um pacto eterno com Abraão. Ele nunca quebra Suas promessas.",
+    "Isaac cavou poços novos quando tudo parecia seco. Continue cavando, a água vai jorrar.",
+    "Jacó lutou com Deus a noite inteira. Às vezes a luta espiritual é o caminho para a bênção.",
+    "José poderia ter guardado ressentimento, mas escolheu o perdão. O perdão liberta o coração.",
+    "Deus sustentou José no Egito. Ele te sustenta onde você está.",
+    "Deus nunca dorme nem cochila. Ele está trabalhando mesmo quando você não vê.",
+    "A tempestade é temporária, mas a fidelidade de Deus é eterna.",
+    "Mesmo no sofrimento, Jó não trocou sua fé. Sua integridade é sua maior riqueza.",
+    "Deus respondeu Jó com perguntas, não explicações. Às vezes Ele responde com Sua presença, não com respostas.",
+    "No fundo do poço, Deus ainda é soberano. Não importa onde você esteja.",
+    "Jó perdeu tudo, mas ganhou o dobro. Deus sempre restaura o que é perdido.",
+    "Deus é maior que qualquer acusação. Ele é o seu advogado.",
+    "Quando tudo parece perdido, lembre-se: a história de Deus com você ainda não acabou.",
+    "Deus trouxe água da rocha para Israel. Ele pode fazer o impossível acontecer na sua vida.",
+    "O deserto é o lugar onde Deus fala mais alto. Não tenha medo do silêncio.",
+    "Deus deu a Lei para guiar, não para prender. Sua Palavra é libertação.",
+    "A nuvem de dia e o fogo de noite: Deus guia passo a passo.",
+    "Deus não pediu perfeição, mas obediência. Comece onde você está.",
+    "O maná caía todo dia. Deus provê dia a dia, não acumule worry.",
+    "O deserto ensina dependência. Sem maná, sem vida.",
+    "Deus habitava no meio do povo. Ele quer habitar no meio da sua vida.",
+    "O véu rasgou: acesso direto a Deus. Não precisa de intermediário.",
+    "Deus queimou o sacrifício com fogo do céu. Ele aceita o que é dado com coração sincero.",
+    "A arca da aliança representava a presença de Deus. O que representa a presença Dele na sua casa?",
+    "Deus falava com Moisés face a face. Ele quer falar com você também.",
+    "O Êxodo é a maior história de libertação. Deus liberta dos Egitos da vida.",
+    "Deus abriu o mar Vermelho. Ele abre caminhos onde não há caminho.",
+    "A coluna de nuvem guia pelo dia. Deus é guia, não GPS. Ele mostra o próximo passo.",
+    "Deus deu os mandamentos para libertar, não para escravizar.",
+    "O bezerro de ouro foi idolatria. O que você colocou no lugar de Deus?",
+    "Deus perdoou Israel após o bezerro. O perdão Dele é mais rápido que o nosso erro.",
+    "A tenda do encontro era o ponto de encontro com Deus. Onde está o seu ponto de encontro?",
+    "Deus se revelou como misericordioso e compassivo. Essa é Sua natureza.",
+    "A terra prometida era real. A promessa Dele para você também é.",
+    "Josué precisou de coragem. Deus diz: \"Seja forte e corajoso.\"",
+    "Deus derrotou os exércitos com trombetas. Às vezes Ele vence com ferramentas simples.",
+    "Cada tribo recebeu sua porção. Deus tem um lugar para você no Seu plano.",
+    "Deus usou a arca para derrotar Jericó. O impossível cai diante Dele.",
+    "Gideão tinha300 homens contra milhares. Deus usa o pouco para vencer muito.",
+    "Sansão era fraco sem Deus, forte com Ele. Sua força vem Dele.",
+    "Rute escolheu ficar com Noemi. A lealdade é um valor do Reino.",
+    "Deus providenciou um redentor para Rute. Ele sempre provê.",
+    "O julgamento dos juízes mostrava: cada um fazia o que parecia certo. Precisamos de um Rei justo.",
+    "Samuel ouviu a voz de Deus jovem. Ouça a voz Dele hoje.",
+    "Deus escolheu Davi, o menor dos irmãos. Ele vê o coração.",
+    "Davi era um homem segundo o coração de Deus. Ser segundo o coração Dele é o maior elogio.",
+    "A vitória sobre Golias foi por fé. O gigante da sua vida também cairá.",
+    "Deus não olha a aparência, olha o coração. Ele vê o que outros não veem.",
+    "Davi pecou, mas se arrependeu. O arrependimento sincero restaura.",
+    "O Salmo 51 é o maior pedido de perdão já escrito. Deu traz restauração ao arrependido.",
+    "Deus fez um pacto eterno com Davi. A promessa se cumpriu em Jesus.",
+    "Salomão pediu sabedoria, e Deus deu mais. Peça sabedoria, não riquezas.",
+    "O templo de Salomão era glorioso. Mas Deus habita em corações arrependidos.",
+    "O reino se dividiu quando desobedeceram. A desobedecia sempre divide.",
+    "Os profetas eram vozes no deserto. Deus sempre envia avisos.",
+    "Isaías viu a glória de Deus. Quando você vê a gloria Dele, tudo muda.",
+    "Isaías 53 fala de Jesus700 anos antes. Deus é Deus do antes e do depois.",
+    "Jeremias chorou por Israel. Deus chora com quem chora.",
+    "Ezequiel viu ossos secos reviverem. Deus pode ressuscitar o que parece morto na sua vida.",
+    "Daniel manteve sua fé na cativeiro. Sua fé é provada no fogo.",
+    "Os três amigos de Daniel no forno: Deus é fiel no meio do fogo.",
+    "Daniel orava3 vezes ao dia. A oração é o oxigênio da fé.",
+    "Oséias amou uma esposa infiel. Deus nos ama mesmo quando somos infiéis.",
+    "Joel disse: \"Os sonhos se cumprirão.\" Deus tem sonhos para você.",
+    "Amós falou contra a injustiça. Deus se importa com os pobres e oprimidos.",
+    "Jonas fugiu, mas Deus o encontrou. Você não pode fugir do chamado Dele.",
+    "Jonas3 dias no peixe, Jesus3 dias no túmulo. Deus transforma prisões em libertação.",
+    "Miquéias disse: \"Pratique a justiça, ame a misericórdia.\" Isso é religião pura.",
+    "Nínive se arrependeu. Até os piores podem se voltar para Deus.",
+    "Habacuque escolheu confiar mesmo sem entender. A fé é confiar no escuro.",
+    "Sofonias falou do \"dia do Senhor\". Prepare seu coração.",
+    "Ageu motivou a reconstruir o templo. Reconstrua o que caiu na sua vida.",
+    "Zacarias viu o futuro messiânico. Deus sempre cumpre Suas promessas.",
+    "Malaquias foi o último profeta antes do silêncio de400 anos. Deus prepara o terreno.",
+    "O silêncio de400 anos não significou ausência. Deus estava trabalhando nos bastidores.",
+    "Esdras levou o povo de volta. Deus sempre traz de volta ao caminho.",
+    "Neemias reconstruiu os muros. Reconstrua os muros da sua vida.",
+    "Ester foi colocada \"para tal tempo como este\". Deus tem um propósito para você.",
+    "Mardocai disse a Ester: \"Quem sabe se não foi para este momento?\" Oportunidade está diante de você.",
+    "Deus usou uma rainha pagã para salvar Seu povo. Ele usa instrumentos inesperados.",
+    "O Antigo Testamento aponta para Jesus. Toda história O revela.",
+    "Jesus nasceu em humildade. O Rei dos reis veio em manjedoura.",
+    "Os magos trouxeram presentes. O que você traz para Jesus?",
+    "Jesus foi batizado antes de começar ministério. A obediência precede a unção.",
+    "O deserto40 dias provou Jesus. A provação prepara para o ministério.",
+    "Jesus chamou pescadores. Ele chama pessoas comuns para missões extraordinárias.",
+    "O Sermão da Montanha é o manifesto do Reino. A felicidade é nos pobres de espírito.",
+    "Jesus curou os doentes. Ele é o mesmo ontem, hoje e sempre.",
+    "A parábola do semeador: qual solo é o seu coração?",
+    "Jesus acalmou a tempestade. Ele acalma as tempestades da sua vida.",
+    "Jesus caminhou sobre as águas. Ele está no controle até das águas turbulentas.",
+    "A transfiguração mostrou a glória de Jesus. Há mais do que os olhos veem.",
+    "Jesus chorou por Lázaro. Ele chora com você.",
+    "A ressurreição de Lázaro aponta para a ressurreição de todos em Cristo.",
+    "Jesus entrou em Jerusalém como rei. Ele é o Rei da sua vida?",
+    "A Última Ceia: \"Fazem isso em memória de mim.\" A ceia é memorial da graça.",
+    "No Getsêmane Jesus suou sangue. Ele sabe o que é sofrimento.",
+    "Pedro negou Jesus3 vezes. Deus restaura depois da queda.",
+    "A crucificação: \"Está consumado.\" O preço foi pago.",
+    "O véu rasgou: acesso direto a Deus. Você pode ir ao Seu trono.",
+    "No túmulo vazio: a morte não venceu. A esperança está viva.",
+    "Jesus ressuscitou! A vitória é completa. Não há nada a temer.",
+    "Jesus mostrou as mãos e os pés. Ele carrega as marcas por você.",
+    "A grande comissão: \"Vá e faça discípulos.\" Esse é o chamado.",
+    "O Espírito Santo desceu no Pentecostes. A igreja nasceu com poder.",
+    "Pedro pregou e3000 se converteram. O Evangelho é poder de Deus.",
+    "Os apóstolos foram presos, mas Deus os libertou. Nenhuma prisão segura a igreja.",
+    "Estêvão foi o primeiro mártir. Sua fé não vacilou.",
+    "Paulo perseguiu a igreja, depois a serviu. Ninguém é longe demais para Deus.",
+    "A conversão de Paulo na estrada: Jesus muda tudo em um instante.",
+    "Pedro e o centurião: Deus não faz distinção de raça.",
+    "A igreja de Antioquia: onde nasce a missão.",
+    "Paulo e Barnabé saíram em missão. Deus sempre envia.",
+    "As cartas de Paulo são manuais de fé. Leia como quem fala com você.",
+    "Romanos8: \"Nada pode nos separar do amor de Deus.\" Memorize esse capítulo.",
+    "1 Coríntios13: \"O amor é paciente.\" A fé sem amor é barulho.",
+    "2 Coríntios12: \"Minha graça basta.\" A graça Dele é suficiente.",
+    "Gálatas5: \"O fruto do Espírito é...\" Qual fruto está crescendo em você?",
+    "Efésios6: \"A armadura de Deus.\" Vista-se todos os dias.",
+    "Filipenses4: \"Posso todas as coisas.\" A força vem Dele.",
+    "Colossenses3: \"Busque as coisas de cima.\" O que você busca?",
+    "1 Tessalonicenses4: \"Regozijem-se sempre.\" A alegria é uma escolha.",
+    "2 Tessalonicenses3: \"Não se cansem de fazer o bem.\" A perseverança é chave.",
+    "1 Timóteo4: \"Ninguém menospreze sua juventude.\" Use seus dons agora.",
+    "2 Timóteo4: \"Combata a boa batalha.\" A fé é uma luta diária.",
+    "Tito2: \"A graça de Deus apareceu.\" Ela apareceu para você.",
+    "Filemom: O perdão transforma relações. Perdoe como foi perdoado.",
+    "Hebreus11: \"Pela fé...\" Uma galeria de heróis da fé. Você está nela.",
+    "Hebreus12: \"Corramos com perseverança.\" A corrida tem propósito.",
+    "Tiago2: \"A fé sem obras é morta.\" Pratique o que crê.",
+    "1 Pedro4: \"Não se surpreendam com o fogo.\" A provação refina.",
+    "2 Pedro3: \"O Senhor é paciente.\" Ele não quer que ninguém pereça.",
+    "1 João4: \"Deus é amor.\" Quem não ama não conhece a Deus.",
+    "A carta de Judas: \"Lutem pela fé.\" Ela precisa ser defendida.",
+    "Apocalipse1: Jesus é o Alfa e Ômega. Ele é o começo e o fim.",
+    "Apocalipse2-3: As7 igrejas. Deus fala com cada uma. O que Ele diz para você?",
+    "Apocalipse4-5: O trono no céu. A adoração é o propósito da criação.",
+    "Apocalipse6-7: Os selos se abrem. Deus tem controle sobre a história.",
+    "Apocalipse8-9: Os trombetes. Deus é justo em seus julgamentos.",
+    "Apocalipse10-11: As testemunhas. Sua vida é testemunho.",
+    "Apocalipse12-13: O dragão e a besta. O mal não vence.",
+    "Apocalipse14-15: A ceia do Cordeiro. Prepare-se para o encontro.",
+    "Apocalipse16-18: A queda da Babilônia. Todo sistema sem Deus cai.",
+    "Apocalipse19: O cavaleiro branco. Jesus vem como Rei.",
+    "Apocalipse20: O julgamento final. Deus é justo.",
+    "Apocalipse21: Novo céu e nova terra. A esperança se cumpre.",
+    "Apocalipse22: \"Venha, Senhor Jesus!\" A história termina com esperança."
+  ]
+}

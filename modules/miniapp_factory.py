@@ -278,28 +278,6 @@ class MiniAppFactory:
             logger.warning(f"[Ricardo] Falha banner: {e}")
         return {"logo_url": logo_url, "banner_url": banner_url}
 
-    async def _bidu_visual(self, brand: dict, pain: str, app_name: str, slug: str) -> dict:
-        """🦉 Bidu: kit de identidade visual (logo + mascote + banner) via Agnes AI.
-
-        Precede o Ricardo como primeira opcao no miniapp; se qualquer etapa do
-        Agnes falhar, o Bidu ja aciona o fallback automatico (a esteira nunca para).
-        """
-        try:
-            from modules.bidu_visual import BiduVisualAgent
-            agent = BiduVisualAgent()
-            return await agent.generate_assets(
-                brand=brand, pain=pain, app_name=app_name, slug=slug
-            )
-        except Exception as e:
-            logger.warning(f"[Bidu] Falha ao gerar kit visual: {e}")
-            fallback = {"logo_url": "", "banner_url": "", "favicon_url": "",
-                        "og_image_url": "", "mascot": {},
-                        "character_brief": {}, "assets_dir": "", "provider": "fallback_ricardo"}
-            ricardo = await self._ricardo_visual(app_name)
-            fallback["logo_url"] = ricardo.get("logo_url", "")
-            fallback["banner_url"] = ricardo.get("banner_url", "")
-            return fallback
-
     # ─────────────────────────────────────────────────────────────────────────
     # Fluxo principal: criar MiniApp born-complete
     # ─────────────────────────────────────────────────────────────────────────
@@ -338,27 +316,11 @@ class MiniAppFactory:
         logs.append({"agent": "🎨 Dona Célia (Branding)",
                      "message": f"Tema: {brand['theme'].get('primary')} | Marca: {brand['brand_name']}"})
 
-        # ── PASSO 4: Bidu (Identidade Visual) — logo + mascote + banner via Agnes ──
-        logs.append({"agent": "🦉 Bidu (Identidade Visual)", "message": "Criando logo e mascote no padrão Duolingo..."})
-        bidu = await self._bidu_visual(brand, pain, app_name, slug)
-        logs.append({"agent": "🦉 Bidu (Identidade Visual)",
-                     "message": f"Provider: {bidu.get('provider')} | Logo: " +
-                                ("OK" if bidu.get("logo_url") else "fallback") +
-                                (" | Mascote OK" if bidu.get("mascot") else "")})
-
-        # ── PASSO 4.5: Ricardo (Visual fallback do Bidu) ──
-        # Bidu e a primeira opcao; Ricardo cobre quando o kit Bidu vier vazio.
-        visual = {
-            "logo_url": bidu.get("logo_url", ""),
-            "banner_url": bidu.get("banner_url", ""),
-        }
-        if not visual["logo_url"] or not visual["banner_url"]:
-            logs.append({"agent": "🖼️ Ricardo (Diretor Visual)", "message": "Bidu sem assets — acionando fallback Ricardo..."})
-            ricardo = await self._ricardo_visual(app_name)
-            visual["logo_url"] = visual["logo_url"] or ricardo.get("logo_url", "")
-            visual["banner_url"] = visual["banner_url"] or ricardo.get("banner_url", "")
-            logs.append({"agent": "🖼️ Ricardo (Diretor Visual)",
-                         "message": "Logo: " + ("OK" if visual["logo_url"] else "fallback SVG")})
+        # ── PASSO 4: Ricardo (Visual) — logo + banner ──
+        logs.append({"agent": "🖼️ Ricardo (Diretor Visual)", "message": "Gerando logo e banner..."})
+        visual = await self._ricardo_visual(app_name)
+        logs.append({"agent": "🖼️ Ricardo (Diretor Visual)",
+                     "message": "Logo: " + ("OK" if visual["logo_url"] else "fallback SVG")})
 
         # ── PASSO 5: Coder (Frontend) — HTML PWA funcional ──
         logs.append({"agent": "💻 Coder (Desenvolvedor Frontend)", "message": "Construindo a interface funcional..."})
@@ -380,8 +342,6 @@ class MiniAppFactory:
             "theme": json.dumps(brand["theme"], ensure_ascii=False),
             "logo_url": visual["logo_url"], "banner_url": visual["banner_url"],
             "pwa_html": pwa_html,
-            "mascot_url": (bidu.get("mascot") or {}).get("front", ""),
-            "character_brief": json.dumps(bidu.get("character_brief") or {}, ensure_ascii=False),
         }
         check = PWAGenerator.completeness_check(record)
         status = "active" if check["passed"] else "draft"
@@ -419,8 +379,6 @@ class MiniAppFactory:
                     cta_text=copy["cta_text"], brand_name=brand["brand_name"],
                     brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
                     pwa_check=pwa_check, status=status,
-                    mascot_url=(bidu.get("mascot") or {}).get("front", ""),
-                    character_brief=json.dumps(bidu.get("character_brief") or {}, ensure_ascii=False),
                 )
                 if not updated:
                     raise RuntimeError("MiniApp placeholder nao encontrado para atualizar")
@@ -440,8 +398,6 @@ class MiniAppFactory:
                     cta_text=copy["cta_text"], brand_name=brand["brand_name"],
                     brand_voice=brand["brand_voice"], theme=json.dumps(brand["theme"], ensure_ascii=False),
                     pwa_check=pwa_check,
-                    mascot_url=(bidu.get("mascot") or {}).get("front", ""),
-                    character_brief=json.dumps(bidu.get("character_brief") or {}, ensure_ascii=False),
                 )
                 app_id = app_record["id"]
                 logs.append({"agent": "🗄️ DB Chronicler", "message": f"MiniApp salvo com ID: {app_id} (status: {status})"})
@@ -485,10 +441,6 @@ class MiniAppFactory:
             "branding": {"brand_name": brand["brand_name"], "brand_voice": brand["brand_voice"], "theme": brand["theme"]},
             "logo_url": visual["logo_url"],
             "banner_url": visual["banner_url"],
-            "mascot": bidu.get("mascot", {}),
-            "character_brief": bidu.get("character_brief", {}),
-            "assets_dir": bidu.get("assets_dir", ""),
-            "visual_provider": bidu.get("provider", ""),
             "pwa_manifest": pwa_manifest,
             "pwa_html": pwa_html,
             "pwa_check": check,

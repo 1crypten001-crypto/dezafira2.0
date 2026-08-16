@@ -3,9 +3,12 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef } from "react";
+import AgnesCoverButton from "../../../components/AgnesCoverButton";
+import BrandKitEditor from "../../../components/BrandKitEditor";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dezafiraadm-production.up.railway.app";
+const authH = () => { const t = localStorage.getItem('dz_token'); return t ? { Authorization: 'Bearer '+t } : {}; };
 
 export default function FabricaEbookPage() {
   const [title, setTitle] = useState("");
@@ -107,35 +110,37 @@ export default function FabricaEbookPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#060911] text-[#f8fafc]">
-      <header className="border-b border-[#1e293b] bg-[#090d16]">
+    <div className="min-h-screen" style={{ background: 'var(--ink)', color: 'var(--text)' }}>
+      <header className="border-b" style={{ background: 'var(--ink)', borderColor: 'var(--border)' }}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/admin" className="text-sm text-[var(--text-dim)] hover:text-white">← Voltar ao Admin</Link>
-            <span className="text-[#334155]">/</span>
-            <h1 className="text-lg font-bold text-[#8b5cf6]">📗 Fábrica de Ebooks (Pacote Triplo)</h1>
+            <Link href="/admin" className="text-sm hover:brightness-110" style={{ color: 'var(--text-dim)' }}>← Voltar ao Admin</Link>
+            <span style={{ color: 'var(--text-dim)' }}>/</span>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--brand)' }}>📗 Fábrica de Ebooks (Pacote Triplo)</h1>
           </div>
-          <span className="badge text-[var(--success)] text-xs font-bold">🟢 Agentes Especializados</span>
+          <span className="badge text-xs font-bold" style={{ color: 'var(--success)' }}>🟢 Agentes Especializados</span>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
 
+        <BrandKitEditor />
+
         {/* Lista de Ebooks Existentes */}
         {existingBooks.length > 0 && (
-          <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-[#f1f5f9] mb-4">📚 Ebooks Criados ({existingBooks.length})</h2>
+          <div className="border rounded-2xl p-6 shadow-xl" style={{ background: 'var(--ink)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text)' }}>📚 Ebooks Criados ({existingBooks.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {existingBooks.map((book) => (
-                <div key={book.id} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-4 hover:border-[#8b5cf655] transition-all">
+                <div key={book.id} className="border rounded-xl p-4 transition-all hover:brightness-110" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-sm font-bold text-white line-clamp-1">{book.title}</h3>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${book.status === "published" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                    <h3 className="text-sm font-bold line-clamp-1" style={{ color: 'var(--text)' }}>{book.title}</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: book.status === "published" ? 'var(--success)' : 'var(--warning)', color: 'var(--ink)' }}>
                       {book.status === "published" ? "🟢 Publicado" : "🟡 Rascunho"}
                     </span>
                   </div>
-                  <p className="text-xs text-[var(--text-dim)] mb-1">{book.topic}</p>
-                  <p className="text-xs text-gray-400">{book.total_words || 0} palavras</p>
+                  <p className="text-xs mb-1" style={{ color: 'var(--text-dim)' }}>{book.topic}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-dim)' }}>{book.total_words || 0} palavras</p>
                 </div>
               ))}
             </div>
@@ -143,10 +148,10 @@ export default function FabricaEbookPage() {
         )}
 
         {/* Painel de Disparo */}
-        <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="border rounded-2xl p-6 shadow-xl space-y-4" style={{ background: 'var(--ink)', borderColor: 'var(--border)' }}>
           <div>
-            <h2 className="text-xl font-extrabold text-[#f1f5f9]">Gerar Pacote de 3 Ebooks</h2>
-            <p className="text-xs text-[var(--text-dim)]">
+            <h2 className="text-xl font-extrabold" style={{ color: 'var(--text)' }}>Gerar Pacote de 3 Ebooks</h2>
+            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
               A geracao e <strong>assincrona</strong> — voce pode acompanhar o progresso abaixo. 
               Total: ~18 capitulos via LLM + 3 capas. Tempo estimado: 10-15 minutos.
             </p>
@@ -155,22 +160,24 @@ export default function FabricaEbookPage() {
           <form onSubmit={handleGeneratePack} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-[var(--text-dim)] mb-1">TITULO OU TEMA</label>
+                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-dim)' }}>TITULO OU TEMA</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Guia Definitivo de Negocios Digitais com IA"
-                  className="w-full bg-[#131c2e] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#8b5cf6]"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:brightness-110"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-[var(--text-dim)] mb-1">NICHO</label>
+                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-dim)' }}>NICHO</label>
                 <select
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  className="w-full bg-[#131c2e] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#8b5cf6]"
+                  className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:brightness-110"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
                 >
                   <option value="Tecnologia & IA">Tecnologia & IA</option>
                   <option value="Fitness & Saude">Fitness & Saude</option>
@@ -183,7 +190,8 @@ export default function FabricaEbookPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#8b5cf6] to-[#6d28d9] text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg hover:brightness-110 disabled:opacity-50 transition-all"
+              className="w-full font-extrabold py-3.5 rounded-xl text-sm shadow-lg hover:brightness-110 disabled:opacity-50 transition-all"
+              style={{ background: 'var(--brand)', color: 'var(--ink)' }}
             >
               {loading ? `⏳ Gerando... ${progress?.progress || 0}%` : "🚀 Gerar Pacote com 3 Ebooks"}
             </button>
@@ -192,28 +200,26 @@ export default function FabricaEbookPage() {
 
         {/* Progresso em Tempo Real */}
         {progress && (
-          <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="border rounded-2xl p-6 shadow-xl space-y-4" style={{ background: 'var(--ink)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#f1f5f9]">
+              <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
                 {progress.status === "completed" ? "✅ Concluido!" : 
                  progress.status === "failed" ? "❌ Erro" : 
                  "⚡ Progresso da Geracao"}
               </h3>
-              <span className="text-sm font-mono text-[#8b5cf6]">{progress.progress || 0}%</span>
+              <span className="text-sm font-mono" style={{ color: 'var(--brand)' }}>{progress.progress || 0}%</span>
             </div>
 
             {/* Barra de progresso */}
-            <div className="w-full bg-[#131c2e] rounded-full h-3">
+            <div className="w-full rounded-full h-3" style={{ background: 'var(--surface)' }}>
               <div
-                className={`h-3 rounded-full transition-all duration-500 ${
-                  progress.status === "failed" ? "bg-red-500" : "bg-gradient-to-r from-[#8b5cf6] to-[#38bdf8]"
-                }`}
-                style={{ width: `${progress.progress || 0}%` }}
+                className="h-3 rounded-full transition-all duration-500"
+                style={{ width: `${progress.progress || 0}%`, background: progress.status === "failed" ? 'var(--error)' : 'var(--brand)' }}
               />
             </div>
 
             {/* Mensagem atual */}
-            <p className="text-sm text-[var(--text-dim)]">{progress.message}</p>
+            <p className="text-sm" style={{ color: 'var(--text-dim)' }}>{progress.message}</p>
 
             {/* Fases */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -221,26 +227,23 @@ export default function FabricaEbookPage() {
                 const p = phases[phase];
                 if (!p) return null;
                 return (
-                  <div key={phase} className={`p-3 rounded-xl border text-xs ${
-                    p.status === "completed" ? "bg-green-500/10 border-green-500/30" :
-                    p.status === "running" ? "bg-[#38bdf8]/10 border-[#38bdf8]/30" :
-                    "bg-[#131c2e] border-[#1e293b]"
-                  }`}>
+                  <div key={phase} className="p-3 rounded-xl border text-xs" style={{
+                    background: p.status === "completed" ? 'var(--success)' : p.status === "running" ? 'var(--surface)' : 'var(--surface2)',
+                    borderColor: 'var(--border)',
+                    color: p.status === "completed" ? 'var(--ink)' : 'var(--text)'
+                  }}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white">{phaseLabels[phase] || phase}</span>
-                      <span className={`font-mono ${
-                        p.status === "completed" ? "text-green-400" :
-                        p.status === "running" ? "text-[#38bdf8]" : "text-gray-500"
-                      }`}>{p.progress}%</span>
+                      <span className="font-bold">{phaseLabels[phase] || phase}</span>
+                      <span className="font-mono">{p.progress}%</span>
                     </div>
-                    <p className="text-[var(--text-dim)]">{p.message}</p>
+                    <p style={{ color: p.status === "completed" ? 'var(--ink)' : 'var(--text-dim)' }}>{p.message}</p>
                   </div>
                 );
               })}
             </div>
 
             {progress.status === "failed" && progress.error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
+              <div className="border rounded-xl p-4 text-sm" style={{ background: 'var(--error)', borderColor: 'var(--border)', color: 'var(--ink)' }}>
                 {progress.error}
               </div>
             )}
@@ -255,47 +258,63 @@ export default function FabricaEbookPage() {
                 <div
                   key={item.id}
                   onClick={() => { setActiveEbookIndex(idx); setActiveChapterIndex(0); }}
-                  className={`bg-[#090d16] border rounded-2xl p-5 cursor-pointer transition-all hover:scale-[1.02] shadow-xl ${
-                    activeEbookIndex === idx ? "border-[#8b5cf6] ring-2 ring-[#8b5cf644]" : "border-[#1e293b]"
-                  }`}
+                  className="border rounded-2xl p-5 cursor-pointer transition-all hover:scale-[1.02] shadow-xl"
+                  style={{ background: 'var(--ink)', borderColor: activeEbookIndex === idx ? 'var(--brand)' : 'var(--border)' }}
                 >
-                  <span className="badge text-xs font-bold mb-3 inline-block bg-[#8b5cf622] text-[#c084fc] border border-[#8b5cf655]">
+                  <span className="badge text-xs font-bold mb-3 inline-block border" style={{ background: 'var(--surface)', color: 'var(--brand)', borderColor: 'var(--border)' }}>
                     {item.badge}
                   </span>
                   <div className="text-center my-3">
-                    <img src={item.cover_url} alt={item.title} className="w-[180px] h-[260px] object-cover rounded-xl mx-auto shadow-2xl border-2 border-[#8b5cf655]" />
+                    <img src={item.cover_url} alt={item.title} className="w-[180px] h-[260px] object-cover rounded-xl mx-auto shadow-2xl border-2" style={{ borderColor: 'var(--border)' }} />
                   </div>
-                  <h3 className="font-bold text-sm text-[#f1f5f9] line-clamp-2 mt-2">{item.title}</h3>
-                  <p className="text-xs text-[var(--text-dim)] line-clamp-2 mt-1">{item.subtitle}</p>
-                  <div className="mt-4 pt-3 border-t border-[#1e293b] flex justify-between items-center text-xs">
-                    <span className="text-[#8b5cf6] font-bold">{item.chapters_count} Capitulos</span>
-                    <span className="text-gray-400">{activeEbookIndex === idx ? "📖 Lendo" : "Ler →"}</span>
+                  <h3 className="font-bold text-sm line-clamp-2 mt-2" style={{ color: 'var(--text)' }}>{item.title}</h3>
+                  <p className="text-xs line-clamp-2 mt-1" style={{ color: 'var(--text-dim)' }}>{item.subtitle}</p>
+                  <div className="mt-4 pt-3 border-t flex justify-between items-center text-xs" style={{ borderColor: 'var(--border)' }}>
+                    <span className="font-bold" style={{ color: 'var(--brand)' }}>{item.chapters_count} Capitulos</span>
+                    <span style={{ color: 'var(--text-dim)' }}>{activeEbookIndex === idx ? "📖 Lendo" : "Ler →"}</span>
+                  </div>
+                  <div className="mt-2 flex justify-center">
+                    <AgnesCoverButton entityType="ebook" entityId={item.id} />
                   </div>
                 </div>
               ))}
             </div>
 
             {currentEbook && (
-              <div className="bg-[#090d16] border border-[#8b5cf655] rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-[#1e293b] pb-6 gap-4">
+              <div className="border rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl" style={{ background: 'var(--ink)', borderColor: 'var(--border)' }}>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-6 gap-4" style={{ borderColor: 'var(--border)' }}>
                   <div>
-                    <span className="badge text-xs bg-[#8b5cf622] text-[#c084fc] mb-1 inline-block">{currentEbook.badge}</span>
-                    <h2 className="text-2xl font-extrabold text-[#f1f5f9]">{currentEbook.title}</h2>
-                    <p className="text-xs text-gray-400 italic mt-0.5">"{currentEbook.subtitle}"</p>
+                    <span className="badge text-xs mb-1 inline-block" style={{ background: 'var(--surface)', color: 'var(--brand)' }}>{currentEbook.badge}</span>
+                    <h2 className="text-2xl font-extrabold" style={{ color: 'var(--text)' }}>{currentEbook.title}</h2>
+                    <p className="text-xs italic mt-0.5" style={{ color: 'var(--text-dim)' }}>"{currentEbook.subtitle}"</p>
                   </div>
+                  <button 
+                    onClick={() => {
+                      fetch(`${API_URL}/api/v1/ebooks/${currentEbook.id}/publish`, { method: 'POST', headers: authH() })
+                        .then(() => alert('Ebook enviado para o DezafiraClub!'))
+                        .catch(() => alert('Erro ao enviar.'))
+                    }}
+                    className="px-4 py-2 text-sm font-bold rounded-lg transition-all"
+                    style={{ background: 'var(--brand)', color: 'var(--ink)' }}
+                  >
+                    Enviar pro Clube →
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                  <div className="lg:col-span-1 bg-[#131c2e] border border-[#1e293b] rounded-xl p-4">
-                    <h4 className="text-xs font-extrabold text-[#c084fc] uppercase tracking-wider mb-3">Sumario</h4>
+                  <div className="lg:col-span-1 border rounded-xl p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider mb-3" style={{ color: 'var(--brand)' }}>Sumario</h4>
                     <div className="space-y-1.5">
                       {currentEbook.chapters?.map((chap: any, cIdx: number) => (
                         <button
                           key={chap.num}
                           onClick={() => setActiveChapterIndex(cIdx)}
-                          className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-all font-medium ${
-                            activeChapterIndex === cIdx ? "bg-[#8b5cf6] text-white font-bold shadow-md" : "text-gray-300 hover:bg-[#1e293b] hover:text-white"
-                          }`}
+                          className="w-full text-left px-3 py-2.5 rounded-lg text-xs transition-all font-medium"
+                          style={{
+                            background: activeChapterIndex === cIdx ? 'var(--brand)' : 'transparent',
+                            color: activeChapterIndex === cIdx ? 'var(--ink)' : 'var(--text)',
+                            fontWeight: activeChapterIndex === cIdx ? 'bold' : 'normal'
+                          }}
                         >
                           {chap.title}
                         </button>
@@ -303,14 +322,14 @@ export default function FabricaEbookPage() {
                     </div>
                   </div>
 
-                  <div className="lg:col-span-3 bg-[#0b1120] border border-[#1e293b] rounded-xl p-6">
+                  <div className="lg:col-span-3 border rounded-xl p-6" style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}>
                     {currentChapter && (
                       <div>
-                        <div className="flex justify-between items-center border-b border-[#1e293b] pb-3 mb-4">
-                          <h3 className="text-lg font-bold text-[#38bdf8]">{currentChapter.title}</h3>
-                          <span className="text-xs text-gray-400 font-mono">{activeChapterIndex + 1} / {currentEbook.chapters.length}</span>
+                        <div className="flex justify-between items-center border-b pb-3 mb-4" style={{ borderColor: 'var(--border)' }}>
+                          <h3 className="text-lg font-bold" style={{ color: 'var(--brand)' }}>{currentChapter.title}</h3>
+                          <span className="text-xs font-mono" style={{ color: 'var(--text-dim)' }}>{activeChapterIndex + 1} / {currentEbook.chapters.length}</span>
                         </div>
-                        <div className="prose prose-invert text-sm leading-relaxed text-gray-200 space-y-4 whitespace-pre-wrap">
+                        <div className="prose prose-invert text-sm leading-relaxed space-y-4 whitespace-pre-wrap" style={{ color: 'var(--text)' }}>
                           {currentChapter.content}
                         </div>
                       </div>

@@ -1,0 +1,32 @@
+{
+  "origem": {
+    "arquivo": "intro_scroll.mp4.mp4",
+    "duracao": 10.0,
+    "resolucao": "1920x1080",
+    "fps": 24.0,
+    "codec": "h264",
+    "total_quadros_origem": 240
+  },
+  "quadros": {
+    "quantidade_alvo": 120,
+    "formato": "webp",
+    "qualidade": 80,
+    "padrao_nomes": "frame-{NNNN}.webp"
+  },
+  "altura_scroll_recomendada": "400vh",
+  "criado_em": "2026-07-21T20:03:28",
+  "desktop": {
+    "resolucao": "1920x1080",
+    "quantidade_real": 120,
+    "bytes_totais": 14644518,
+    "bytes_medios": 122037,
+    "total_mb": 13.97
+  },
+  "mobile": {
+    "resolucao": "960x540",
+    "quantidade_real": 120,
+    "bytes_totais": 5391900,
+    "bytes_medios": 44932,
+    "total_mb": 5.14
+  }
+}

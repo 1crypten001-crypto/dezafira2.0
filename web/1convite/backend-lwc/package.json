@@ -1,0 +1,16 @@
+{
+  "name": "1convite-backend-lwc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sidecar mínimo do 1Convite: apenas o handler Login-with-ChatGPT (LWC) para os Conselheiros IA. O DezafiraADM (FastAPI) faz proxy de /api/v1/chatgpt/* para este serviço.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@opencoredev/loginwithchatgpt-server": "^0.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

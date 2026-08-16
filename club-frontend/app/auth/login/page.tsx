@@ -30,12 +30,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-[#0a0a0f]">
       <div className="fixed inset-0">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-500/8 rounded-full blur-[100px]" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#f85808]/10 rounded-full blur-[100px]" />
       </div>
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">D</div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#f85808] to-[#c2410c] flex items-center justify-center text-white font-bold">D</div>
             <span className="text-xl font-bold text-white">Dezafira</span>
           </Link>
         </div>

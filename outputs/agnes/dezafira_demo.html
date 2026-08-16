@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Dezafira × Agnes AI — Demo</title>
+<style>
+  :root{ --ink:#0f1a21; --surface:#16232b; --border:#2d4455; --paper:#e8edf2; --dim:#7a97a8; --blaze:#FF5B06; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--ink);color:var(--paper);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:40px 24px}
+  .wrap{max-width:1120px;margin:0 auto}
+  h1{font-size:28px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h1 .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--blaze),#ff7833);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink);font-weight:800}
+  .sub{color:var(--dim);margin:10px 0 30px;font-size:14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .card .head{padding:14px 18px;font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--paper);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card .head .tag{font-size:10px;background:rgba(255,91,6,.15);color:#ff7833;border:1px solid rgba(255,91,6,.4);padding:3px 9px;border-radius:99px;letter-spacing:.05em}
+  img,video{display:block;width:100%;height:auto}
+  .foot{margin-top:26px;color:var(--dim);font-size:12.5px;line-height:1.8}
+  .foot a{color:#7dd3fc;text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  code{background:#0b1219;border:1px solid var(--border);padding:1px 7px;border-radius:6px;font-size:12px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1><span class="mark">D</span>Dezafira × Agnes AI — Demo</h1>
+    <p class="sub">Imagem de marca (fundo Agnes + tipografia via Chrome CDP) e vídeo gerado com <code>agnes-video-v2.0</code> a partir da própria imagem (image-to-video, 5s · h264 · AAC).</p>
+    <div class="grid">
+      <div class="card">
+        <div class="head">🖼️ IMAGEM <span class="tag">agnes-image-2.1-flash + CDP</span></div>
+        <img src="/outputs/agnes/dezafira_brand.png" alt="Dezafira brand demo"/>
+      </div>
+      <div class="card">
+        <div class="head">🎬 VÍDEO <span class="tag">agnes-video-v2.0 · image-to-video</span></div>
+        <video src="/outputs/vsl/dezafira_brand.mp4" controls autoplay muted loop playsinline></video>
+      </div>
+    </div>
+    <div class="foot">
+      Links diretos:<br/>
+      · Imagem — <a href="/outputs/agnes/dezafira_brand.png">/outputs/agnes/dezafira_brand.png</a><br/>
+      · Vídeo — <a href="/outputs/vsl/dezafira_brand.mp4">/outputs/vsl/dezafira_brand.mp4</a><br/>
+      · Fundo gerado pela Agnes (sem texto) — <a href="https://platform-outputs.agnes-ai.space/images/t2i/cb52715115144ed9aacbf9b2f4c6bd3c.png" target="_blank" rel="noreferrer">URL remota</a><br/>
+      · Vídeo original remoto — <a href="https://platform-outputs.agnes-ai.space/videos/agnes-video-v2.0/task_kBkC57EuyJJlUfhizLw76Mz9K1lovpsx.mp4" target="_blank" rel="noreferrer">URL remota</a>
+    </div>
+  </div>
+</body>
+</html>

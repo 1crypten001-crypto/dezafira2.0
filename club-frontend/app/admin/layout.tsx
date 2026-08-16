@@ -20,7 +20,11 @@ const NAV_SECTIONS: { title: string; items: { label: string; href: string; icon:
       { label: "Blog", href: "/admin/fabrica-blog", icon: "✎" },
       { label: "Ebook", href: "/admin/fabrica-ebook", icon: "❐" },
       { label: "Curso", href: "/admin/fabrica-curso", icon: "▣" },
-      { label: "Marketing", href: "/admin/fabrica-marketing", icon: "◈" },
+      { label: "Blueprint", href: "/admin/blueprint", icon: "🎯" },
+      { label: "Ofertas", href: "/admin/fabrica-ofertas", icon: "🏷️" },
+      { label: "Capas Agnes", href: "/admin/agnes", icon: "🖼️" },
+      { label: "VSL", href: "/admin/fabrica-vsl", icon: "🎬" },
+      { label: "Bio Sites", href: "/admin/fabrica-biosites", icon: "🔗" },
     ],
   },
   {
@@ -28,20 +32,24 @@ const NAV_SECTIONS: { title: string; items: { label: string; href: string; icon:
     items: [
       { label: "Mapas Mentais", href: "/admin/fabrica-mapas", icon: "⌘" },
       { label: "MiniApps", href: "/admin/fabrica-miniapp", icon: "▤" },
+      { label: "1Convite", href: "/admin/fabrica-convite", icon: "👑" },
     ],
   },
   {
     title: "Distribuição",
-    items: [{ label: "Postiz", href: "/admin#fabrica-postiz", icon: "⇶" }],
+    items: [{ label: "Postiz", href: "/admin", icon: "⇶" }],
   },
   {
     title: "Inteligência",
-    items: [{ label: "Hermes", href: "/admin#hermes", icon: "✦" }],
+    items: [
+      { label: "Hermes", href: "/admin#hermes", icon: "✦" },
+      { label: "AionUi", href: "http://127.0.0.1:25809", icon: "⊕" },
+    ],
   },
   {
     title: "Público",
     items: [
-      { label: "Usuários", href: "/admin#users", icon: "♟" },
+      { label: "Usuários", href: "/admin/analytics", icon: "♟" },
       { label: "Trilhas", href: "/admin/trilhas", icon: "≡" },
       { label: "Analytics", href: "/admin/analytics", icon: "≋" },
     ],
@@ -87,7 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
       : "http://localhost:8000"
   ).replace(/\/$/, "");
-  const chatUrl = `${apiBase}/chat/`;
+  const chatUrl = `${apiBase}/chat`;
 
   return (
     <div className="min-h-screen bg-[var(--ink)] text-[var(--paper)] flex">
@@ -132,10 +140,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="space-y-0.5">
                 {sec.items.map((item) => {
                   const isHermes = item.label === "Hermes";
+                  const isExternal = item.href.startsWith("http");
                   const resolvedHref = isHermes ? chatUrl : item.href;
                   const active = isActive(item.href);
 
-                  if (isHermes) {
+                  if (isExternal) {
                     return (
                       <a
                         key={item.label + item.href}
@@ -146,6 +155,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       >
                         <span className="w-5 text-center text-[15px]">{item.icon}</span>
                         {item.label}
+                        <span className="ml-auto text-[9px] opacity-40">↗</span>
                       </a>
                     );
                   }

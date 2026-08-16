@@ -1,0 +1,366 @@
+.trail-container {
+  padding: 20px;
+  padding-bottom: 100px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.trail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.trail-back-btn {
+  background: rgba(255,255,255,0.8);
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.trail-title {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+.trail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.trail-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+}
+
+.trail-stat-icon { font-size: 20px; }
+.trail-stat-value { font-size: 1.2rem; font-weight: 700; color: var(--orange); }
+.trail-stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+.trail-duration-select {
+  margin-bottom: 16px;
+}
+
+.trail-duration-options {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.trail-duration-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trail-duration-btn.active {
+  border-color: var(--orange);
+  background: rgba(249,115,22,0.1);
+  color: var(--orange);
+}
+
+.trail-progress-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.trail-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF8F00, #FF6D00);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.trail-progress-text {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.trail-milestone-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(255,152,0,0.1));
+  border: 1px solid rgba(249,115,22,0.3);
+  border-radius: 12px;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--orange);
+  justify-content: center;
+}
+
+.trail-day-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.trail-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.trail-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trail-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.trail-day-info {
+  text-align: center;
+}
+
+.trail-day-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.trail-day-reading {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.trail-devotional, .trail-action {
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.trail-devotional-header, .trail-action-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.trail-devotional-text, .trail-action-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.trail-complete-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #FF8F00, #FF6D00);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.trail-complete-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(249,115,22,0.3);
+}
+
+.trail-complete-btn.completed {
+  background: #4caf50;
+  cursor: default;
+}
+
+.trail-complete-btn:disabled {
+  opacity: 0.8;
+}
+
+.trail-map {
+  margin-top: 20px;
+}
+
+.trail-map-title {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.trail-map-milestone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 2px solid var(--border);
+  margin-top: 8px;
+}
+
+.trail-map-milestone-icon { font-size: 20px; }
+.trail-map-milestone-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.trail-map-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.trail-map-day:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.trail-map-day.today {
+  background: rgba(249,115,22,0.1);
+  border: 1px solid rgba(249,115,22,0.3);
+}
+
+.trail-map-day.completed {
+  opacity: 0.6;
+}
+
+.trail-map-day-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border: 2px solid var(--border);
+}
+
+.trail-map-day.today .trail-map-day-dot {
+  background: var(--orange);
+  color: white;
+  border-color: var(--orange);
+}
+
+.trail-map-day.completed .trail-map-day-dot {
+  background: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+.trail-map-day-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.trail-map-day-reading {
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trail-map-day-today-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--orange);
+  background: rgba(249,115,22,0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.trail-map-day-expanded {
+  padding: 8px 12px 8px 56px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.trail-map-day-expanded p { margin: 4px 0; }
+
+.trail-milestone-popup {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: trail-fade-in 0.3s;
+}
+
+.trail-milestone-popup-content {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+  animation: trail-bounce-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.trail-milestone-popup-icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+@keyframes trail-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes trail-bounce-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

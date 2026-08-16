@@ -225,21 +225,51 @@ def revisar_conteudo(
     # --- Deteccao de trechos de lixo (repeticoes de 3+ palavras seguidas) ---
     text_words = re.sub(r'<[^>]+>', '', content_html).split()
     if len(text_words) > 50:
-        # Check for repeated 5-word sequences
-        word_seq_count = {}
+        seq_positions = {}
         for i in range(len(text_words) - 4):
             seq = ' '.join(text_words[i:i+5]).lower()
-            word_seq_count[seq] = word_seq_count.get(seq, 0) + 1
-        worst_seq = max(word_seq_count.values()) if word_seq_count else 0
-        if worst_seq >= 4:
-            # A sequencia de 5 palavras aparece 4+ vezes
+            seq_positions.setdefault(seq, []).append(i)
+        
+        has_loop = False
+        loop_seq = ""
+        worst_seq = 0
+        
+        for seq, positions in seq_positions.items():
+            if len(positions) < 2:
+                continue
+            
+            # 1. Verificar stutter literal (emendado ou sobreposto, gap <= 1 palavra entre o fim de um e o início do outro)
+            # Fim do primeiro é i + 5. Início do próximo é j. Gap = j - (i + 5). Gap <= 1 significa j - i <= 6.
+            for idx in range(len(positions) - 1):
+                if positions[idx+1] - positions[idx] <= 6:
+                    has_loop = True
+                    loop_seq = seq
+                    worst_seq = len(positions)
+                    break
+            
+            if has_loop:
+                break
+                
+            # 2. Verificar 3+ ocorrências densas (gaps consecutivos <= 12 palavras)
+            # Fim de um e início do outro tem gap <= 12 palavras -> j - (i + 5) <= 12 -> j - i <= 17
+            for idx in range(len(positions) - 2):
+                if (positions[idx+1] - positions[idx] <= 17) and (positions[idx+2] - positions[idx+1] <= 17):
+                    has_loop = True
+                    loop_seq = seq
+                    worst_seq = len(positions)
+                    break
+            
+            if has_loop:
+                break
+                
+        if has_loop:
             issues.append({
                 "tipo": "repeticao_massiva_sequencia",
                 "severity": "alta",
-                "message": f"Sequencia de 5 palavras repetida {worst_seq}x no artigo (provável LLM loop)",
+                "message": f"Loop de LLM detectado: sequencia de 5 palavras '{loop_seq}' repetida com densidade/stutter {worst_seq}x",
                 "fix": "Regenerar o artigo com instrucao anti-repeticao explicita.",
-                    "localizacao": "artigo completo",
-                })
+                "localizacao": "artigo completo",
+            })
 
     # --- Estatisticas dos paragrafos ---
     if paragraphs:

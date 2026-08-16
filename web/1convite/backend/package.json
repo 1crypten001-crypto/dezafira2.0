@@ -1,0 +1,23 @@
+{
+  "name": "1convite-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/database/migrations.js",
+    "seed": "node src/database/seed.js",
+    "import-bible": "node import-bible.js"
+  },
+  "dependencies": {
+    "@opencoredev/loginwithchatgpt-server": "^0.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  }
+}

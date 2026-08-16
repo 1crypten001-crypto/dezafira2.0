@@ -1,0 +1,244 @@
+{
+  "perguntas": [
+    {
+      "clues": [
+        "Fui rei de Israel e era jovem quando ungido.",
+        "Matei um gigante com uma pedra.",
+        "Tocava harpa e escrevi muitos Salmos.",
+        "Cometi um grande pecado com Bate-Seba."
+      ],
+      "options": [
+        "Salomão",
+        "Davi",
+        "Saul",
+        "Josué"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "clues": [
+        "Sou profeta que fugiu de Deus.",
+        "Fui engolido por um grande peixe.",
+        "Preguei em Nínive contra a vontade.",
+        "Meu livro tem apenas 4 capítulos."
+      ],
+      "options": [
+        "Jeremias",
+        "Isaías",
+        "Jonas",
+        "Elias"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "clues": [
+        "Fui a primeira mulher criada.",
+        "Lata da costa de Adão.",
+        "Fui tentada pela serpente no Éden.",
+        "Sou a mãe de toda a humanidade."
+      ],
+      "options": [
+        "Sara",
+        "Eva",
+        "Lilith",
+        "Rebeca"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "clues": [
+        "Liderei o povo de Israel para fora do Egito.",
+        "Recebi os Dez Mandamentos no Sinai.",
+        "Atravessei o Mar Vermelho.",
+        "Meu nome significa \"tirado das águas\"."
+      ],
+      "options": [
+        "Josué",
+        "Aarão",
+        "Moisés",
+        "Caleb"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "clues": [
+        "Fui o primeiro homem criado.",
+        "Nome significa \"barro\" em hebraico.",
+        "Fui colocado no Jardim do Éden.",
+        "Deus me deu a tarefa de dar nomes aos animais."
+      ],
+      "options": [
+        "Sete",
+        "Caim",
+        "Adão",
+        "Noé"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "clues": [
+        "Fui rainha de Ester e judeia.",
+        "Arrisquei minha vida para salvar meu povo.",
+        "Meu nome pode significar \"estrela\".",
+        "O livro bíblico com meu nome não menciona a Deus."
+      ],
+      "options": [
+        "Dalila",
+        "Ester",
+        "Rute",
+        "Jael"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "clues": [
+        "Sou apóstolo e neguei Jesus três vezes.",
+        "Jesus me chamou de \"Pedra\".",
+        "Fui o primeiro a pregar no dia de Pentecostes.",
+        "Minha epístola fala da esperança viva."
+      ],
+      "options": [
+        "Paulo",
+        "João",
+        "Tiago",
+        "Pedro"
+      ],
+      "answer": 3,
+      "difficulty": "medio"
+    },
+    {
+      "clues": [
+        "Sou o filho mais novo de Jacó.",
+        "Meus irmãos me venderam como escravo.",
+        "Interpretei sonhos no Egito.",
+        "Virei governador do Egito."
+      ],
+      "options": [
+        "Ruben",
+        "Josué",
+        "José",
+        "Benjamim"
+      ],
+      "answer": 2,
+      "difficulty": "medio"
+    },
+    {
+      "clues": [
+        "Fui juíza de Israel.",
+        "Liderei um exército contra Sísara.",
+        "Julgava o povo sob uma palmeira.",
+        "Cantéi um cântico de vitória."
+      ],
+      "options": [
+        "Ester",
+        "Rute",
+        "Débora",
+        "Sara"
+      ],
+      "answer": 2,
+      "difficulty": "medio"
+    },
+    {
+      "clues": [
+        "Fui rei sábio de Israel.",
+        "Pedi sabedoria a Deus em um sonho.",
+        "Escrevi Provérbios e Eclesiastes.",
+        "Construí o Templo em Jerusalém."
+      ],
+      "options": [
+        "Davi",
+        "Salomão",
+        "Ezequias",
+        "Manassés"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "clues": [
+        "Sou o profeta do deserto.",
+        "Minha voz clama no ermo.",
+        "Batizei Jesus no Jordão.",
+        "Fui decapitado a pedido de Herodias."
+      ],
+      "options": [
+        "Isaías",
+        "Jeremias",
+        "João Batista",
+        "Elias"
+      ],
+      "answer": 2,
+      "difficulty": "avancado"
+    },
+    {
+      "clues": [
+        "Fui parente de Maria, mãe de Jesus.",
+        "Cantei o Magnificat.",
+        "Meu marido era Zacarias.",
+        "Fui profeta no Templo."
+      ],
+      "options": [
+        "Elisabete",
+        "Ana",
+        "Marta",
+        "Mara"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    },
+    {
+      "clues": [
+        "Fui escriba e levita.",
+        "Liderei a reforma da Lei em Jerusalém.",
+        "Jejuamos por confessar pecados.",
+        "Lia a Lei de manhã até o meio-dia."
+      ],
+      "options": [
+        "Esdras",
+        "Neemias",
+        "Ageu",
+        "Malaquias"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    },
+    {
+      "clues": [
+        "Fui o primeiro mártir cristão.",
+        "Meu nome significa \"coroa\".",
+        "Fui apedrejado enquanto via os céus abertos.",
+        "Guardavam as roupas dos que me apedrejavam."
+      ],
+      "options": [
+        "Estêvão",
+        "Filipe",
+        "Barnabé",
+        "Timóteo"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    },
+    {
+      "clues": [
+        "Fui centurião romano.",
+        "Minha servo ficou doente e Jesus o curou.",
+        "Disse: \"Senhor, não sou digno\".",
+        "Tinha soldados sob meu comando."
+      ],
+      "options": [
+        "Cornélio",
+        "Bartimeu",
+        "Lázaro",
+        "Simeão"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    }
+  ]
+}

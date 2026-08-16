@@ -1,0 +1,34 @@
+{
+  "short_name": "1Convite",
+  "name": "Movimento 1Convite",
+  "description": "Plataforma de Engajamento do Reino e Desfrute Sabático",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/LOGOMARCA.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["lifestyle", "social"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

@@ -78,13 +78,13 @@ export default function FabricaMiniAppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#060911] text-[#f8fafc]">
-      <header className="border-b border-[#1e293b] bg-[#090d16]">
+    <div className="min-h-screen bg-[var(--ink)] text-[#f8fafc]">
+      <header className="border-b border-[var(--surface)] bg-[var(--ink)]">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/admin" className="text-sm text-[var(--text-dim)] hover:text-white">← Voltar ao Admin</Link>
             <span className="text-[#334155]">/</span>
-            <h1 className="text-lg font-bold text-[#38bdf8]">📱 Fábrica de MiniApps (Sala de Agentes)</h1>
+            <h1 className="text-lg font-bold text-[var(--brand)]">📱 Fábrica de MiniApps (Sala de Agentes)</h1>
           </div>
           <span className="badge text-[var(--success)] text-xs font-bold">🟢 Agentes Especializados + PostgreSQL</span>
         </div>
@@ -94,11 +94,11 @@ export default function FabricaMiniAppPage() {
 
         {/* Lista de MiniApps Existentes */}
         {existingApps.length > 0 && (
-          <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl">
+          <div className="bg-[var(--ink)] border border-[var(--surface)] rounded-2xl p-6 shadow-xl">
             <h2 className="text-lg font-bold text-[#f1f5f9] mb-4">📱 MiniApps Criados ({existingApps.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {existingApps.map((app) => (
-                <div key={app.id} className="bg-[#131c2e] border border-[#1e293b] rounded-xl p-4 hover:border-[#38bdf855] transition-all">
+                <div key={app.id} className="bg-[var(--surface)] border border-[var(--surface)] rounded-xl p-4 hover:border-[var(--brand)] transition-all">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-sm font-bold text-white line-clamp-1">{app.app_name}</h3>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${app.status === "active" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
@@ -107,9 +107,9 @@ export default function FabricaMiniAppPage() {
                   </div>
                   <p className="text-xs text-[var(--text-dim)] mb-2">{app.niche} • {app.app_type}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-500 font-mono">{app.id}</span>
+                    <span className="text-[10px] text-[var(--text-dim)] font-mono">{app.id}</span>
                     <div className="flex gap-2">
-                      <button onClick={() => setMiniapp(app)} className="text-[10px] text-[#38bdf8] hover:underline">Ver</button>
+                      <button onClick={() => setMiniapp(app)} className="text-[10px] text-[var(--brand)] hover:underline">Ver</button>
                       <button onClick={() => handleDelete(app.id)} className="text-[10px] text-red-400 hover:underline">Deletar</button>
                     </div>
                   </div>
@@ -120,7 +120,7 @@ export default function FabricaMiniAppPage() {
         )}
 
         {/* Painel de Criação */}
-        <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="bg-[var(--ink)] border border-[var(--surface)] rounded-2xl p-6 shadow-xl space-y-4">
           <div>
             <h2 className="text-xl font-extrabold text-[#f1f5f9]">Criar Novo MiniApp PWA de Recorrência</h2>
             <p className="text-xs text-[var(--text-dim)]">
@@ -137,7 +137,7 @@ export default function FabricaMiniAppPage() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Ex: Calculadora de Macros e Treinos para Atletas ou Quiz Diagnóstico Financeiro 2026"
-                  className="w-full bg-[#131c2e] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#38bdf8]"
+                  className="w-full bg-[var(--surface)] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand)]"
                   required
                 />
               </div>
@@ -146,7 +146,7 @@ export default function FabricaMiniAppPage() {
                 <select
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  className="w-full bg-[#131c2e] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#38bdf8]"
+                  className="w-full bg-[var(--surface)] border border-[#334155] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[var(--brand)]"
                 >
                   <option value="Tecnologia & IA">Tecnologia & IA</option>
                   <option value="Fitness & Saúde">Fitness & Saúde</option>
@@ -160,7 +160,7 @@ export default function FabricaMiniAppPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#38bdf8] to-[#0284c7] text-[#090d16] font-extrabold py-3 rounded-xl text-sm shadow-lg hover:brightness-110 disabled:opacity-50 transition-all"
+              className="w-full bg-gradient-to-r from-[var(--brand)] to-[var(--brand)] text-[#090d16] font-extrabold py-3 rounded-xl text-sm shadow-lg hover:brightness-110 disabled:opacity-50 transition-all"
             >
               {loading ? "⚡ Sala de Agentes Gerando o MiniApp PWA..." : "🚀 Disparar Sala de Agentes & Criar MiniApp PWA"}
             </button>
@@ -169,13 +169,13 @@ export default function FabricaMiniAppPage() {
 
         {/* Sala de Agentes Trabalhando ao Vivo */}
         {agentLogs.length > 0 && (
-          <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 space-y-3">
-            <h3 className="text-sm font-bold text-[#38bdf8] flex items-center gap-2">
+          <div className="bg-[var(--ink)] border border-[var(--surface)] rounded-2xl p-6 space-y-3">
+            <h3 className="text-sm font-bold text-[var(--brand)] flex items-center gap-2">
               <span className="animate-pulse">🟢</span> Sala de Agentes Autônomos em Ação
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {agentLogs.map((log, idx) => (
-                <div key={idx} className="bg-[#131c2e] border border-[#1e293b] p-3 rounded-xl text-xs space-y-1">
+                <div key={idx} className="bg-[var(--surface)] border border-[var(--surface)] p-3 rounded-xl text-xs space-y-1">
                   <strong className="text-[#f1f5f9] block">{log.agent}</strong>
                   <p className="text-[var(--text-dim)]">{log.message}</p>
                 </div>
@@ -193,9 +193,9 @@ export default function FabricaMiniAppPage() {
               <div className="w-[320px] h-[640px] bg-[#000] border-[6px] border-[#334155] rounded-[40px] shadow-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4 bg-[#1e293b] rounded-full z-20"></div>
 
-                <div className="mt-4 border-b border-[#1e293b] pb-3 flex items-center gap-3">
+                <div className="mt-4 border-b border-[var(--surface)] pb-3 flex items-center gap-3">
                   {miniapp.logo_url && (
-                    <img src={miniapp.logo_url} className="w-10 h-10 rounded-xl border border-[#38bdf8] object-cover shadow-md" alt="Logo" />
+                    <img src={miniapp.logo_url} className="w-10 h-10 rounded-xl border border-[var(--brand)] object-cover shadow-md" alt="Logo" />
                   )}
                   <div>
                     <h4 className="text-xs font-bold text-white leading-tight">{miniapp.app_name}</h4>
@@ -204,30 +204,30 @@ export default function FabricaMiniAppPage() {
                 </div>
 
                 {miniapp.banner_url && (
-                  <div className="my-2 rounded-xl overflow-hidden border border-[#1e293b]">
+                  <div className="my-2 rounded-xl overflow-hidden border border-[var(--surface)]">
                     <img src={miniapp.banner_url} className="w-full h-32 object-cover" alt="Banner" />
                   </div>
                 )}
 
                 {miniapp.pwa_html ? (
-                  <div className="flex-1 bg-[#131c2e] rounded-xl overflow-hidden border border-[#1e293b]">
+                  <div className="flex-1 bg-[var(--surface)] rounded-xl overflow-hidden border border-[var(--surface)]">
                     <iframe srcDoc={miniapp.pwa_html} className="w-full h-full border-0" title="Preview PWA" />
                   </div>
                 ) : (
-                  <div className="flex-1 bg-[#131c2e] rounded-xl p-3 space-y-2 border border-[#1e293b] overflow-y-auto text-xs">
-                    <div className="bg-[#090d16] p-2.5 rounded-lg border border-[#334155]">
-                      <span className="text-[10px] text-[#38bdf8] font-bold block mb-1">DIAGNÓSTICO ATIVO</span>
+                  <div className="flex-1 bg-[var(--surface)] rounded-xl p-3 space-y-2 border border-[var(--surface)] overflow-y-auto text-xs">
+                    <div className="bg-[var(--ink)] p-2.5 rounded-lg border border-[#334155]">
+                      <span className="text-[10px] text-[var(--brand)] font-bold block mb-1">DIAGNÓSTICO ATIVO</span>
                       <p className="text-[11px] text-gray-200">Responda para liberar o plano personalizado.</p>
                     </div>
-                    <button className="w-full text-left bg-[#090d16] hover:bg-[#1e293b] border border-[#334155] p-2 rounded-lg text-[11px] text-white font-medium">
+                    <button className="w-full text-left bg-[var(--ink)] hover:bg-[#1e293b] border border-[#334155] p-2 rounded-lg text-[11px] text-white font-medium">
                       ▶️ Iniciar Teste Diagnóstico
                     </button>
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-[#1e293b] flex justify-around text-[10px] text-[var(--text-dim)]">
+                <div className="pt-2 border-t border-[var(--surface)] flex justify-around text-[10px] text-[var(--text-dim)]">
                   <span>Inicio</span>
-                  <span className="text-[#38bdf8] font-bold">Ferramenta</span>
+                  <span className="text-[var(--brand)] font-bold">Ferramenta</span>
                   <span>Perfil</span>
                 </div>
               </div>
@@ -235,20 +235,20 @@ export default function FabricaMiniAppPage() {
 
             {/* Drip Content */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 space-y-4 shadow-xl">
-                <div className="flex justify-between items-center border-b border-[#1e293b] pb-3">
+              <div className="bg-[var(--ink)] border border-[var(--surface)] rounded-2xl p-6 space-y-4 shadow-xl">
+                <div className="flex justify-between items-center border-b border-[var(--surface)] pb-3">
                   <div>
                     <span className="badge text-[var(--success)] text-xs">🗄️ Banco PostgreSQL Ativo</span>
                     <h3 className="text-lg font-bold text-[#f1f5f9] mt-1">Trilha de Liberação Recorrente (Drip Content)</h3>
                   </div>
-                  <span className="text-xs text-[#38bdf8] font-bold">App ID: {miniapp.app_id || miniapp.id}</span>
+                  <span className="text-xs text-[var(--brand)] font-bold">App ID: {miniapp.app_id || miniapp.id}</span>
                 </div>
 
                 <div className="space-y-3">
                   {miniapp.drip_contents?.map((item: any, idx: number) => (
-                    <div key={idx} className="bg-[#131c2e] border border-[#1e293b] p-4 rounded-xl flex items-center justify-between">
+                    <div key={idx} className="bg-[var(--surface)] border border-[var(--surface)] p-4 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="bg-[#38bdf822] text-[#38bdf8] border border-[#38bdf855] text-xs font-bold px-3 py-1.5 rounded-lg">
+                        <span className="bg-[var(--brand)]/20 text-[var(--brand)] border border-[var(--brand)] text-xs font-bold px-3 py-1.5 rounded-lg">
                           Dia {item.day}
                         </span>
                         <div>

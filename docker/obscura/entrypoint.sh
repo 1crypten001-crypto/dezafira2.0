@@ -35,12 +35,27 @@ fi
 echo "[entrypoint] Binario: $BIN"
 echo "[entrypoint] Porta CDP: $PORT | interna: $INNER_PORT | workers: $WORKERS | railway PORT: ${RAILWAY_PORT:-<vazio>}"
 
-# Inicia Xvfb (display virtual p/ Chromium embutido)
+# Inicia Xvfb (display virtual p/ Chromium embutido).
+# Resiliencia: limpa locks residuais (restart pode deixar /tmp/.X99-lock) e,
+# se o display :99 falhar, cai para :100 em vez de derrubar o container
+# (bug observado 15/08: "Server is already active for display 99" → CDP nunca
+# subiu → healthcheck falhou → deploy FAILED).
+rm -f /tmp/.X99-lock /tmp/.X11-unix/X99 2>/dev/null || true
 echo "[entrypoint] Iniciando Xvfb..."
-Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
+Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
 XVFB_PID=$!
 sleep 1
-export DISPLAY=:99
+if ! kill -0 "$XVFB_PID" 2>/dev/null; then
+    echo "[entrypoint] Xvfb :99 falhou ao iniciar; tentando :100" >&2
+    cat /tmp/xvfb.log >&2
+    rm -f /tmp/.X100-lock /tmp/.X11-unix/X100 2>/dev/null || true
+    Xvfb :100 -screen 0 1280x720x24 -ac +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
+    XVFB_PID=$!
+    sleep 1
+    export DISPLAY=:100
+else
+    export DISPLAY=:99
+fi
 echo "[entrypoint] Xvfb PID: $XVFB_PID DISPLAY=$DISPLAY"
 
 # Inicia o Obscura no loopback (porta interna)

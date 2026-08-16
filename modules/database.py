@@ -128,6 +128,75 @@ class ChannelKnowledge(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class BioSite(Base):
+    __tablename__ = "bio_sites"
+
+    id = Column(String(50), primary_key=True, index=True)
+    user_id = Column(String(50), nullable=True)
+    name = Column(String(100), nullable=False)
+    nicho = Column(String(100), default="Geral")
+    slug = Column(String(100), unique=True, index=True, nullable=False)
+    profile_image_url = Column(String(1000), nullable=True)
+    description = Column(String(500), nullable=True)
+    theme_config = Column(Text, nullable=True) # JSON settings
+    pixel_facebook = Column(String(50), nullable=True)
+    google_analytics = Column(String(50), nullable=True)
+    status = Column(String(20), default="active")
+    netlify_site_id = Column(String(100), nullable=True)
+    netlify_url = Column(String(500), nullable=True)
+    subscription_status = Column(String(20), default="paid")
+    asaas_subscription_id = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class BioLink(Base):
+    __tablename__ = "bio_links"
+
+    id = Column(String(50), primary_key=True, index=True)
+    bio_site_id = Column(String(50), ForeignKey("bio_sites.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(100), nullable=False)
+    url = Column(String(1000), nullable=False)
+    icon = Column(String(50), nullable=True)
+    animation = Column(String(50), default="none")
+    position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VslVideo(Base):
+    __tablename__ = "vsl_videos"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    video_url = Column(String(1000), nullable=False)
+    nicho = Column(String(100), default="Geral")
+    thumbnail_url = Column(String(1000), nullable=True)
+    delay_seconds = Column(Integer, default=0)
+    headline_a = Column(String(500), nullable=True)
+    headline_b = Column(String(500), nullable=True)
+    headline_c = Column(String(500), nullable=True)
+    script = Column(Text, nullable=True)
+    offer_description = Column(Text, nullable=True)
+    target_audience = Column(String(500), nullable=True)
+    cta_url = Column(String(1000), nullable=True)
+    status = Column(String(20), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class VslAnalytics(Base):
+    __tablename__ = "vsl_analytics"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    vsl_id = Column(String(50), ForeignKey("vsl_videos.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String(100), nullable=False)
+    seconds_watched = Column(Integer, default=0)
+    max_percentage = Column(Integer, default=0)  # 25, 50, 75, 100
+    converted = Column(Boolean, default=False)
+    headline_variant = Column(String(10), default="A")  # A, B, C
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class DeliverableApp(Base):
     __tablename__ = "deliverable_apps"
 
@@ -699,11 +768,6 @@ class MiniApp(Base):
     theme = Column(Text, nullable=True)              # branding Dona Celia — paleta JSON
     pwa_check = Column(Text, nullable=True)          # relatorio de verificacao de completude
 
-    # ── Identidade Visual (Bidu) ──────────────────────────────────────────
-    mascot_url = Column(String(1000), nullable=True)     # URL do mascote principal (frente)
-    character_brief = Column(Text, nullable=True)        # JSON — brief do personagem (reuso/regeneracao)
-    assets_dir = Column(String(500), nullable=True)      # diretorio local do kit de assets
-
 
 class MiniAppDripContent(Base):
     """Conteudo temporizado (drip) de um MiniApp."""
@@ -715,6 +779,34 @@ class MiniAppDripContent(Base):
     title = Column(String(200), nullable=False)
     content_type = Column(String(50), nullable=False)  # quiz/tools/masterclass/vip
     payload = Column(Text, nullable=True)               # JSON
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODELOS — BLUEPRINT DE PRODUTO
+# ═══════════════════════════════════════════════════════════════════════════════
+# Blueprint = receita de produto (tema + nicho + preço) que a IA gera TODOS os
+# artefatos (produto, blog/banners, landing, funil, área de membros, miniapp) e
+# a ponte publica no DezafiraClube. Assets de imagem guardam o super prompt.
+
+class Blueprint(Base):
+    """Receita de produto gerada pelo Blueprint Engine."""
+    __tablename__ = "blueprints"
+
+    id = Column(String(50), primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    theme = Column(String(500), nullable=False)
+    niche = Column(String(100), default="Geral")
+    price_cents = Column(Integer, default=0)
+    formats = Column(JSON, default=list)          # ["ebook","curso","app","blog"]
+    status = Column(String(30), default="draft")  # draft/generating/review/publishing/published/failed
+    stage = Column(String(30), default="")        # fundacao/conteudo/assets/landing/funil/revisao/publicacao
+    config = Column(JSON, default=dict)           # receita completa (parâmetros por formato)
+    content = Column(JSON, default=dict)          # artefatos gerados (produto, posts, blocks, funil, membros)
+    assets = Column(JSON, default=dict)           # slot_key -> {url, super_prompt, provider, source, width, height}
+    publish_log = Column(JSON, default=dict)      # etapa -> {status, detail, ts}
+    error = Column(String(2000), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -777,6 +869,11 @@ try:
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_approved BOOLEAN;", "blog_posts.lili_approved")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS lili_reviewed_at TIMESTAMP;", "blog_posts.lili_reviewed_at")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS image_prompt TEXT;", "blog_posts.image_prompt")
+        # VSL — script completo + contexto de oferta (gerado pela IA no blueprint/fábrica)
+        _migrate_add_column(conn, "ALTER TABLE vsl_videos ADD COLUMN IF NOT EXISTS script TEXT;", "vsl_videos.script")
+        _migrate_add_column(conn, "ALTER TABLE vsl_videos ADD COLUMN IF NOT EXISTS offer_description TEXT;", "vsl_videos.offer_description")
+        _migrate_add_column(conn, "ALTER TABLE vsl_videos ADD COLUMN IF NOT EXISTS target_audience VARCHAR(500);", "vsl_videos.target_audience")
+        _migrate_add_column(conn, "ALTER TABLE vsl_videos ADD COLUMN IF NOT EXISTS cta_url VARCHAR(1000);", "vsl_videos.cta_url")
         # Liberado para o DezafiraClube (vitrine pública) — controle de qualidade manual
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS club_liberado BOOLEAN DEFAULT FALSE;", "blog_posts.club_liberado")
         _migrate_add_column(conn, "ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS club_enviado_at TIMESTAMP;", "blog_posts.club_enviado_at")
@@ -828,10 +925,6 @@ try:
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS brand_voice TEXT;", "miniapps.brand_voice")
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS theme TEXT;", "miniapps.theme")
         _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS pwa_check TEXT;", "miniapps.pwa_check")
-        # --- Bidu (Identidade Visual): mascote + character-brief + diretorio de assets ---
-        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS mascot_url VARCHAR(1000);", "miniapps.mascot_url")
-        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS character_brief TEXT;", "miniapps.character_brief")
-        _migrate_add_column(conn, "ALTER TABLE miniapps ADD COLUMN IF NOT EXISTS assets_dir VARCHAR(500);", "miniapps.assets_dir")
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_miniapps_slug ON miniapps (slug);"))
             conn.commit()
@@ -3244,9 +3337,7 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
                       slug: str = "", pain: str = "", description: str = "",
                       headline: str = "", subheadline: str = "", cta_text: str = "",
                       brand_name: str = "", brand_voice: str = "", theme: str = "",
-                      pwa_check: str = "", status: str = "active",
-                      mascot_url: str = "", character_brief: str = "",
-                      assets_dir: str = "") -> dict:
+                      pwa_check: str = "", status: str = "active") -> dict:
     """Cria um MiniApp no banco principal PostgreSQL (padrao born-complete)."""
     db = SessionLocal()
     try:
@@ -3260,8 +3351,6 @@ def create_db_miniapp(app_name: str, niche: str, app_type: str = "Interactive PW
             cta_text=cta_text or None, brand_name=brand_name or None,
             brand_voice=brand_voice or None, theme=theme or None,
             pwa_check=pwa_check or None,
-            mascot_url=mascot_url or None, character_brief=character_brief or None,
-            assets_dir=assets_dir or None,
         )
         db.add(app)
         db.commit()
@@ -3310,8 +3399,6 @@ def get_db_miniapp(app_id: str) -> dict:
             "subheadline": app.subheadline, "cta_text": app.cta_text,
             "brand_name": app.brand_name, "brand_voice": app.brand_voice,
             "theme": app.theme, "pwa_check": app.pwa_check,
-            "mascot_url": app.mascot_url, "character_brief": app.character_brief,
-            "assets_dir": app.assets_dir,
             "created_at": app.created_at.isoformat() if app.created_at else None,
             "drip_contents": [{"day": d.unlock_day, "title": d.title, "type": d.content_type, "payload": d.payload} for d in drips],
         }
@@ -3335,8 +3422,6 @@ def get_db_miniapp_by_slug(slug: str) -> dict:
             "subheadline": app.subheadline, "cta_text": app.cta_text,
             "brand_name": app.brand_name, "brand_voice": app.brand_voice,
             "theme": app.theme, "pwa_check": app.pwa_check,
-            "mascot_url": app.mascot_url, "character_brief": app.character_brief,
-            "assets_dir": app.assets_dir,
             "created_at": app.created_at.isoformat() if app.created_at else None,
         }
     finally:
@@ -3370,7 +3455,6 @@ def get_db_miniapps(limit: int = 50) -> list:
             "app_type": a.app_type, "status": a.status, "logo_url": a.logo_url,
             "slug": a.slug, "pain": a.pain, "headline": a.headline,
             "cta_text": a.cta_text, "brand_name": a.brand_name,
-            "mascot_url": a.mascot_url,
             "created_at": a.created_at.isoformat() if a.created_at else None,
         } for a in apps]
     finally:
@@ -3566,6 +3650,443 @@ def update_db_user_plan_by_email(email: str, plan: str, customer_id: str = None,
     except Exception as e:
         db.rollback()
         print(f"[Database] Erro ao atualizar plano do usuario {email}: {e}")
+        return False
+    finally:
+        db.close()
+
+
+# ==============================================================================
+# BIOSITES FACTORY — CRUD Functions
+# ==============================================================================
+
+def create_db_bio_site(name: str, niche: str, slug: str, user_id: str = None, 
+                       profile_image_url: str = "", description: str = "", 
+                       theme_config: str = "", pixel_facebook: str = "", 
+                       google_analytics: str = "", status: str = "active",
+                       subscription_status: str = "paid", asaas_subscription_id: str = None) -> dict:
+    """Cria um Bio Site no banco principal."""
+    db = SessionLocal()
+    try:
+        bio_id = f"bio_{uuid.uuid4().hex[:8]}"
+        site = BioSite(
+            id=bio_id, user_id=user_id, name=name, nicho=niche, slug=slug,
+            profile_image_url=profile_image_url or None, description=description or None,
+            theme_config=theme_config or None, pixel_facebook=pixel_facebook or None,
+            google_analytics=google_analytics or None, status=status,
+            subscription_status=subscription_status, asaas_subscription_id=asaas_subscription_id
+        )
+        db.add(site)
+        db.commit()
+        return {
+            "id": site.id, "name": site.name, "nicho": site.nicho, "slug": site.slug,
+            "status": site.status, "subscription_status": site.subscription_status,
+            "created_at": site.created_at.isoformat() if site.created_at else None
+        }
+    finally:
+        db.close()
+
+def update_db_bio_site(bio_id: str, **kwargs) -> bool:
+    """Atualiza campos de um Bio Site."""
+    db = SessionLocal()
+    try:
+        site = db.query(BioSite).filter(BioSite.id == bio_id).first()
+        if site:
+            for key, value in kwargs.items():
+                if hasattr(site, key):
+                    setattr(site, key, value)
+            site.updated_at = datetime.utcnow()
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def get_db_bio_site(bio_id: str) -> dict:
+    """Retorna detalhes completos de um Bio Site incluindo links."""
+    db = SessionLocal()
+    try:
+        site = db.query(BioSite).filter(BioSite.id == bio_id).first()
+        if not site:
+            return {}
+        links = db.query(BioLink).filter(BioLink.bio_site_id == bio_id).order_by(BioLink.position.asc()).all()
+        return {
+            "id": site.id, "user_id": site.user_id, "name": site.name, "nicho": site.nicho,
+            "slug": site.slug, "profile_image_url": site.profile_image_url, "description": site.description,
+            "theme_config": site.theme_config, "pixel_facebook": site.pixel_facebook,
+            "google_analytics": site.google_analytics, "status": site.status,
+            "netlify_site_id": site.netlify_site_id, "netlify_url": site.netlify_url,
+            "subscription_status": site.subscription_status, "asaas_subscription_id": site.asaas_subscription_id,
+            "created_at": site.created_at.isoformat() if site.created_at else None,
+            "updated_at": site.updated_at.isoformat() if site.updated_at else None,
+            "links": [{"id": l.id, "title": l.title, "url": l.url, "icon": l.icon, "animation": l.animation, "position": l.position} for l in links]
+        }
+    finally:
+        db.close()
+
+def get_db_bio_site_by_slug(slug: str) -> dict:
+    """Retorna um Bio Site pela URL (slug)."""
+    db = SessionLocal()
+    try:
+        site = db.query(BioSite).filter(BioSite.slug == slug).first()
+        if not site:
+            return {}
+        links = db.query(BioLink).filter(BioLink.bio_site_id == site.id).order_by(BioLink.position.asc()).all()
+        return {
+            "id": site.id, "user_id": site.user_id, "name": site.name, "nicho": site.nicho,
+            "slug": site.slug, "profile_image_url": site.profile_image_url, "description": site.description,
+            "theme_config": site.theme_config, "pixel_facebook": site.pixel_facebook,
+            "google_analytics": site.google_analytics, "status": site.status,
+            "netlify_site_id": site.netlify_site_id, "netlify_url": site.netlify_url,
+            "subscription_status": site.subscription_status, "asaas_subscription_id": site.asaas_subscription_id,
+            "created_at": site.created_at.isoformat() if site.created_at else None,
+            "updated_at": site.updated_at.isoformat() if site.updated_at else None,
+            "links": [{"id": l.id, "title": l.title, "url": l.url, "icon": l.icon, "animation": l.animation, "position": l.position} for l in links]
+        }
+    finally:
+        db.close()
+
+def get_db_bio_sites(limit: int = 50, user_id: str = None) -> list:
+    """Lista Bio Sites cadastrados."""
+    db = SessionLocal()
+    try:
+        query = db.query(BioSite)
+        if user_id:
+            query = query.filter(BioSite.user_id == user_id)
+        sites = query.order_by(BioSite.created_at.desc()).limit(limit).all()
+        return [{
+            "id": s.id, "name": s.name, "nicho": s.nicho, "slug": s.slug,
+            "status": s.status, "subscription_status": s.subscription_status,
+            "created_at": s.created_at.isoformat() if s.created_at else None
+        } for s in sites]
+    finally:
+        db.close()
+
+def delete_db_bio_site(bio_id: str) -> bool:
+    """Deleta um Bio Site e todos os seus links (CASCADE)."""
+    db = SessionLocal()
+    try:
+        site = db.query(BioSite).filter(BioSite.id == bio_id).first()
+        if site:
+            db.query(BioLink).filter(BioLink.bio_site_id == bio_id).delete()
+            db.delete(site)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def add_db_bio_link(bio_site_id: str, title: str, url: str, icon: str = "", animation: str = "none", position: int = 0) -> dict:
+    """Adiciona um link a um Bio Site."""
+    db = SessionLocal()
+    try:
+        link_id = f"lnk_{uuid.uuid4().hex[:8]}"
+        link = BioLink(
+            id=link_id, bio_site_id=bio_site_id, title=title, url=url,
+            icon=icon or None, animation=animation, position=position
+        )
+        db.add(link)
+        db.commit()
+        return {
+            "id": link.id, "bio_site_id": link.bio_site_id, "title": link.title,
+            "url": link.url, "icon": link.icon, "animation": link.animation, "position": link.position
+        }
+    finally:
+        db.close()
+
+def update_db_bio_link(link_id: str, **kwargs) -> bool:
+    """Atualiza campos de um link."""
+    db = SessionLocal()
+    try:
+        link = db.query(BioLink).filter(BioLink.id == link_id).first()
+        if link:
+            for key, value in kwargs.items():
+                if hasattr(link, key):
+                    setattr(link, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def delete_db_bio_link(link_id: str) -> bool:
+    """Remove um link de um Bio Site."""
+    db = SessionLocal()
+    try:
+        link = db.query(BioLink).filter(BioLink.id == link_id).first()
+        if link:
+            db.delete(link)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+# ==============================================================================
+# VSL FACTORY — CRUD & Analytics Functions
+# ==============================================================================
+
+def create_db_vsl_video(title: str, video_url: str, nicho: str = "Geral", 
+                        thumbnail_url: str = None, delay_seconds: int = 0, 
+                        headline_a: str = None, headline_b: str = None, headline_c: str = None,
+                        script: str = None, offer_description: str = None,
+                        target_audience: str = None, cta_url: str = None,
+                        status: str = "active") -> dict:
+    """Cria um registro de VSL no banco."""
+    db = SessionLocal()
+    try:
+        vsl_id = f"vsl_{uuid.uuid4().hex[:8]}"
+        video = VslVideo(
+            id=vsl_id, title=title, video_url=video_url, nicho=nicho,
+            thumbnail_url=thumbnail_url, delay_seconds=delay_seconds,
+            headline_a=headline_a, headline_b=headline_b, headline_c=headline_c,
+            script=script, offer_description=offer_description,
+            target_audience=target_audience, cta_url=cta_url,
+            status=status
+        )
+        db.add(video)
+        db.commit()
+        return {
+            "id": video.id, "title": video.title, "video_url": video.video_url, "nicho": video.nicho,
+            "thumbnail_url": video.thumbnail_url, "delay_seconds": video.delay_seconds,
+            "headline_a": video.headline_a, "headline_b": video.headline_b, "headline_c": video.headline_c,
+            "script": video.script, "offer_description": video.offer_description,
+            "target_audience": video.target_audience, "cta_url": video.cta_url,
+            "status": video.status, "created_at": video.created_at.isoformat() if video.created_at else None
+        }
+    finally:
+        db.close()
+
+def update_db_vsl_video(vsl_id: str, **kwargs) -> bool:
+    """Atualiza campos de um vídeo VSL."""
+    db = SessionLocal()
+    try:
+        video = db.query(VslVideo).filter(VslVideo.id == vsl_id).first()
+        if video:
+            for key, value in kwargs.items():
+                if hasattr(video, key):
+                    setattr(video, key, value)
+            video.updated_at = datetime.utcnow()
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def get_db_vsl_video(vsl_id: str) -> dict:
+    """Retorna os detalhes de um vídeo VSL."""
+    db = SessionLocal()
+    try:
+        video = db.query(VslVideo).filter(VslVideo.id == vsl_id).first()
+        if not video:
+            return {}
+        return {
+            "id": video.id, "title": video.title, "video_url": video.video_url, "nicho": video.nicho,
+            "thumbnail_url": video.thumbnail_url, "delay_seconds": video.delay_seconds,
+            "headline_a": video.headline_a, "headline_b": video.headline_b, "headline_c": video.headline_c,
+            "script": video.script, "offer_description": video.offer_description,
+            "target_audience": video.target_audience, "cta_url": video.cta_url,
+            "status": video.status, "created_at": video.created_at.isoformat() if video.created_at else None,
+            "updated_at": video.updated_at.isoformat() if video.updated_at else None
+        }
+    finally:
+        db.close()
+
+def get_db_vsl_videos(limit: int = 50) -> list:
+    """Lista vídeos VSL cadastrados."""
+    db = SessionLocal()
+    try:
+        videos = db.query(VslVideo).order_by(VslVideo.created_at.desc()).limit(limit).all()
+        return [{
+            "id": v.id, "title": v.title, "video_url": v.video_url, "nicho": v.nicho,
+            "thumbnail_url": v.thumbnail_url, "delay_seconds": v.delay_seconds,
+            "headline_a": v.headline_a, "headline_b": v.headline_b, "headline_c": v.headline_c,
+            "script": v.script, "offer_description": v.offer_description,
+            "target_audience": v.target_audience, "cta_url": v.cta_url,
+            "status": v.status, "created_at": v.created_at.isoformat() if v.created_at else None
+        } for v in videos]
+    finally:
+        db.close()
+
+def delete_db_vsl_video(vsl_id: str) -> bool:
+    """Remove um vídeo VSL do banco de dados (cascade para analytics via DB foreign key)."""
+    db = SessionLocal()
+    try:
+        video = db.query(VslVideo).filter(VslVideo.id == vsl_id).first()
+        if video:
+            db.delete(video)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def add_db_vsl_analytics_event(vsl_id: str, session_id: str, seconds_watched: int = 0, 
+                               max_percentage: int = 0, converted: bool = False, 
+                               headline_variant: str = "A") -> dict:
+    """Adiciona ou atualiza evento de analíticos para uma sessão."""
+    db = SessionLocal()
+    try:
+        # Busca se já existe um registro para esta sessão nesta VSL
+        event = db.query(VslAnalytics).filter(
+            VslAnalytics.vsl_id == vsl_id,
+            VslAnalytics.session_id == session_id
+        ).first()
+
+        if event:
+            # Atualiza apenas se progrediu
+            if seconds_watched > event.seconds_watched:
+                event.seconds_watched = seconds_watched
+            if max_percentage > event.max_percentage:
+                event.max_percentage = max_percentage
+            if converted:
+                event.converted = True
+            db.commit()
+        else:
+            event = VslAnalytics(
+                vsl_id=vsl_id, session_id=session_id, seconds_watched=seconds_watched,
+                max_percentage=max_percentage, converted=converted, headline_variant=headline_variant
+            )
+            db.add(event)
+            db.commit()
+
+        return {
+            "vsl_id": event.vsl_id, "session_id": event.session_id, "seconds_watched": event.seconds_watched,
+            "max_percentage": event.max_percentage, "converted": event.converted, "headline_variant": event.headline_variant
+        }
+    finally:
+        db.close()
+
+def get_db_vsl_analytics_summary(vsl_id: str) -> dict:
+    """Retorna um resumo de analíticos e curva de retenção para uma VSL."""
+    db = SessionLocal()
+    try:
+        total_plays = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id).count()
+        if total_plays == 0:
+            return {
+                "total_plays": 0, "conversions": 0, "ctr": 0,
+                "retention": {"p25": 0, "p50": 0, "p75": 0, "p100": 0},
+                "headline_performance": {"A": {"plays": 0, "conversions": 0}, "B": {"plays": 0, "conversions": 0}, "C": {"plays": 0, "conversions": 0}}
+            }
+
+        conversions = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.converted == True).count()
+        
+        p25 = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.max_percentage >= 25).count()
+        p50 = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.max_percentage >= 50).count()
+        p75 = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.max_percentage >= 75).count()
+        p100 = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.max_percentage >= 100).count()
+
+        # Desempenho por headline
+        headline_summary = {}
+        for h in ["A", "B", "C"]:
+            h_plays = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.headline_variant == h).count()
+            h_convs = db.query(VslAnalytics).filter(VslAnalytics.vsl_id == vsl_id, VslAnalytics.headline_variant == h, VslAnalytics.converted == True).count()
+            h_ctr = (h_convs / h_plays * 100) if h_plays > 0 else 0
+            headline_summary[h] = {"plays": h_plays, "conversions": h_convs, "ctr": round(h_ctr, 2)}
+
+        return {
+            "total_plays": total_plays,
+            "conversions": conversions,
+            "ctr": round((conversions / total_plays) * 100, 2),
+            "retention": {
+                "p25": round((p25 / total_plays) * 100, 2),
+                "p50": round((p50 / total_plays) * 100, 2),
+                "p75": round((p75 / total_plays) * 100, 2),
+                "p100": round((p100 / total_plays) * 100, 2)
+            },
+            "headline_performance": headline_summary
+        }
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLUEPRINT DE PRODUTO — CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def blueprint_to_dict(bp) -> dict:
+    """Serializa um Blueprint para dict (todos os campos JSON-friendly)."""
+    return {
+        "id": bp.id, "name": bp.name, "theme": bp.theme, "niche": bp.niche,
+        "price_cents": bp.price_cents, "formats": bp.formats or [],
+        "status": bp.status, "stage": bp.stage or "",
+        "config": bp.config or {}, "content": bp.content or {},
+        "assets": bp.assets or {}, "publish_log": bp.publish_log or {},
+        "error": bp.error,
+        "created_at": bp.created_at.isoformat() if bp.created_at else None,
+        "updated_at": bp.updated_at.isoformat() if bp.updated_at else None,
+    }
+
+
+def create_db_blueprint(name: str, theme: str, niche: str = "Geral",
+                        price_cents: int = 0, formats: list = None,
+                        config: dict = None) -> dict:
+    """Cria um blueprint (status=draft)."""
+    db = SessionLocal()
+    try:
+        bp = Blueprint(
+            id=f"bp_{uuid.uuid4().hex[:10]}",
+            name=name, theme=theme, niche=niche, price_cents=price_cents,
+            formats=formats or ["ebook"], config=config or {},
+            content={}, assets={}, publish_log={}, status="draft",
+        )
+        db.add(bp)
+        db.commit()
+        return blueprint_to_dict(bp)
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+def get_db_blueprint(bp_id: str) -> dict:
+    """Retorna um blueprint completo."""
+    db = SessionLocal()
+    try:
+        bp = db.query(Blueprint).filter(Blueprint.id == bp_id).first()
+        return blueprint_to_dict(bp) if bp else None
+    finally:
+        db.close()
+
+
+def list_db_blueprints(limit: int = 50) -> list:
+    """Lista blueprints (mais recentes primeiro)."""
+    db = SessionLocal()
+    try:
+        bps = db.query(Blueprint).order_by(Blueprint.created_at.desc()).limit(limit).all()
+        return [blueprint_to_dict(bp) for bp in bps]
+    finally:
+        db.close()
+
+
+def update_db_blueprint(bp_id: str, **kwargs) -> bool:
+    """Atualiza campos do blueprint (status/stage/config/content/assets/publish_log)."""
+    db = SessionLocal()
+    try:
+        bp = db.query(Blueprint).filter(Blueprint.id == bp_id).first()
+        if bp:
+            for key, value in kwargs.items():
+                if hasattr(bp, key):
+                    setattr(bp, key, value)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def delete_db_blueprint(bp_id: str) -> bool:
+    db = SessionLocal()
+    try:
+        bp = db.query(Blueprint).filter(Blueprint.id == bp_id).first()
+        if bp:
+            db.delete(bp)
+            db.commit()
+            return True
+        return False
+    except Exception:
+        db.rollback()
         return False
     finally:
         db.close()

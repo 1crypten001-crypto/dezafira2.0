@@ -29,7 +29,8 @@ def client(telemetry):
 def test_retry_2x_ate_sucesso(telemetry, client):
     """Bridge vazio nas 2 primeiras tentativas; 3a tentativa OK.
     Esperado: 2 retries com backoff (1.5s, 3.0s) e 1 log_call de sucesso."""
-    with patch.object(client, "_fetch_via_bridge", side_effect=["", "", "<html>ok</html>"]), \
+    with patch("services.obscura_client._obscura_enabled", return_value=True), \
+         patch.object(client, "_fetch_via_bridge", side_effect=["", "", "<html>ok</html>"]), \
          patch.object(client, "_fallback_urllib", return_value=""), \
          patch.object(time, "sleep") as mock_sleep:
         html = client.fetch_html("https://example.com", timeout=5)
@@ -45,7 +46,8 @@ def test_retry_2x_ate_sucesso(telemetry, client):
 
 def test_falha_total_3_tentativas(telemetry, client):
     """Bridge e fallback sempre vazios: 3 tentativas, 2 retries, 1 log_call de falha."""
-    with patch.object(client, "_fetch_via_bridge", return_value=""), \
+    with patch("services.obscura_client._obscura_enabled", return_value=True), \
+         patch.object(client, "_fetch_via_bridge", return_value=""), \
          patch.object(client, "_fallback_urllib", return_value=""), \
          patch.object(time, "sleep"):
         html = client.fetch_html("https://example.com", timeout=5)
@@ -58,7 +60,8 @@ def test_falha_total_3_tentativas(telemetry, client):
 
 def test_retry_apos_excecao_no_bridge(telemetry, client):
     """Bridge levanta excecao na 1a tentativa; 2a OK: 1 retry."""
-    with patch.object(client, "_fetch_via_bridge", side_effect=[RuntimeError("timeout"), "<html>ok</html>"]), \
+    with patch("services.obscura_client._obscura_enabled", return_value=True), \
+         patch.object(client, "_fetch_via_bridge", side_effect=[RuntimeError("timeout"), "<html>ok</html>"]), \
          patch.object(time, "sleep"):
         html = client.fetch_html("https://example.com", timeout=5)
 
@@ -70,7 +73,8 @@ def test_retry_apos_excecao_no_bridge(telemetry, client):
 
 def test_fetch_markdown_tambem_retenta(telemetry, client):
     """fetch_markdown também re-tenta e conta retry."""
-    with patch.object(client, "_fetch_markdown_via_bridge", side_effect=["", "## titulo"]), \
+    with patch("services.obscura_client._obscura_enabled", return_value=True), \
+         patch.object(client, "_fetch_markdown_via_bridge", side_effect=["", "## titulo"]), \
          patch.object(client, "_fallback_urllib", return_value=""), \
          patch.object(time, "sleep"):
         md = client.fetch_markdown("https://example.com", timeout=5)

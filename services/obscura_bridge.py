@@ -322,6 +322,39 @@ class ObscuraBridge:
 
         return result
 
+    # ─── HTML → PNG (usado pelo Agnes Studio de capas) ───────────────────
+
+    async def screenshot(self, width: int = 1280, height: int = 720,
+                         device_scale_factor: int = 1) -> bytes:
+        """Renderiza a página atual (ex: data:text/html) como PNG via CDP.
+
+        Usado pelo Agnes Studio para compor capas HTML → PNG. Força o
+        viewport no tamanho exato da capa e captura além da viewport para
+        não cortar conteúdo flutuante. Retorna os bytes do PNG.
+        """
+        if not self._connected:
+            raise ObscuraNotAvailableError("Obscura não conectado")
+
+        await self._send_cdp_to_target("Emulation.setDeviceMetricsOverride", {
+            "width": width,
+            "height": height,
+            "deviceScaleFactor": device_scale_factor,
+            "mobile": False,
+        })
+        # clip explícito garante o PNG exatamente em width×height mesmo quando o
+        # layout da página estoura o viewport (captureBeyondViewport sozinho
+        # capturaria o tamanho do conteúdo, ex: com barras de rolagem).
+        result = await self._send_cdp_to_target("Page.captureScreenshot", {
+            "format": "png",
+            "captureBeyondViewport": True,
+            "clip": {"x": 0, "y": 0, "width": width, "height": height, "scale": device_scale_factor},
+        })
+        data = result.get("data", "")
+        if not data:
+            raise RuntimeError("Page.captureScreenshot retornou sem dados")
+        import base64
+        return base64.b64decode(data)
+
     async def get_html(self) -> str:
         """Retorna o HTML completo da página atual."""
         if not self._connected:

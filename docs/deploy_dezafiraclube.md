@@ -1,6 +1,6 @@
 # 🚀 Deploy DezafiraClube - Status Atual
 
-> **Última atualização:** 06/08/2026
+> **Última atualização:** 12/08/2026 — Clube migrado para **v1.9**
 
 ---
 
@@ -56,6 +56,7 @@ Acesse: `https://www.dezafira.com.br/admin/settings`
 Acesse: `https://www.dezafira.com.br/admin/cli`
 - Clique em "Regenerar Token"
 - Guarde o token gerado
+- ⚠️ **Obrigatório após o deploy da v1.9** — o token antigo deixa de valer (a v1.9 passou a armazenar hash + expiração)
 
 ### 3. Configurar Cloudinary (upload de imagens)
 1. Crie conta em [cloudinary.com](https://cloudinary.com) (gratuito)
@@ -93,7 +94,8 @@ railway up --service dezafiraclube --project f3dec210-01c0-4364-801d-029a3c01aa4
 
 ```
 dezafira2.0/
-├── Blog_Inteligente_SEO_com_IA_-_v1.8/  ← DezafiraClube (SvelteKit)
+├── Versões do dezafiraClub/
+│   └── Blog_Inteligente_SEO_com_IA_-_v1.9/  ← DezafiraClube (SvelteKit, atual — v1.8 preservado como backup)
 ├── club-frontend/                        ← DezafiraADM Frontend (Next.js)
 ├── libsql-server/                        ← Banco libsql (Docker)
 ├── server.py                             ← Backend FastAPI

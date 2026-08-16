@@ -93,7 +93,7 @@ fi
 
 log "Root Directory (faça no dashboard)"
 warn "libsql-server → Settings → Source → Root Directory: libsql-server"
-warn "dezafiraclube  → Settings → Source → Root Directory: Blog_Inteligente_SEO_com_IA_-_v1.8"
+warn "dezafiraclube  → Settings → Source → Root Directory: Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9"
 warn "backend        → já configurado (produção)"
 
 # --------------------------- Volume do libsql --------------------------------
@@ -167,8 +167,8 @@ if [ -d "$SCRIPT_DIR/../libsql-server" ]; then
     && ok "deploy local do libsql disparado" \
     || warn "deploy local do libsql não disparou (serviço GitHub?) — use push + Root Directory"
 fi
-if [ -d "$SCRIPT_DIR/../Blog_Inteligente_SEO_com_IA_-_v1.8" ]; then
-  (cd "$SCRIPT_DIR/../Blog_Inteligente_SEO_com_IA_-_v1.8" && railway up --service "$CLUBE_SERVICE" --detach >/dev/null 2>&1) \
+if [ -d "$SCRIPT_DIR/../Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9" ]; then
+  (cd "$SCRIPT_DIR/../Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9" && railway up --service "$CLUBE_SERVICE" --detach >/dev/null 2>&1) \
     && ok "deploy local do clube disparado" \
     || warn "deploy local do clube não disparou (serviço GitHub?) — use push + Root Directory"
 fi
@@ -176,7 +176,7 @@ fi
 # --------------------------- Migração ----------------------------------------
 log "Migração do blog.db (rode quando o libsql estiver online)"
 warn "O banco local tem o branding DezafiraClube. Para migrar use a URL PÚBLICA do libsql:"
-warn "  railway domain list --service $LIBSQL_SERVICE   # pegue o *.up.railway.app"  warn "  cd Blog_Inteligente_SEO_com_IA_-_v1.8"
+warn "  railway domain list --service $LIBSQL_SERVICE   # pegue o *.up.railway.app"  warn "  cd \"Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9\""
   warn "  DATABASE_URL=https://<libsql>.up.railway.app DATABASE_AUTH_TOKEN='$TOKEN' npx tsx scripts/migrate-sqlite-to-turso.ts"
 
 log "Monitoramento"

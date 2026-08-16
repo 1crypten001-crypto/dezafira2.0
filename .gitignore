@@ -1,94 +1,40 @@
-# Dependências
+# ===== Node / builds =====
 node_modules/
+.tools/
 .next/
-dist/
+out/
 build/
-venv/
-.venv*/
-env/
+.svelte-kit/
+_app/
+_vercel/
 
-# Arquivos locais e caches
+# ===== Python =====
 __pycache__/
-*.tsbuildinfo
-
-# Binario local do motor Obscura (baixado para dev local)
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.ipynb_checkpoints/
+.venv/
+venv/
 
-# Banco de dados e dados locais da Dezafira
-dezafira.db
-dezafira.db-journal
-channels.json
-temp/
-outputs/
-backend/
-test_debug.db
-hermes_memory.db
-
-# Segredos (NUNCA COMMITAR CHAVES DE API!)
-.env
-credentials/
-*.env.local
-
-# IDEs
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.swp
-
-# OpenMontage (motor de renderização)
-
-# Sistema
-.DS_Store
-nul
-
-# Logs
-*.log
-
-# Arquivos grandes / PDFs
-*.pdf
-tmp/
-
-# Arquivos temporários / Debug
-*.mp4.tmp.wav
-*TEMP_MPY*
-startup_error.txt
-startup_output.txt
-frontend_error.txt
-frontend_output.txt
-*.bak
-=0.3.0
-
-# Arquivos de teste e backup
-*_test.py
-*_test.html
-
-# Binários pesados e Mídias geradas
-*.mp4
-*.mp3
-*.wav
-*.zip
-*.exe
-*.msi
-
-# Caches locais de IAs e ferramentas
-.gemini/
-.freebuff/
+# ===== Banco / dados locais =====
 *.db
-*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
 *.db-wal
+*.db-shm
 
-# logs
+# ===== Estado temporário dos testes (banco isolado) =====
+tests/.pytest_state/
 
-# Chrome real (perfil persistente do CDP)
+# ===== Env / segredos =====
+.env
+.env.*
+!.env.example
 
-# Template de terceiros (Blog Inteligente SEO com IA — referência local)
+# ===== Sistema =====
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
 
-# Dados de configuração social do distributor.py
-data/
+# ===== Zips / versões empacotadas =====
+*.zip

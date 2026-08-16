@@ -1,17 +1,29 @@
 # DEZAFIRA — Fábricas de Conteúdo & Dezafira Adm
 
-> **Versão:** 3.4.0  
+> **Versão:** 3.5.0  
 > **Site público (DezafiraClube):** https://www.dezafira.com.br (SvelteKit + Railway)  
 > **Admin (Dezafira Adm):** https://adm.dezafira.com.br (Next.js + Railway)  
 > **API Backend:** https://dezafiraadm-production.up.railway.app (FastAPI)  
 > **Database:** PostgreSQL (prod) / SQLite (dev)  
-> **Última atualização:** 09/08/2026
+> **Última atualização:** 12/08/2026
 
 ---
 
 ## 📋 VISÃO GERAL
 
 A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Blogs, Ebooks, Cursos e Marketing — orquestradas por agentes brasileiros e motor headless (Obscura/Chrome). O ecossistema tem **dois serviços**: o **DezafiraClube** (SvelteKit — site público, blog e área de membros) e o **Dezafira Adm** (FastAPI + Next.js — painel de fábricas). Pagamentos, **gamificação, combos e ranking** foram removidos do Adm (commits recentes).
+
+### DezafiraClube — v1.9 (12/08/2026)
+
+O Clube subiu da v1.8 para a **v1.9** — pasta `Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9/` (a v1.8 fica preservada como backup). Ferramentas novas que **não precisam ser recriadas no Adm**:
+
+- **Landing Pages v2** — builder drag-and-drop + **CLI/API** (`/api/cli/landing-pages/*`): o Hermes consulta `schema`/`resources` (produtos e posts reais) e publica ofertas em `/p/{slug}` via token CLI.
+- **Comunidade (fórum)** — tópicos, comentários e likes na área de membros (3 tabelas novas, criadas no boot); moderação no admin do Clube.
+- **Área de membros com tópicos** — `/members/area/topic/[id]`.
+- **CLI/API endurecida** — validação Zod, rate limit 120/min, token com hash + expiração, paginação.
+- **Cache server-side** e página pública **`/about`**.
+
+Estratégia Adm → Clube: as fábricas alimentam o Clube pela ponte `/api/import/*` (product/nurture/sync-blog) e o Hermes publica landings via CLI. Pós-deploy: **regenerar o token CLI** em `admin/cli` do Clube (a v1.9 trocou o armazenamento para hash + expiração). Detalhes em `docs/integracao-adm-clube.md` (dentro do pacote v1.9).
 
 ### Estado Atual
 
@@ -24,7 +36,7 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | **Score Monetização** | 88.7% (17/19) — ✅ Pronto AdSense |
 | **Cursos Criados** | 2 (1 via pipeline automática) |
 | **Trilhas de Aprendizado** | 1 (Trilha IA para Iniciantes) |
-| **Fábricas Ativas** | Blog (5 fases) + Ebook (6 fases) + Curso (6 fases) + Marketing (6 fases) |
+| **Fábricas Ativas** | Blog (5 fases) + Ebook (6 fases) + Curso (6 fases) + Marketing (6 fases) + Bio Sites (Layouts Impeccable) |
 | **Agentes IA** | 21+ especializados |
 | **LLM Cascade** | OpenRouter → Gemini → NVIDIA NIM → HuggingFace → DeepSeek |
 
@@ -292,6 +304,40 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/api/v1/lili/regenerate-jobs/{job_id}` | Status do job — **admin** |
 | GET | `/api/v1/lili/regenerate-jobs` | Lista de jobs — **admin** |
 
+### 🎯 Blueprint de Produto (NOVO — substitui a Fábrica de Produtos)
+> Receita tema+nicho → gera produto, blog/banners, landing, funil e área de membros; revisão de imagens (super prompt + upload + zoom); publicação via ponte. Guia: `docs/blueprint_guia.md`.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/blueprints` | Criar receita (draft) — **admin** |
+| GET | `/api/v1/blueprints` | Listar — **admin** |
+| GET | `/api/v1/blueprints/{id}` | Estado completo (content/assets/publish_log) — **admin** |
+| POST | `/api/v1/blueprints/{id}/run` | Disparar motor (fundação→revisão) — **admin** |
+| PATCH | `/api/v1/blueprints/{id}` | Atualizar `config` (merge parcial — ex: `brand_kit` cores/fontes) — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/regenerate` | Regenerar slot `{slot}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/agnes-cover` | Capa editorial Agnes Studio `{slot, style_id}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/agnes-variants` | Gerar 5 variantes de estilo do slot `{slot}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/agnes-apply-variant` | Aplicar variante `{slot, variant, index}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/upload` | Upload `{slot, data_url}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/assets/restore` | Restaurar versão do histórico `{slot, index}` — **admin** |
+| POST | `/api/v1/blueprints/{id}/publish` | Publicar no Clube (ponte, log por etapa) — **admin** |
+| DELETE | `/api/v1/blueprints/{id}` | Remover — **admin** |
+
+### 🎨 Agnes Studio — capas com design editorial (HTML → PNG)
+> `modules/agnes_studio.py`: compõe capas (tipografia + autor + créditos + identidade do canal) e renderiza HTML → PNG via **Obscura** (`ObscuraBridge.screenshot`, CDP `Page.captureScreenshot` com `clip` explícito p/ dimensões exatas), com fallback local **Pillow**. Design persistido (`cover_design`) mantém identidade em regenerações. Arquivos: `outputs/agnes/{slug}_{uuid}.png` (slug `crs-`/`book-`/`ebook-`/`post-`/`prod-` + id). Estilos: `moderno` │ `elegante` │ `tech` │ `minimal` │ `dark-gold` (body `{style_id}` opcional). Validação do render real: `scripts/agnes_studio_render_check.py`.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/courses/{id}/agnes-cover` | Gerar/regenerar capa do curso (1280×720) — `{style_id, brand_kit}` — **admin** |
+| POST | `/api/v1/ebooks/{id}/agnes-cover` | Gerar/regenerar capa do ebook (1200×1600) — `{style_id, brand_kit}` — **admin** |
+| POST | `/api/v1/blog/post/{id}/agnes-cover` | Gerar/regenerar imagem de artigo (1200×630) — `{style_id, brand_kit}` — **admin** |
+| GET | `/api/v1/agnes/gallery` | Listar capas geradas (título + produto de origem) — **admin** |
+| POST | `/api/v1/agnes/use-cover` | Aplicar capa da galeria a um curso/ebook/post — **admin** |
+| DELETE | `/api/v1/agnes/gallery/{filename}` | Remover capa da galeria (valida path traversal) — **admin** |
+| POST | `/api/v1/agnes/video` | 🎬 Gera vídeo com Agnes (`agnes-video-v2.0`, image-to-video; `image` aceita URL ou base64; `wait=true` baixa MP4 p/ `outputs/vsl/`) — **admin** |
+| GET | `/api/v1/agnes/video/{task_id}` | Polling da task de vídeo Agnes — **admin** |
+| GET | `/admin/agnes` | Página da galeria visual (grid + zoom + aplicar + remover) — **UI** |
+
 ### 💰 Monetização & Afiliados
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -418,6 +464,31 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/api/v1/analytics/metrics` | Métricas |
 | GET | `/api/v1/analytics/channels` | Analytics por canal |
 
+### 🔗 Bio Sites
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/biosites/create` | Geração de Bio Site via pipeline de IA |
+| GET | `/api/v1/biosites` | Listar todos os Bio Sites |
+| GET | `/api/v1/biosites/{bio_id}` | Detalhes de um Bio Site específico |
+| PUT | `/api/v1/biosites/{bio_id}` | Atualizar informações e links do Bio Site |
+| DELETE | `/api/v1/biosites/{bio_id}` | Deletar Bio Site |
+| GET | `/bio/{slug}` | Serve HTML final do Bio Site (público / preview) |
+
+
+### 🎬 Fábrica de VSLs & Analytics
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/api/v1/vsl` | Cadastra VSL e gera **script completo + headlines A/B/C** via IA (aceita `offer_description`, `target_audience`, `cta_url`) |
+| POST | `/api/v1/vsl/{vsl_id}/render-video` | 🎬 Renderiza o vídeo da VSL (cenas Agnes + TTS pt-BR + ffmpeg) — `{style_id, voice}` |
+| POST | `/api/v1/vsl/{vsl_id}/render-agnes-video` | 🤖 Gera vídeo IA da VSL com Agnes (`agnes-video-v2.0`, image-to-video a partir da thumbnail; retorna a task) |
+| GET | `/api/v1/vsl/{vsl_id}/agnes-video` | Polling da task de vídeo IA da VSL — ao concluir baixa o MP4 e atualiza `video_url` |
+| GET | `/api/v1/vsl` | Listar todas as VSLs registradas |
+| GET | `/api/v1/vsl/{vsl_id}` | Detalhes de uma VSL e seu sumário analítico de retenção |
+| PUT | `/api/v1/vsl/{vsl_id}` | Atualizar configurações da VSL |
+| DELETE | `/api/v1/vsl/{vsl_id}` | Deletar VSL (com cascade no analytics) |
+| POST | `/api/v1/vsl/analytics` | Registra eventos de retenção e cliques de conversão do player |
+
+
 ### 🧠 Hermes Chat & Canais
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -462,6 +533,8 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 | GET | `/sitemap.xml` | Sitemap XML |
 | GET | `/robots.txt` | Robots.txt |
 | GET | `/ads.txt` | Ads.txt |
+| GET | `/bio/{slug}` | Rota pública de visualização e preview em tempo real do Bio Site |
+
 
 ---
 
@@ -471,7 +544,7 @@ A Dezafira é um ecossistema de **fábricas de conteúdo digital** com IA — Bl
 
 O **Dezafira Adm** é o painel de administração focado **100% nas fábricas de conteúdo** (Blog, Ebook, Curso e Marketing). Pagamentos, gamificação, combos e ranking foram **removidos** — o ecossistema prioriza produção e distribuição de conteúdo.
 
-> 💡 A **área de membros** (checkout, tokens de acesso, leitor de ebooks, cursos do assinante) vive no **DezafiraClube** (SvelteKit — `Blog_Inteligente_SEO_com_IA_-_v1.8/`), não neste frontend. O checkout do Clube usa **Asaas** (`src/lib/server/asaas.ts`); a integração **Polar foi removida**.
+> 💡 A **área de membros** (checkout, tokens de acesso, leitor de ebooks, cursos do assinante) vive no **DezafiraClube** (SvelteKit — `Versões do dezafiraClub/Blog_Inteligente_SEO_com_IA_-_v1.9/`), não neste frontend. O checkout do Clube usa **Asaas** (`src/lib/server/asaas.ts`); a integração **Polar foi removida**.
 
 ### Tech Stack
 
@@ -514,22 +587,26 @@ Dashboard simples do usuário logado (dados de `/api/v1/auth/me` + listas de cur
 | Landing | `/` | Página inicial focada nas fábricas ("Dezafira Adm") |
 | Login | `/auth/login` | Formulário de login |
 | Painel | `/painel` | Dashboard do usuário (tabs: Visão Geral, Cursos, Ebooks) |
-| Admin | `/admin` | Painel admin (stats, usuários, fábricas, trilhas, analytics, marketing) |
-| Fábrica Blog | `/admin/fabrica-blog` | **Nativa** (COMBO 05) — gera artigo via pipeline, canais, histórico, posts por canal |
-| Fábrica Ebook | `/admin/fabrica-ebook` | **Nativa** (COMBO 05) — pipeline de 6 fases, lista/detalhe de ebooks |
-| Fábrica Curso | `/admin/fabrica-curso` | Pipeline nativa de cursos (Next.js) |
-| Fábrica Marketing | `/admin/fabrica-marketing` | **Nativa** (COMBO 05) — esteira de 6 fases (start + stage por fase), histórico |
-| Hub de Canais | `/admin/canais` | Lista canais + ativos vinculados + botão **Abrir PWA ↗** (`/pwa/{slug}`) |
+| Admin | `/admin` | Painel admin (Status bar do sistema, métricas globais, timeline de atividade recente e widgets) |
+| Hub de Canais | `/admin/canais` | **Nativa** (COMBO 05) — lista canais reais, contagem de posts ativos e formulário de criação de canais |
+| Fábrica Blog | `/admin/fabrica-blog` | **Nativa** (COMBO 05) — 3 abas nativas (Canais com histórico, Gerar Artigo com pipeline de IA, e Biblioteca com envio direto para o Club) |
+| Fábrica Ebook | `/admin/fabrica-ebook` | **Nativa** (COMBO 05) — pipeline de 6 fases, leitor de capítulos e botão de envio pro Club |
+| Fábrica Curso | `/admin/fabrica-curso` | **Nativa** (COMBO 05) — pipeline nativa de cursos por abas (Cursos, Pipeline, Histórico) |
+| Fábrica Bio Sites | `/admin/fabrica-biosites` | **Nativa** (COMBO 05) — editor visual de Bio Sites com preview mobile em tempo real |
+| Fábrica VSL | `/admin/fabrica-vsl` | **Nativa** (COMBO 05) — gerador de VSL com IA (briefing, headlines A/B/C, editor de script) e analytics de retenção |
+| Fábrica MiniApps | `/admin/fabrica-miniapp` | **Nativa** (COMBO 05) — pipeline de MiniApps com log de agentes ao vivo e preview PWA |
+| Fábrica Mapas | `/admin/fabrica-mapas` | **Nativa** (COMBO 05) — pipeline de Mapas Mentais com estrutura JSON e botão "Liberar no Club" |
 | Trilhas | `/admin/trilhas` | Gestão de learning paths |
-| Analytics | `/admin/analytics` | Métricas reais (cursos/trilhas) |
+| Analytics | `/admin/analytics` | Métricas reais (cursos/trilhas) e gerenciamento de usuários |
 
 **Features UI:**
-- Dark mode (indigo/purple gradient theme)
+- **Design System Combo 05 (Blaze + Mirage)**: Fundo escuro em MIRAGE (`#16232B`) e detalhes de ação principal em BLAZE (`#FF5B06`).
 - JWT armazenado em `localStorage` (`dz_token`)
 - Rotas protegidas: `/painel` exige login; `/admin/*` exige `role === "admin"`
-- **Fábricas Blog/Ebook/Marketing reconstruídas como páginas nativas** (COMBO 05) em 09/08/2026 — o iframe do painel legacy (`static/index.html`) foi substituído por componentes React nativos consumindo a API diretamente (fetch com `Bearer`); o painel legacy segue disponível em `/` do backend para quem precisar
+- **Remoção de Iframes**: Todos os iframes antigos de controle e fábricas (Blog, Ebook, VSL, etc.) foram substituídos por componentes nativos de React consumindo a API diretamente (fetch com `Bearer`).
 - Auth flow em `lib/auth-context.tsx` (AuthProvider + useAuth) — usa `api.getMe()` para restaurar sessão
 - API client em `lib/api.ts` injeta `Authorization: Bearer` em todas as chamadas
+
 
 
 ## 🗄️ DATABASE MODELS
@@ -543,9 +620,14 @@ Dashboard simples do usuário logado (dados de `/api/v1/auth/me` + listas de cur
 | lang | VARCHAR(10) | Idioma (PT) |
 | platform | VARCHAR(50) | Plataforma (wordpress) |
 | site_url | VARCHAR(500) | URL do site |
+| api_endpoint | VARCHAR(500) | Endpoint REST API (ex: WordPress) |
+| api_token | VARCHAR(2000) | Token de API REST |
+| username | VARCHAR(100) | Nome de usuário da API |
+| app_password | VARCHAR(500) | Senha de aplicativo da API |
 | subdomain | VARCHAR(100) | Subdomínio (ex: oreino) |
 | status | VARCHAR(20) | active/inactive |
 | frequency | VARCHAR(20) | Frequência (daily) |
+| banner_url | VARCHAR(1000) | URL do banner do blog |
 | created_at | DateTime | Data de criação |
 | is_affiliate | BOOLEAN | Ativação do Modo Afiliado |
 | affiliate_providers | VARCHAR(500) | Provedores separados por vírgula |
@@ -559,6 +641,8 @@ Dashboard simples do usuário logado (dados de `/api/v1/auth/me` + listas de cur
 | mercadolivre_access_token | VARCHAR(1000) | Access Token ML |
 | mercadolivre_refresh_token | VARCHAR(1000) | Refresh Token ML |
 | mercadolivre_token_expires | TIMESTAMP | Expiração Token ML |
+| is_discover | BOOLEAN | Ativação da estratégia Google Discover |
+| brand_config | TEXT | Configurações de branding (JSON) |
 
 
 
@@ -1086,7 +1170,7 @@ Cada **canal de blog** (ex: O Reino → `blg_50e26e`/`oreino`) é o hub agregado
 - **Backfill idempotente no startup:** ativos ainda `canal_id IS NULL` são vinculados a canais cujo nome/subdomain aparece no título/tema do ativo (só refaz se estiver NULL; nunca desvincula). Backfill local: **"O Reino" → `blg_50e26e`/`oreino`**; mapas de Direito ficam "sem canal" (só no serviço de mapas, sem hub).
 - **Pipeline:** `run_mindmap_macro_pipeline` aceita `canal_id`/`canal_slug` (estado + `execute()` + `to_dict()` expõem o canal no progresso do admin); o endpoint `run-mindmap-factory` repassa.
 - **`get_db_assets_by_channel(canal_id, published_only=True)`** — retorna mindmaps + miniapps de um canal (filtro por status para o hub público).
-- **Hub de Canais (`/admin/canais`)** lista canais reais via `blog-channels` e mostra os ativos vinculados por canal; o botão **"Abrir PWA ↗"** leva para `/pwa/{slug}`.
+- **Hub de Canais (`/admin/canais`)** é uma página nativa (Next.js) que lista todos os canais reais criados no banco de dados, mostrando o progresso de posts vinculados, e oferece formulário integrado para criação instantânea de novos canais com geração automática de slug.
 
 ### Database Model (`mindmaps`)
 
@@ -1134,8 +1218,7 @@ Esteira de 6 fases de Marketing Digital baseada no **Sabri Suby Framework**, com
 | POST | `/api/v1/marketing/publish-wordpress` | Publica funil no WordPress |
 
 ### UI
-- **Painel legacy** (`static/index.html`): nav **📢 Marketing Digital** com esteira visual de 6 fases, output por fase e histórico restaurado
-- **Club admin** (Next.js): aba **Fábrica Marketing** (`/admin` → iframe `/#marketing`)
+- **Club admin (Next.js)**: a interface do admin utiliza páginas Next.js nativas integradas via API, acessíveis a partir do Painel de Controle (/admin).
 - **WordPress:** botão **🌐 Publicar no WP** no funil + página 🌐 WordPress com teste de conexão e credenciais
 
 ---
@@ -1299,6 +1382,19 @@ SMTP_SENDER=...
 3. **`dezafiraadm`** (backend Dezafira) — já apontando pro Hermes via rede interna (`engine: hermes_official`)
 
 **Nota:** o modelo no AionUi deve ser `deepseek-chat` (não `hermes-agent`) — o endpoint `/v1/chat/completions` do Hermes responde pelos modelos LLM configurados; `hermes-agent` retorna 404 nesse endpoint.
+
+### Variáveis de ambiente do fluxo Hermes/AionUi (12/08/2026)
+
+| Env | Onde | Descrição |
+|---|---|---|
+| `HERMES_WEBUI_PUBLIC_URL` | dezafiraadm | URL pública do AionUi; `GET /chat` do backend redireciona o admin pra lá (verificado em produção: 307 → `aionui-webui-production.up.railway.app`) |
+| `HERMES_GATEWAY_URL` | dezafiraadm | Gateway OpenAI-compat do Hermes Agent (prod: rede interna `http://hermes-agent.railway.internal:8642/v1`); engine `hermes_official` com fallback na cascata LLM |
+| `SERVICE_API_KEY` | dezafiraadm | Chave de serviço — aceita `X-Service-Key` (tempo constante) nos endpoints `require_admin_or_service`, sem JWT |
+| `DEZAFIRA_SERVICE_KEY` | hermes-agent | Mesma chave no container do agente; ele usa nos curls (nunca em texto) |
+
+> ⚠️ **Chainlit removido (12/08/2026):** `chainlit_app.py`, `.chainlit/` e `chainlit>=1.0.0` do requirements foram removidos — o chat agora é 100% AionUi/`/api/v1/hermes/chat`. Nada mais importa chainlit.
+
+> ⚠️ **Risco operacional — `railway-aionui/` fora do repo:** o Dockerfile corrigido do AionUi (mencionado acima) NÃO existe no workspace nem no GitHub (só `railway-hermes/` está versionado). O AionUi roda apenas porque o serviço Railway existe com volume persistente. **Se o serviço precisar ser recriado, o código está perdido.** Pendência: extrair/versionar o código do AionUi (ou confirmar que é um serviço gerenciado externamente).
 
 **Memória do Hermes (onboarding da Dezafira, 09/08/2026):**
 - O Hermes Agent guarda memória persistente em `MEMORY.md` + `USER.md` dentro do diretório de memória da instalação (nesta imagem: `/opt/data/memories/`; home `/opt/data/home`). Entradas separadas por `§`; MEMORY.md tem limite ~2.200 chars.

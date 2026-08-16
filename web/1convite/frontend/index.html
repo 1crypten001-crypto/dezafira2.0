@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0e1a" />
+    <meta name="description" content="Movimento 1Convite — Plataforma de Engajamento do Reino e Desfrute Sabático" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="1Convite" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="1Convite" />
+    <meta name="msapplication-TileImage" content="/favicon.png" />
+    <meta name="msapplication-TileColor" content="#0a0e1a" />
+    <meta property="og:title" content="Movimento 1Convite" />
+    <meta property="og:description" content="Plataforma de Engajamento do Reino e Desfrute Sabático" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://1convite.com.br" />
+    <meta property="og:image" content="/LOGOMARCA.png" />
+    <title>Movimento 1Convite</title>
+    <!-- Previne erros do React Fast Refresh em compilações locais -->
+    <script>
+      if (!window.$RefreshReg$) window.$RefreshReg$ = () => {};
+      if (!window.$RefreshSig$) window.$RefreshSig$ = () => (type) => type;
+    </script>
+    <!-- Google Identity Services (Google Sign-In) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- GSAP & ScrollTrigger para controle do video.mp4 via scroll -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // Desregistra qualquer Service Worker ativo no localhost para não quebrar o Vite HMR
+            navigator.serviceWorker.getRegistrations().then((registrations) => {
+              for (let registration of registrations) {
+                registration.unregister().then(() => {
+                  console.log('Service Worker antigo desregistrado no localhost.');
+                  window.location.reload();
+                });
+              }
+            });
+          } else {
+            // Registra em produção
+            navigator.serviceWorker.register('/sw.js')
+              .then(reg => console.log('Service Worker registrado:', reg.scope))
+              .catch(err => console.error('Erro ao registrar Service Worker:', err));
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

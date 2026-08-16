@@ -1,12 +1,14 @@
 """
 ImageFactory — Motor de Geração de Imagens para Artigos.
 
-Cascata de provedores:
-  1. 🤖 FLUX (Pollinations.ai) — geração por IA, 100% gratuito, sem chave
-  2. 🎨 Gemini Imagen (Google) — geração por IA, usa GEMINI_API_KEY do .env
-  3. 🖼️ Pexels API — busca de fotos, usa PEXELS_API_KEY do .env
-  4. 🖼️ Unsplash — busca de fotos, usa UNSPLASH_ACCESS_KEY do .env (opcional)
-  5. 🎭 SVG Placeholder — fallback garantido, gerado localmente
+Cascata de provedores (IA oficial primeiro):
+  0. 🎨 Agnes AI (agnes-image-2.1-flash) — IA OFICIAL Dezafira (OpenAI-compatible)
+  1. 🎨 Gemini Imagen (Google) — geração por IA, usa GEMINI_API_KEY do .env
+  2. 🔥 OpenRouter FLUX (flux.2-flex) — geração por IA, usa OPENROUTER_API_KEY
+  3. 🤖 FLUX (Pollinations.ai) — geração por IA, 100% gratuito, sem chave
+  4. 🖼️ Pexels API — busca de fotos, usa PEXELS_API_KEY do .env
+  5. 🖼️ Unsplash — busca de fotos, usa UNSPLASH_ACCESS_KEY do .env (opcional)
+  6. 🎭 SVG Placeholder — fallback garantido, gerado localmente
 
 NUNCA termina sem imagem. A cascata tenta cada provedor em ordem.
 """
@@ -25,7 +27,7 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-AGNES_API_KEY = os.getenv("AGNES_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
+AGNES_API_KEY = os.getenv("AGNES_API_KEY", "")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 
 
@@ -159,6 +161,14 @@ class ImageGeneratorAgent:
         expanded_prompt = await self._expand_prompt_with_llm(prompt_idea, niche)
         search_query = self._sanitize_for_search(prompt_idea)
 
+        # === 0. Agnes AI (agnes-image-2.1-flash) — IA OFICIAL Dezafira ===
+        if AGNES_API_KEY:
+            result = await self._agnes_generate(expanded_prompt, width, height)
+            if result:
+                self.last_provider = "agnes"
+                result["expanded_prompt"] = expanded_prompt
+                return result
+
         # === 1. Gemini Imagen (Google) ===
         if GEMINI_API_KEY:
             result = await self._gemini_imagen(expanded_prompt, width, height)
@@ -245,6 +255,79 @@ class ImageGeneratorAgent:
         prompt = f"Viral social media ad visual for '{title}'. Bold contrast, engaging visual hook, high quality 8k rendering."
         return await self.generate_image_for_post(prompt_idea=prompt, niche=niche, width=1080, height=1080)
 
+
+    # ── PROVEDOR 0: Agnes AI (IA oficial Dezafira) ───────────────────────────
+
+    def _agnes_size_ratio(self, width: int, height: int) -> tuple[str, str]:
+        """
+        Mapeia dimensões (WxH) para tier + ratio da Agnes.
+        Tiers: 1K/2K/3K/4K · Ratios: 1:1, 3:4, 4:3, 16:9, 9:16, 2:3, 3:2, 21:9.
+        """
+        ratios = [
+            (1, 1, "1:1"), (3, 4, "3:4"), (4, 3, "4:3"), (16, 9, "16:9"),
+            (9, 16, "9:16"), (2, 3, "2:3"), (3, 2, "3:2"), (21, 9, "21:9"),
+        ]
+        target = width / height
+        best = "16:9"
+        best_diff = 1e9
+        for rw, rh, label in ratios:
+            diff = abs(target - rw / rh)
+            if diff < best_diff:
+                best_diff = diff
+                best = label
+        max_dim = max(width, height)
+        tier = (
+            "1K" if max_dim <= 1024
+            else "2K" if max_dim <= 2048
+            else "3K" if max_dim <= 3072
+            else "4K"
+        )
+        return tier, best
+
+    async def _agnes_generate(self, prompt: str, width: int, height: int) -> Optional[dict]:
+        """
+        PROVEDOR 0: Agnes AI (agnes-image-2.1-flash) — IA oficial de imagens.
+
+        OpenAI-compatible:
+          POST https://apihub.agnes-ai.com/v1/images/generations
+          Authorization: Bearer AGNES_API_KEY
+        """
+        if not AGNES_API_KEY:
+            return None
+        size, ratio = self._agnes_size_ratio(width, height)
+        payload = {
+            "model": "agnes-image-2.1-flash",
+            "prompt": prompt[:1000],
+            "size": size,
+            "ratio": ratio,
+            "extra_body": {"response_format": "url"},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                r = await client.post(
+                    "https://apihub.agnes-ai.com/v1/images/generations",
+                    headers={
+                        "Authorization": f"Bearer {AGNES_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+            if r.status_code == 200:
+                data = r.json()
+                images = data.get("data") or []
+                if images and images[0].get("url"):
+                    return {
+                        "image_url": images[0]["url"],
+                        "alt_text": prompt[:150],
+                        "provider": "agnes",
+                        "credit": "Gerada por Agnes AI (agnes-image-2.1-flash)",
+                    }
+                print(f"[ImageFactory/Agnes] Resposta sem URL: {r.text[:200]}")
+            else:
+                print(f"[ImageFactory/Agnes] HTTP {r.status_code}: {r.text[:300]}")
+        except Exception as e:
+            print(f"[ImageFactory/Agnes] Erro: {e}")
+        return None
 
     # ── PROVEDOR 1: FLUX via Pollinations.ai ────────────────────────────────
 

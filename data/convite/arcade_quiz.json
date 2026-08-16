@@ -1,0 +1,334 @@
+{
+  "perguntas": [
+    {
+      "question": "Quem construiu a Arca de Noé?",
+      "options": [
+        "Abraão",
+        "Noé",
+        "Moisés",
+        "Davi"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Qual o primeiro livro da Bíblia?",
+      "options": [
+        "Êxodo",
+        "Gênesis",
+        "Levítico",
+        "Números"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Quantos mandamentos Deus deu a Moisés?",
+      "options": [
+        "5",
+        "7",
+        "10",
+        "12"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Quem foi engolido por um grande peixe?",
+      "options": [
+        "Pedro",
+        "Paulo",
+        "Jonas",
+        "Jeremias"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Qual fruta Eva comeu no Éden?",
+      "options": [
+        "Banana",
+        "Maçã",
+        "Laranja",
+        "Uva"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Quem matou Golias?",
+      "options": [
+        "Saul",
+        "Davi",
+        "Salomão",
+        "Josué"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Quantos discíbulos Jesus tinha?",
+      "options": [
+        "10",
+        "11",
+        "12",
+        "14"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Qual o nome da mãe de Jesus?",
+      "options": [
+        "Marta",
+        "Maria",
+        "Sara",
+        "Rebeca"
+      ],
+      "answer": 1,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Em que cidade Jesus nasceu?",
+      "options": [
+        "Nazareth",
+        "Jerusalém",
+        "Belém",
+        "Egito"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Qual rio Jesus foi batizado?",
+      "options": [
+        "Nilo",
+        "Eufrates",
+        " Jordão",
+        "Tigre"
+      ],
+      "answer": 2,
+      "difficulty": "facil"
+    },
+    {
+      "question": "Quantos livros tem a Bíblia?",
+      "options": [
+        "64",
+        "66",
+        "68",
+        "72"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Qual o significado do nome \"Emmanuel\"?",
+      "options": [
+        "Deus é forte",
+        "Deos conosco",
+        "Deus é fiel",
+        "Deus é amor"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Quem foi o primeiro rei de Israel?",
+      "options": [
+        "Davi",
+        "Salomão",
+        "Saul",
+        "Roboão"
+      ],
+      "answer": 2,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Em quantos dias Deus criou o mundo?",
+      "options": [
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Qual apóstolo traiu Jesus?",
+      "options": [
+        "Pedro",
+        "Paulo",
+        "Judas",
+        "Tomé"
+      ],
+      "answer": 2,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Quantos livros tem o Novo Testamento?",
+      "options": [
+        "25",
+        "27",
+        "29",
+        "31"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Qual o maior versículo da Bíblia?",
+      "options": [
+        "João 3:16",
+        "Efésios 6:10",
+        "João 15:13",
+        "Efésios 2:8-9"
+      ],
+      "answer": 3,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Quem escreveu a maioria das cartas do Novo Testamento?",
+      "options": [
+        "Pedro",
+        "João",
+        "Paulo",
+        "Tiago"
+      ],
+      "answer": 2,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Qual o nome do jardim onde Jesus orou antes de ser preso?",
+      "options": [
+        "Jardim do Éden",
+        "Getsêmani",
+        "Getsemane",
+        "Betânia"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "De onde Deus chamou Abraão?",
+      "options": [
+        "Egito",
+        "Mesopotâmia",
+        "Canaã",
+        "Ur"
+      ],
+      "answer": 1,
+      "difficulty": "medio"
+    },
+    {
+      "question": "Qual o nome hebraico do Antigo Testamento?",
+      "options": [
+        "Torá",
+        "Tanakh",
+        "Septuaginta",
+        "Pentateuco"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Em que ano aproximadamente Jesus nasceu?",
+      "options": [
+        "6 a.C.",
+        "4 a.C.",
+        "1 d.C.",
+        "10 d.C."
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Quantos profetas menores existem na Bíblia?",
+      "options": [
+        "9",
+        "10",
+        "12",
+        "14"
+      ],
+      "answer": 2,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Qual o tema central da Carta aos Romanos?",
+      "options": [
+        " amor",
+        "Graça",
+        "Fé",
+        "Justiça"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Quem foi o pai de Salomão?",
+      "options": [
+        "Saul",
+        "Davi",
+        "Ezequias",
+        "Roboão"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Qual a última palavra de Jesus na cruz segundo João?",
+      "options": [
+        "Está consumado",
+        "Pai, perdoa-lhes",
+        "Em tuas mãos",
+        "Ela! Ela!"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Onde Stephen foi apedrejado?",
+      "options": [
+        "Jerusalém",
+        "Antioquia",
+        "Roma",
+        "Alexandria"
+      ],
+      "answer": 0,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Quantos capítulos tem Salmos?",
+      "options": [
+        "148",
+        "150",
+        "152",
+        "155"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Qual o primeiro milagre de Jesus?",
+      "options": [
+        "Curar um coxo",
+        "Água em vinho",
+        "Multiplicar pães",
+        "Calmar a tempestade"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    },
+    {
+      "question": "Quem foi o escriba que auxiliou Esdras?",
+      "options": [
+        "Neemias",
+        "Baruque",
+        "Zorobabel",
+        "Ageu"
+      ],
+      "answer": 1,
+      "difficulty": "avancado"
+    }
+  ]
+}

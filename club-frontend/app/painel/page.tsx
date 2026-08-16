@@ -10,6 +10,8 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import Link from "next/link";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function PainelPage() {
   const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
@@ -34,9 +36,9 @@ export default function PainelPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#060911] text-[#f8fafc]">
+    <div className="min-h-screen bg-[#182828] text-[#f8fafc]">
       {/* Header */}
-      <header className="border-b border-[#1e293b] bg-[#090d16]">
+      <header className="border-b border-[var(--border)] bg-[var(--bg-deep)]">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-[#38bdf8]">Dezafira</Link>
           <div className="flex items-center gap-4">
@@ -50,7 +52,7 @@ export default function PainelPage() {
       </header>
 
       {/* Tabs */}
-      <div className="border-b border-[#1e293b] bg-[#090d16]">
+      <div className="border-b border-[var(--border)] bg-[var(--bg-deep)]">
         <div className="max-w-6xl mx-auto px-4 flex gap-1">
           {(["offers", "overview", "courses", "ebooks"] as const).map((t) => (
             <button
@@ -79,7 +81,7 @@ export default function PainelPage() {
       {/* Modal de Detalhes da Oferta Completa */}
       {selectedOffer && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl">
             <div className="flex justify-between items-start border-b border-[#1e293b] pb-4">
               <div>
                 <span className="badge text-[var(--success)] text-xs mb-1 inline-block">🟢 Oferta Ativa & Sincronizada</span>
@@ -106,7 +108,7 @@ export default function PainelPage() {
                   Aplicativo PWA interativo funcional com diagnósticos dinâmicos e captura de leads.
                 </p>
                 <a
-                  href={selectedOffer.miniapp_url || "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/miniapp"}
+                  href={selectedOffer.miniapp_url || `${API_URL}/api/v1/hermes/preview/sess_oferta2026/miniapp`}
                   target="_blank"
                   className="block w-full text-center bg-[#eab30822] text-[#facc15] border border-[#eab30855] py-2 rounded-lg text-xs font-bold hover:bg-[#eab30844]"
                 >
@@ -140,7 +142,7 @@ export default function PainelPage() {
                   Visualizador com 8 capítulos do Ebook e 5 Módulos em vídeo do Curso.
                 </p>
                 <a
-                  href={selectedOffer.products_url || "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/products"}
+                  href={selectedOffer.products_url || `${API_URL}/api/v1/hermes/preview/sess_oferta2026/products`}
                   target="_blank"
                   className="block w-full text-center bg-[#8b5cf622] text-[#c084fc] border border-[#8b5cf655] py-2 rounded-lg text-xs font-bold hover:bg-[#8b5cf644]"
                 >
@@ -174,7 +176,7 @@ export default function PainelPage() {
                   Anúncios visuais no Instagram, TikTok, Pinterest e X: {selectedOffer.postiz_channels.join(", ")}.
                 </p>
                 <a
-                  href={selectedOffer.ads_url || "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/ads"}
+                  href={selectedOffer.ads_url || `${API_URL}/api/v1/hermes/preview/sess_oferta2026/ads`}
                   target="_blank"
                   className="block w-full text-center bg-[#f472b622] text-[#f472b6] border border-[#f472b655] py-2 rounded-lg text-xs font-bold hover:bg-[#f472b644]"
                 >
@@ -207,12 +209,12 @@ function OffersTab({ onSelectOffer }: { onSelectOffer: (offer: any) => void }) {
       headline: "A metodologia exata dos agentes autônomos para gerar funis, produtos e anúncios em minutos",
       price: "R$ 97,00",
       status: "active",
-      blog_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/blog",
-      sales_page_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/funnel",
-      miniapp_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/miniapp",
-      products_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/products",
-      ads_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/ads",
-      checkout_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_oferta2026/funnel",
+      blog_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/blog`,
+      sales_page_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/funnel`,
+      miniapp_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/miniapp`,
+      products_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/products`,
+      ads_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/ads`,
+      checkout_url: `${API_URL}/api/v1/hermes/preview/sess_oferta2026/funnel`,
       deliverables: ["Artigo de Blog SEO", "Ebook 3D (8 Capítulos)", "Curso HD (5 Módulos)", "MiniApp Quiz PWA", "Checkout Asaas PIX"],
       postiz_channels: ["Instagram", "TikTok", "Pinterest", "X (Twitter)", "YouTube Shorts"]
     },
@@ -222,12 +224,12 @@ function OffersTab({ onSelectOffer }: { onSelectOffer: (offer: any) => void }) {
       headline: "Como construir um negócio digital de alta escala sem precisar de agências ou gravar vídeos",
       price: "R$ 97,00",
       status: "active",
-      blog_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/blog",
-      sales_page_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/funnel",
-      miniapp_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/miniapp",
-      products_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/products",
-      ads_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/ads",
-      checkout_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/funnel",
+      blog_url: `${API_URL}/api/v1/hermes/preview/sess_admin/blog`,
+      sales_page_url: `${API_URL}/api/v1/hermes/preview/sess_admin/funnel`,
+      miniapp_url: `${API_URL}/api/v1/hermes/preview/sess_admin/miniapp`,
+      products_url: `${API_URL}/api/v1/hermes/preview/sess_admin/products`,
+      ads_url: `${API_URL}/api/v1/hermes/preview/sess_admin/ads`,
+      checkout_url: `${API_URL}/api/v1/hermes/preview/sess_admin/funnel`,
       deliverables: ["Ebook Capa 3D", "Curso 5 Módulos HD", "MiniApp Quiz Interativo (Recorrência)"],
       postiz_channels: ["Instagram", "TikTok", "Pinterest", "X (Twitter)", "YouTube Shorts"]
     },
@@ -239,7 +241,7 @@ function OffersTab({ onSelectOffer }: { onSelectOffer: (offer: any) => void }) {
       status: "active",
       blog_url: "https://www.dezafira.com.br/blog/o-reino",
       sales_page_url: "https://www.dezafira.com.br/blog/o-reino",
-      miniapp_url: "https://dezafiraadm-production.up.railway.app/api/v1/hermes/preview/sess_admin/products",
+      miniapp_url: `${API_URL}/api/v1/hermes/preview/sess_admin/products`,
       checkout_url: "https://www.dezafira.com.br",
       deliverables: ["Ebook Devocional", "MiniApp Quiz Bíblico (Recorrência)"],
       postiz_channels: ["Instagram", "Pinterest", "YouTube Shorts"]
@@ -262,7 +264,7 @@ function OffersTab({ onSelectOffer }: { onSelectOffer: (offer: any) => void }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {offersList.map((off) => (
-          <div key={off.id} className="card bg-[#090d16] border border-[#1e293b] p-6 space-y-4 shadow-xl">
+          <div key={off.id} className="card bg-[var(--surface)] border border-[var(--border)] p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-start">
               <div>
                 <span className="badge text-[var(--success)] mb-2 inline-block">🟢 Oferta Ativa</span>

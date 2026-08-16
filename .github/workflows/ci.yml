@@ -1,21 +1,46 @@
 name: CI
 
-# CI mínimo: desbloqueia o "Wait for CI" do Railway.
-# Sem GitHub Actions, o Railway espera por checks que nunca rodam
-# e o deploy nunca completa (502 eterno). Este workflow passa em segundos.
-
 on:
   push:
-    branches: [main]
   pull_request:
 
 jobs:
-  check:
+  test:
+    name: pytest (isolado + render CDP real)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Syntax check do backend
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
         run: |
-          python -m py_compile server.py modules/database.py 2>/dev/null || echo "py_compile ok (aviso ignorado)"
-          echo "CI ok — deploy pode prosseguir"
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout
+
+      - name: Instalar Chrome (para o teste de render HTML→PNG via CDP)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends google-chrome-stable
+
+      - name: Suíte pytest (subset determinístico)
+        env:
+          AUTH_SECRET: ci-secret-12345678901234567890
+          # Sem .env no CI — conftest.py aponta DATABASE_URL p/ SQLite temporário
+        run: |
+          python -m pytest tests/ -q --timeout=180 \
+            --ignore=tests/test_hermes_pipeline.py \
+            --ignore=tests/test_obscura_telemetry_sources.py
+
+      - name: Validação do render real (Agnes Studio via Chrome CDP)
+        run: |
+          python scripts/agnes_studio_render_check.py
+
+  # Nota:
+  # - test_hermes_pipeline e test_obscura_telemetry_sources chamam LLM/SERP
+  #   reais (sem chaves no CI) — ficam de fora do subset determinístico.
+  # - O teste CDP (tests/test_agnes_studio_render_cdp.py) sobe um Chrome
+  #   headless local e valida o caminho HTML→PNG de ponta a ponta; sem
+  #   Chrome ele pula, mas aqui o google-chrome-stable está instalado.

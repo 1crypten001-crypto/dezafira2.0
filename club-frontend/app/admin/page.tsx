@@ -2,339 +2,428 @@
 
 export const dynamic = 'force-dynamic';
 
-
-
 import { useAuth } from "../../lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "../../lib/api";
 import Link from "next/link";
 
-const apiBase = (typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") : "http://localhost:8000").replace(/\/$/, "");
-const chatUrl = `${apiBase}/chat/`;
-const previewUrl = `${apiBase}/api/v1/hermes/preview/sess_admin/funnel`;
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
-export default function AdminPage() {
+function authH(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("dz_token") : null;
+  return token
+    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+    : { "Content-Type": "application/json" };
+}
+
+async function safeFetch<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const res = await fetch(url, { headers: authH() });
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback;
+  }
+}
+
+type SystemStatus = { api: "ok" | "error" | "loading"; obscura: boolean; version: string; build: string };
+type FactoryData = {
+  blogs: number; lastBlog: string;
+  ebooks: number; lastEbook: string;
+  courses: number; lastCourse: string;
+  vsls: number; lastVsl: string;
+  biosites: number; lastBiosite: string;
+  miniapps: number; lastMiniapp: string;
+  mindmaps: number; lastMindmap: string;
+};
+type ActivityItem = { icon: string; label: string; name: string; time: string; href: string };
+type GlobalStats = { total_users: number; total_blogs: number; total_books: number; total_courses: number };
+
+function StatusPill({ ok, label }: { ok: boolean | "loading"; label: string }) {
+  if (ok === "loading") return (
+    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold"
+      style={{ background: "rgba(248,88,8,0.08)", color: "var(--dim)" }}>
+      <span className="w-1.5 h-1.5 rounded-full bg-[var(--dim)] animate-pulse" />{label}
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold"
+      style={{
+        background: ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+        color: ok ? "#4ade80" : "#f87171"
+      }}>
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-green-400 animate-pulse" : "bg-red-400"}`} />{label}
+    </div>
+  );
+}
+
+function MetricCard({ icon, value, label, href }: { icon: string; value: number | string; label: string; href?: string }) {
+  const inner = (
+    <div className="flex items-center gap-3 p-3 rounded-xl border transition-all hover:border-[var(--brand)]/40"
+      style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+      <span className="text-lg shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-lg font-black tabular-nums leading-none" style={{ color: "var(--paper)" }}>{value ?? "—"}</div>
+        <div className="text-[10px] mt-0.5 truncate" style={{ color: "var(--dim)" }}>{label}</div>
+      </div>
+    </div>
+  );
+  return href ? <Link href={href}>{inner}</Link> : inner;
+}
+
+function FactoryCard({ icon, name, count, last, href, color }: {
+  icon: string; name: string; count: number; last: string; href: string; color: string
+}) {
+  return (
+    <Link href={href}>
+      <div className="flex flex-col gap-2.5 p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01] hover:border-[var(--brand)]/40"
+        style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{icon}</span>
+            <span className="text-[12px] font-bold" style={{ color: "var(--paper)" }}>{name}</span>
+          </div>
+          <span className="text-[11px] font-black tabular-nums px-2 py-0.5 rounded-lg"
+            style={{ background: `${color}18`, color }}>{count}</span>
+        </div>
+        <div className="text-[10px] truncate" style={{ color: "var(--dim)" }}>
+          {last ? `↳ ${last}` : "Nenhum item ainda"}
+        </div>
+        <div className="flex justify-end">
+          <span className="text-[10px] font-semibold" style={{ color: "var(--brand)" }}>Abrir →</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ActivityRow({ item }: { item: ActivityItem }) {
+  return (
+    <div className="flex items-start gap-2.5 py-2.5 border-b last:border-0"
+      style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+      <span className="text-sm mt-0.5 shrink-0">{item.icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-medium truncate" style={{ color: "var(--paper)" }}>{item.name}</div>
+        <div className="text-[10px]" style={{ color: "var(--dim)" }}>{item.label} · {item.time}</div>
+      </div>
+    </div>
+  );
+}
+
+function UserRow({ u }: { u: any }) {
+  return (
+    <div className="flex items-center gap-2 py-2 border-b last:border-0"
+      style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+        style={{ background: "rgba(248,88,8,0.15)", color: "var(--brand)" }}>
+        {(u.name || "?").charAt(0).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-semibold truncate" style={{ color: "var(--paper)" }}>{u.name}</div>
+        <div className="text-[10px] truncate" style={{ color: "var(--dim)" }}>{u.email}</div>
+      </div>
+      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+        style={{
+          background: u.role === "admin" ? "rgba(248,88,8,0.15)" : "rgba(255,255,255,0.05)",
+          color: u.role === "admin" ? "var(--brand)" : "var(--dim)"
+        }}>{u.role}</span>
+    </div>
+  );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.14em]" style={{ color: "var(--dim)" }}>{label}</span>
+      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
+    </div>
+  );
+}
+
+function fmtTime(iso?: string | null): string {
+  if (!iso) return "—";
+  try {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "agora";
+    if (mins < 60) return `${mins}m atrás`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h atrás`;
+    return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  } catch { return "—"; }
+}
+
+export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
+
+  const [sysStatus, setSysStatus] = useState<SystemStatus>({ api: "loading", obscura: false, version: "—", build: "—" });
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [factoryData, setFactoryData] = useState<FactoryData>({
+    blogs: 0, lastBlog: "", ebooks: 0, lastEbook: "", courses: 0, lastCourse: "",
+    vsls: 0, lastVsl: "", biosites: 0, lastBiosite: "", miniapps: 0, lastMiniapp: "",
+    mindmaps: 0, lastMindmap: "",
+  });
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [postizStatus, setPostizStatus] = useState<any>(null);
-  const [tab, setTab] = useState<
-    | "stats"
-    | "hermes"
-    | "fabrica-blog"
-    | "fabrica-ebook"
-    | "fabrica-mapas"
-    | "fabrica-curso"
-    | "marketing"
-    | "fabrica-miniapp"
-    | "fabrica-postiz"
-    | "trilhas"
-    | "users"
-    | "analytics"
-  >("hermes");
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "admin")) {
-      router.push("/painel");
-    }
-  }, [user, authLoading]);
+    if (!authLoading && (!user || user.role !== "admin")) router.push("/painel");
+  }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user?.role === "admin") {
-      api.getAdminStats().then(setStats).catch(console.error);
-      api.getAdminUsers().then((d) => setUsers(d.users || [])).catch(console.error);
-      api.getPostizStatus().then(setPostizStatus).catch(console.error);
-    }
+  const loadAll = useCallback(async () => {
+    if (!user || user.role !== "admin") return;
+    setRefreshing(true);
+    const [health, stats, vslRes, bioRes, miniRes, mindRes, ebookRes, courseRes, channelsRes, usersRes] =
+      await Promise.all([
+        safeFetch(`${API_URL}/healthz`, null as any),
+        safeFetch(`${API_URL}/api/v1/admin/stats`, null as any),
+        safeFetch(`${API_URL}/api/v1/vsl`, { videos: [] }),
+        safeFetch(`${API_URL}/api/v1/biosites`, { biosites: [] }),
+        safeFetch(`${API_URL}/api/v1/miniapps`, { miniapps: [] }),
+        safeFetch(`${API_URL}/api/v1/mindmaps`, { mindmaps: [] }),
+        safeFetch(`${API_URL}/api/v1/ebooks`, { books: [] }),
+        safeFetch(`${API_URL}/api/v1/courses`, { courses: [] }),
+        safeFetch(`${API_URL}/api/v1/channels`, { channels: [] }),
+        api.getAdminUsers().catch(() => ({ users: [] })),
+      ]);
+
+    setSysStatus({
+      api: health ? "ok" : "error",
+      obscura: health?.obscura_enabled ?? false,
+      version: health?.version ?? "—",
+      build: health?.build ?? "—",
+    });
+    if (stats) setGlobalStats(stats);
+
+    const vsls = vslRes?.videos ?? [];
+    const bios = bioRes?.biosites ?? [];
+    const minis = miniRes?.miniapps ?? [];
+    const minds = mindRes?.mindmaps ?? [];
+    const ebooks = ebookRes?.books ?? [];
+    const courses = courseRes?.courses ?? [];
+    const channels = channelsRes?.channels ?? [];
+
+    setFactoryData({
+      blogs: channels.reduce((s: number, c: any) => s + (c.post_count ?? 0), 0),
+      lastBlog: channels[0]?.title ?? channels[0]?.name ?? "",
+      ebooks: ebooks.length, lastEbook: ebooks[0]?.title ?? "",
+      courses: courses.length, lastCourse: courses[0]?.title ?? "",
+      vsls: vsls.length, lastVsl: vsls[0]?.title ?? "",
+      biosites: bios.length, lastBiosite: bios[0]?.name ?? "",
+      miniapps: minis.length, lastMiniapp: minis[0]?.title ?? minis[0]?.name ?? "",
+      mindmaps: minds.length, lastMindmap: minds[0]?.title ?? "",
+    });
+
+    const allItems: ActivityItem[] = [
+      ...vsls.slice(0, 3).map((v: any) => ({ icon: "🎬", label: "VSL", name: v.title ?? v.id, time: fmtTime(v.created_at), href: "/admin/fabrica-vsl" })),
+      ...bios.slice(0, 3).map((b: any) => ({ icon: "🔗", label: "Bio Site", name: b.name ?? b.id, time: fmtTime(b.created_at), href: "/admin/fabrica-biosites" })),
+      ...ebooks.slice(0, 3).map((e: any) => ({ icon: "📗", label: "Ebook", name: e.title ?? e.id, time: fmtTime(e.created_at), href: "/admin/fabrica-ebook" })),
+      ...courses.slice(0, 3).map((c: any) => ({ icon: "🎓", label: "Curso", name: c.title ?? c.id, time: fmtTime(c.created_at), href: "/admin/fabrica-curso" })),
+      ...minis.slice(0, 2).map((m: any) => ({ icon: "📱", label: "MiniApp", name: m.title ?? m.name ?? m.id, time: fmtTime(m.created_at), href: "/admin/fabrica-miniapp" })),
+      ...minds.slice(0, 2).map((m: any) => ({ icon: "⌘", label: "Mapa", name: m.title ?? m.id, time: fmtTime(m.created_at), href: "/admin/fabrica-mapas" })),
+    ];
+    setActivity(allItems.slice(0, 10));
+    setUsers((usersRes?.users ?? []).slice(0, 5));
+    setLastRefresh(new Date());
+    setRefreshing(false);
   }, [user]);
 
+  useEffect(() => { loadAll(); }, [loadAll]);
+
   if (authLoading || !user) {
-    return <div className="min-h-screen flex items-center justify-center text-[var(--text-dim)]">Carregando...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--ink)", color: "var(--dim)" }}>
+        <div className="animate-pulse text-sm font-mono">Carregando...</div>
+      </div>
+    );
   }
 
-  return (
-    <div className="min-h-screen">
-      <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/painel" className="text-xl font-bold text-[var(--brand)]">Dezafira</Link>
-            <span className="badge text-[var(--warning)]">Admin</span>
-          </div>
-          <Link href="/painel" className="text-sm text-[var(--text-dim)] hover:text-[var(--text)]">← Voltar ao Painel</Link>
-        </div>
-      </header>
+  const totalContent = factoryData.blogs + factoryData.ebooks + factoryData.courses +
+    factoryData.vsls + factoryData.biosites + factoryData.miniapps + factoryData.mindmaps;
 
-      {/* Bar de Abas Exclusivas por Fábrica */}
-      <div className="border-b border-[var(--border)] bg-[#090d16]">
-        <div className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto">
-          {([
-            { id: "hermes", label: "🤖 Hermes Agent" },
-            { id: "stats", label: "📊 Estatísticas" },
-            { id: "fabrica-blog", label: "📝 Fábrica Blog" },
-            { id: "fabrica-mapas", label: "🧠 Fábrica Mapas" },
-            { id: "fabrica-ebook", label: "📗 Fábrica Ebook" },
-            { id: "fabrica-curso", label: "🎓 Fábrica Curso" },
-            { id: "fabrica-miniapp", label: "📱 Fábrica MiniApp" },
-            { id: "marketing", label: "📢 Fábrica Marketing" },
-            { id: "fabrica-postiz", label: "🚀 Fábrica Postiz" },
-            { id: "trilhas", label: "🎓 Trilhas" },
-            { id: "users", label: "👥 Usuários" },
-            { id: "analytics", label: "📈 Analytics" },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                tab === t.id
-                  ? "border-[var(--brand)] text-[var(--brand)] font-bold bg-[#131c2e]"
-                  : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+  return (
+    <div className="min-h-screen" style={{ background: "var(--ink)", color: "var(--paper)" }}>
+
+      {/* Status Bar */}
+      <div className="border-b px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.25)" }}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-mono uppercase tracking-widest mr-1" style={{ color: "var(--dim)" }}>Sistema</span>
+          <StatusPill ok={sysStatus.api === "loading" ? "loading" : sysStatus.api === "ok"} label="API" />
+          <StatusPill ok={sysStatus.api === "ok"} label="Banco" />
+          <StatusPill ok={sysStatus.obscura} label="Obscura" />
+          {sysStatus.version !== "—" && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded ml-1"
+              style={{ background: "rgba(255,255,255,0.04)", color: "var(--dim)" }}>v{sysStatus.version}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {lastRefresh && (
+            <span className="text-[10px] font-mono hidden sm:block" style={{ color: "var(--dim)" }}>
+              {lastRefresh.toLocaleTimeString("pt-BR")}
+            </span>
+          )}
+          <button onClick={loadAll} disabled={refreshing}
+            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-lg transition-all hover:opacity-80 disabled:opacity-40"
+            style={{ background: "rgba(248,88,8,0.1)", color: "var(--brand)", border: "1px solid rgba(248,88,8,0.2)" }}>
+            <span className={refreshing ? "animate-spin inline-block" : ""}>⟳</span> Atualizar
+          </button>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        
-        {/* HERMES AGENT & PIPELINE CENTRAL */}
-        {tab === "hermes" && (
-          <div className="space-y-4">
-            <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-4 shadow-xl">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-[#1e293b] pb-4 mb-4 gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-[#38bdf8]">
-                      🤖 Hermes Agent — Orquestrador Central
-                    </h2>
-                    <span className="badge text-[var(--success)] text-[10px]">🟢 DeepSeek LLM Ativo</span>
-                  </div>
-                  <p className="text-xs text-[var(--text-dim)] mt-0.5">
-                    Método <strong>TLC Spec-Driven</strong> • Clique em <strong>▶️ INICIAR PIPELINE GERAL</strong> no topo do chat para orquestrar todas as fábricas.
-                  </p>
-                </div>
+      {/* Page Title */}
+      <div className="px-6 pt-5 pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--paper)" }}>Painel de Controle</h1>
+          <p className="text-[11px] mt-0.5" style={{ color: "var(--dim)" }}>Visão geral de todas as fábricas e métricas do sistema</p>
+        </div>
+        <div className="text-[11px] font-mono px-3 py-1.5 rounded-lg"
+          style={{ background: "rgba(248,88,8,0.08)", color: "var(--brand)", border: "1px solid rgba(248,88,8,0.15)" }}>
+          👋 {user.name}
+        </div>
+      </div>
 
-                <div className="flex gap-2">
-                  <a
-                    href={chatUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs bg-[#38bdf822] text-[#38bdf8] px-3 py-2 rounded-lg font-semibold border border-[#38bdf855] hover:bg-[#38bdf844]"
-                  >
-                    ↗️ Abrir Chat em Nova Janela
-                  </a>
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-primary text-xs px-3 py-2"
-                  >
-                    🚀 Preview da Oferta
-                  </a>
-                </div>
-              </div>
+      {/* 3-Column Grid */}
+      <div className="px-6 pb-10 grid gap-5"
+        style={{ gridTemplateColumns: "clamp(200px,21%,268px) 1fr clamp(240px,25%,320px)" }}>
 
-              {/* Chat e Pipeline Geral em Tela Cheia Responsiva */}
-              <iframe
-                src={chatUrl}
-                className="w-full rounded-xl border border-[#1e293b] bg-[#060911]"
-                style={{ height: "calc(100vh - 200px)", minHeight: "650px" }}
-                title="Hermes Agent WebUI Chat"
-              />
-            </div>
+        {/* COL 1 — Global Metrics */}
+        <div className="flex flex-col gap-2.5">
+          <SectionLabel label="Métricas Globais" />
+          <MetricCard icon="👥" value={globalStats?.total_users ?? "—"} label="Usuários cadastrados" href="/admin/analytics" />
+          <MetricCard icon="📦" value={totalContent} label="Total de itens criados" />
+          <div className="h-px my-1" style={{ background: "rgba(255,255,255,0.05)" }} />
+          <SectionLabel label="Por Fábrica" />
+          <MetricCard icon="📝" value={factoryData.blogs} label="Posts de Blog" href="/admin/fabrica-blog" />
+          <MetricCard icon="📗" value={factoryData.ebooks} label="Ebooks" href="/admin/fabrica-ebook" />
+          <MetricCard icon="🎓" value={factoryData.courses} label="Cursos" href="/admin/fabrica-curso" />
+          <MetricCard icon="🎬" value={factoryData.vsls} label="VSLs" href="/admin/fabrica-vsl" />
+          <MetricCard icon="🔗" value={factoryData.biosites} label="Bio Sites" href="/admin/fabrica-biosites" />
+          <MetricCard icon="📱" value={factoryData.miniapps} label="MiniApps" href="/admin/fabrica-miniapp" />
+          <MetricCard icon="⌘" value={factoryData.mindmaps} label="Mapas Mentais" href="/admin/fabrica-mapas" />
+        </div>
+
+        {/* COL 2 — Factory Cards */}
+        <div className="flex flex-col gap-4 min-w-0">
+          <SectionLabel label="Fábricas de Conteúdo" />
+          <div className="grid grid-cols-2 gap-3">
+            <FactoryCard icon="🎯" name="Ofertas" count={0} last="" href="/admin/fabrica-ofertas" color="#8b5cf6" />
+            <FactoryCard icon="✎" name="Blog" count={factoryData.blogs} last={factoryData.lastBlog} href="/admin/fabrica-blog" color="#38bdf8" />
+            <FactoryCard icon="📗" name="Ebook" count={factoryData.ebooks} last={factoryData.lastEbook} href="/admin/fabrica-ebook" color="#a78bfa" />
+            <FactoryCard icon="🎓" name="Curso" count={factoryData.courses} last={factoryData.lastCourse} href="/admin/fabrica-curso" color="#f59e0b" />
+            <FactoryCard icon="🎬" name="VSL" count={factoryData.vsls} last={factoryData.lastVsl} href="/admin/fabrica-vsl" color="#f85808" />
+            <FactoryCard icon="🔗" name="Bio Sites" count={factoryData.biosites} last={factoryData.lastBiosite} href="/admin/fabrica-biosites" color="#4ade80" />
+            <FactoryCard icon="◈" name="Produtos" count={0} last="" href="/admin/fabrica-produtos" color="#fb7185" />
           </div>
-        )}
 
-        {/* FÁBRICA MINIAPP (SALA DE AGENTES + AGNES AI LOGO + DRIP DB) */}
-        {tab === "fabrica-miniapp" && (
-          <div className="space-y-4">
-            <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl flex justify-between items-center">
-              <div>
-                <span className="badge text-[var(--success)] text-xs mb-1 inline-block">🟢 Sala de Agentes Autônomos Ativa</span>
-                <h2 className="text-xl font-bold text-[#f1f5f9]">📱 Fábrica de MiniApps & PWAs (Recorrência)</h2>
-                <p className="text-xs text-[var(--text-dim)] mt-1">
-                  Geração autônoma de Aplicativos PWAs Instaláveis, Logos 3D por Agnes AI e entrega temporizada de conteúdos no banco de dados.
-                </p>
-              </div>
-              <Link href="/admin/fabrica-miniapp" className="btn-primary text-xs px-4 py-2">
-                🚀 Abrir Sala de Agentes em Tela Cheia
-              </Link>
-            </div>
-            
-            <iframe
-              src="/admin/fabrica-miniapp"
-              className="w-full rounded-2xl border border-[#1e293b] bg-[#060911]"
-              style={{ height: "calc(100vh - 250px)", minHeight: "700px" }}
-              title="Fábrica de MiniApps PWA"
-            />
+          <SectionLabel label="Serviços de PWA" />
+          <div className="grid grid-cols-2 gap-3">
+            <FactoryCard icon="📱" name="MiniApps" count={factoryData.miniapps} last={factoryData.lastMiniapp} href="/admin/fabrica-miniapp" color="#22d3ee" />
+            <FactoryCard icon="⌘" name="Mapas Mentais" count={factoryData.mindmaps} last={factoryData.lastMindmap} href="/admin/fabrica-mapas" color="#a3e635" />
           </div>
-        )}
 
-        {/* FÁBRICA DE MAPAS MENTAIS (NOVO) */}
-        {tab === "fabrica-mapas" && (
-          <div className="space-y-4">
-            <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl flex justify-between items-center">
-              <div>
-                <span className="badge text-[var(--success)] text-xs mb-1 inline-block">🟢 Memorização Ativa & Spaced Repetition</span>
-                <h2 className="text-xl font-bold text-[#f1f5f9]">🧠 Fábrica de Mapas Mentais (Esteira Recorrente)</h2>
-                <p className="text-xs text-[var(--text-dim)] mt-1">
-                  Gere mapas mentais dinâmicos em JSON com quizzes interativos e modo foco de 3 níveis.
-                </p>
+          <SectionLabel label="Distribuição & Inteligência" />
+          <div className="grid grid-cols-2 gap-3">
+            {/* Postiz */}
+            <a href={`${API_URL}/api/v1/postiz/status`} target="_blank" rel="noreferrer">
+              <div className="flex flex-col gap-2.5 p-4 rounded-xl border transition-all hover:scale-[1.01] hover:border-[var(--brand)]/40"
+                style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="flex items-center gap-2"><span className="text-lg">⇶</span>
+                  <span className="text-[12px] font-bold" style={{ color: "var(--paper)" }}>Postiz</span></div>
+                <div className="text-[10px]" style={{ color: "var(--dim)" }}>Distribuição multicanal automática</div>
+                <div className="flex justify-end"><span className="text-[10px] font-semibold" style={{ color: "var(--brand)" }}>Status ↗</span></div>
               </div>
-              <Link href="/admin/fabrica-mapas" className="btn-primary text-xs px-4 py-2">
-                🚀 Abrir Workspace de Mapas Mentais
-              </Link>
-            </div>
-            
-            <iframe
-              src="/admin/fabrica-mapas"
-              className="w-full rounded-2xl border border-[#1e293b] bg-[#060911]"
-              style={{ height: "calc(100vh - 250px)", minHeight: "700px" }}
-              title="Fábrica de Mapas Mentais"
-            />
-          </div>
-        )}
-
-        {/* FÁBRICA EBOOK (SALA TRIPLA DE EBOOKS: 1 PRINCIPAL + 2 BÔNUS) */}
-        {tab === "fabrica-ebook" && (
-          <div className="space-y-4">
-            <div className="bg-[#090d16] border border-[#1e293b] rounded-2xl p-6 shadow-xl flex justify-between items-center">
-              <div>
-                <span className="badge text-[var(--success)] text-xs mb-1 inline-block">🟢 Pacote Triplo com Capas 3D Agnes AI</span>
-                <h2 className="text-xl font-bold text-[#f1f5f9]">📗 Fábrica de Ebooks (1 Principal + 2 Bônus Exclusivos)</h2>
-                <p className="text-xs text-[var(--text-dim)] mt-1">
-                  Gere 3 Ebooks simultaneamente com capas 3D por Agnes AI e leitor digital de 8 capítulos integrado.
-                </p>
+            </a>
+            {/* Hermes */}
+            <a href={`${API_URL}/chat/`} target="_blank" rel="noreferrer">
+              <div className="flex flex-col gap-2.5 p-4 rounded-xl border transition-all hover:scale-[1.01] hover:border-[var(--brand)]/40"
+                style={{ background: "rgba(248,88,8,0.04)", borderColor: "rgba(248,88,8,0.15)" }}>
+                <div className="flex items-center gap-2"><span className="text-lg">✦</span>
+                  <span className="text-[12px] font-bold" style={{ color: "var(--paper)" }}>Hermes</span></div>
+                <div className="text-[10px]" style={{ color: "var(--dim)" }}>Agente orquestrador central</div>
+                <div className="flex justify-end"><span className="text-[10px] font-semibold" style={{ color: "var(--brand)" }}>Abrir ↗</span></div>
               </div>
-              <Link href="/admin/fabrica-ebook" className="btn-primary text-xs px-4 py-2">
-                🚀 Abrir Leitor & Fábrica em Tela Cheia
-              </Link>
-            </div>
-            
-            <iframe
-              src="/admin/fabrica-ebook"
-              className="w-full rounded-2xl border border-[#1e293b] bg-[#060911]"
-              style={{ height: "calc(100vh - 250px)", minHeight: "700px" }}
-              title="Fábrica de Ebooks"
-            />
-          </div>
-        )}
-
-        {/* FÁBRICA POSTIZ (NOVA) */}
-        {tab === "fabrica-postiz" && (
-          <div className="card text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">🚀 Fábrica Postiz — Distribuição & Anúncios</h2>
-            <p className="text-[var(--text-dim)] mb-6 max-w-lg mx-auto">
-              Automação de anúncios pagos e postagens orgânicas em mais de 20 redes sociais (Instagram, TikTok, Pinterest, YouTube Shorts, X) via APIs oficiais e MCP.
-            </p>
-            <div className="inline-block bg-[#131c2e] p-4 rounded-xl border border-[#1e293b] mb-6 text-left text-xs">
-              <div><strong>Status Conexão Postiz:</strong> <span className="text-[#22c55e] font-bold">Conectado (API/MCP OK)</span></div>
-              <div className="mt-1"><strong>Canais Ativos:</strong> Instagram, TikTok, Pinterest, X, YouTube, LinkedIn</div>
-            </div>
-            <br />
-            <a href="https://dezafiraadm-production.up.railway.app/api/v1/postiz/status" target="_blank" className="btn-primary inline-block">
-              Verificar Conexão Postiz API
             </a>
           </div>
-        )}
 
-        {/* OUTRAS FÁBRICAS */}
-        {tab === "stats" && stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <SectionLabel label="Acesso Rápido" />
+          <div className="grid grid-cols-4 gap-2">
             {[
-              { label: "Usuários", value: stats.total_users, icon: "👥" },
-              { label: "Blogs", value: stats.total_blogs, icon: "📝" },
-              { label: "Livros", value: stats.total_books, icon: "📗" },
-              { label: "Cursos", value: stats.total_courses, icon: "🎓" },
-            ].map((s) => (
-              <div key={s.label} className="card text-center">
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <div className="text-2xl font-bold">{s.value}</div>
-                <div className="text-sm text-[var(--text-dim)]">{s.label}</div>
-              </div>
+              { label: "Canais", icon: "◉", href: "/admin/canais" },
+              { label: "Trilhas", icon: "≡", href: "/admin/trilhas" },
+              { label: "Analytics", icon: "≋", href: "/admin/analytics" },
+              { label: "AionUi", icon: "⊕", href: "http://127.0.0.1:25809", ext: true },
+            ].map(l => (
+              l.ext
+                ? <a key={l.href} href={l.href} target="_blank" rel="noreferrer">
+                  <div className="flex flex-col items-center gap-1 py-3 px-1 rounded-xl border text-center transition-all hover:border-[var(--brand)]/40"
+                    style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+                    <span className="text-sm">{l.icon}</span>
+                    <span className="text-[9px] font-semibold" style={{ color: "var(--dim)" }}>{l.label}</span>
+                  </div>
+                </a>
+                : <Link key={l.href} href={l.href}>
+                  <div className="flex flex-col items-center gap-1 py-3 px-1 rounded-xl border text-center transition-all hover:border-[var(--brand)]/40"
+                    style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+                    <span className="text-sm">{l.icon}</span>
+                    <span className="text-[9px] font-semibold" style={{ color: "var(--dim)" }}>{l.label}</span>
+                  </div>
+                </Link>
             ))}
           </div>
-        )}
+        </div>
 
-        {tab === "users" && (
-          <div className="card">
-            <div className="space-y-2">
-              {users.map((u) => (
-                <div key={u.id} className="flex items-center gap-4 py-2 border-b border-[var(--border)] last:border-0">
-                  <span className="w-6 text-center text-sm">{u.role === "admin" ? "👑" : "👤"}</span>
-                  <div className="flex-1">
-                    <span className="font-medium">{u.name}</span>
-                    <span className="text-sm text-[var(--text-dim)] ml-2">{u.email}</span>
-                  </div>
-                  <span className={`badge ${u.is_active ? "text-[var(--success)]" : "text-[var(--error)]"}`}>
-                    {u.is_active ? "Ativo" : "Inativo"}
-                  </span>
-                  <span className="text-sm text-[var(--text-dim)]">{u.created_at}</span>
+        {/* COL 3 — Activity + Users */}
+        <div className="flex flex-col gap-4">
+
+          {/* Activity Feed */}
+          <div className="rounded-xl border overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="px-4 py-3 border-b flex items-center justify-between"
+              style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--dim)" }}>Atividade Recente</span>
+              <span className="text-[10px] font-mono" style={{ color: "var(--dim)" }}>últimas criações</span>
+            </div>
+            <div className="px-4 py-1">
+              {activity.length === 0
+                ? <div className="py-8 text-center text-[11px]" style={{ color: "var(--dim)" }}>
+                  Nenhuma atividade ainda.<br />
+                  <span style={{ color: "var(--brand)" }}>Crie conteúdo nas fábricas!</span>
                 </div>
-              ))}
+                : activity.map((item, i) => <ActivityRow key={i} item={item} />)
+              }
             </div>
           </div>
-        )}
 
-        {tab === "fabrica-blog" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Fábrica de Blogs</h2>
-            <p className="text-[var(--text-dim)] mb-4">Gerencie blogs e artigos do sistema com automação SEO</p>
-            <a href="/admin/fabrica-blog" className="btn-primary inline-block">Acessar Fábrica de Blogs</a>
+          {/* Users Widget */}
+          <div className="rounded-xl border overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.025)", borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="px-4 py-3 border-b flex items-center justify-between"
+              style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--dim)" }}>👥 Usuários</span>
+              <Link href="/admin/analytics" className="text-[10px] font-semibold hover:underline"
+                style={{ color: "var(--brand)" }}>Ver todos →</Link>
+            </div>
+            <div className="px-4 py-1">
+              {users.length === 0
+                ? <div className="py-6 text-center text-[11px]" style={{ color: "var(--dim)" }}>Nenhum usuário.</div>
+                : users.map((u, i) => <UserRow key={i} u={u} />)
+              }
+            </div>
+            <div className="px-4 py-2.5 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+              <span className="text-[10px]" style={{ color: "var(--dim)" }}>
+                Total: <strong style={{ color: "var(--paper)" }}>{globalStats?.total_users ?? "—"}</strong> usuários cadastrados
+              </span>
+            </div>
           </div>
-        )}
 
-        {tab === "fabrica-mapas" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Fábrica de Mapas Mentais</h2>
-            <p className="text-[var(--text-dim)] mb-4">Gerencie mapas mentais estruturados, visualizadores PWA e quizzes de fixação</p>
-            <a href="/admin/fabrica-mapas" className="btn-primary inline-block">Acessar Fábrica de Mapas Mentais</a>
-          </div>
-        )}
+        </div>
 
-        {tab === "fabrica-ebook" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Fábrica de Ebooks</h2>
-            <p className="text-[var(--text-dim)] mb-4">Gerencie livros digitais, capítulos e capas 3D geradas com IA</p>
-            <a href="/admin/fabrica-ebook" className="btn-primary inline-block">Acessar Fábrica de Ebooks</a>
-          </div>
-        )}
-
-        {tab === "fabrica-curso" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Fábrica de Cursos</h2>
-            <p className="text-[var(--text-dim)] mb-4">Pipeline de criação de módulos, roteiros e videoaulas</p>
-            <a href="/admin/fabrica-curso" className="btn-primary inline-block">Acessar Fábrica de Cursos</a>
-          </div>
-        )}
-
-        {tab === "marketing" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Fábrica de Marketing</h2>
-            <p className="text-[var(--text-dim)] mb-4">Gerencie Landing Pages, VSLs e Copies de alta conversão</p>
-            <a href="/admin/marketing" className="btn-primary inline-block">Acessar Fábrica de Marketing</a>
-          </div>
-        )}
-
-        {tab === "trilhas" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Trilhas de Aprendizado</h2>
-            <p className="text-[var(--text-dim)] mb-4">Organize cursos em trilhas de conhecimento</p>
-            <a href="/admin/trilhas" className="btn-primary inline-block">Gerenciar Trilhas</a>
-          </div>
-        )}
-
-        {tab === "analytics" && (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Analytics & Métricas</h2>
-            <p className="text-[var(--text-dim)] mb-4">Métricas consolidadas de visualização e engajamento</p>
-            <a href="/admin/analytics" className="btn-primary inline-block">Acessar Analytics</a>
-          </div>
-        )}
-
-      </main>
+      </div>
     </div>
   );
 }

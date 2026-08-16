@@ -1,0 +1,17 @@
+{
+  "brand_name": "Dezafira",
+  "logo_icon": "assets/brand/logo_icon.png",
+  "logo_horizontal": "assets/brand/logo_horizontal.png",
+  "colors": {
+    "primary": "#00CFFF",
+    "secondary": "#7B4FD6",
+    "bg": "#0d1b2a",
+    "text": "#FFFFFF",
+    "gradient": "linear-gradient(135deg, #00CFFF 0%, #7B4FD6 100%)"
+  },
+  "fonts": {
+    "display": "Orbitron",
+    "body": "Exo 2",
+    "fallback": "Arial, sans-serif"
+  }
+}

@@ -3,17 +3,35 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --surface2: #1a1a24;
-  --border: #2a2a3a;
-  --text: #e4e4ec;
-  --text-dim: #8888a0;
-  --brand: #6366f1;
-  --brand-hover: #818cf8;
+  /* ===== Dezafira — Combo 05: BLAZE + MIRAGE ===== */
+
+  /* Backgrounds */
+  --bg:        #16232B;   /* MIRAGE — fundo principal */
+  --bg-deep:   #0f1a21;   /* MIRAGE escuro — headers, sidebar */
+  --ink:       #0f1a21;   /* alias semântico de --bg-deep */
+  --surface:   #1c2f3a;   /* cards / painéis */
+  --surface2:  #223545;   /* superfície elevada */
+  --mirage:    #16232B;   /* alias semântico */
+
+  /* Bordas */
+  --border:    #2d4455;
+
+  /* Texto */
+  --text:      #e8edf2;   /* texto principal */
+  --paper:     #e8edf2;   /* alias semântico de --text */
+  --text-dim:  #7a97a8;   /* texto secundário */
+  --dim:       #7a97a8;   /* alias semântico de --text-dim */
+
+  /* Brand — BLAZE */
+  --brand:       #FF5B06;              /* BLAZE */
+  --blaze:       #FF5B06;              /* alias semântico */
+  --brand-hover: #ff7833;
+  --brand-soft:  rgba(255, 91, 6, 0.12);
+
+  /* Status */
   --success: #22c55e;
   --warning: #f59e0b;
-  --error: #ef4444;
+  --error:   #ef4444;
 }
 
 body {
@@ -27,15 +45,27 @@ body {
     @apply bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6;
   }
   .btn-primary {
-    @apply bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-indigo-500/25;
+    @apply bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg;
   }
   .btn-secondary {
-    @apply bg-white/5 border border-white/10 hover:border-indigo-500/30 text-white font-medium py-2 px-4 rounded-xl transition-all;
+    @apply bg-white/5 border border-white/10 hover:border-[var(--brand)] text-white font-medium py-2 px-4 rounded-xl transition-all;
   }
   .input {
-    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition-all;
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-[var(--dim)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-all;
   }
   .badge {
     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 border border-white/10;
+  }
+  .factory-card {
+    @apply bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5 transition-all hover:border-[var(--brand)]/30 hover:bg-white/[0.05];
+  }
+  .stepper-step {
+    @apply flex items-center gap-3 py-3 px-4 rounded-xl border transition-all;
+  }
+  .pipeline-bar {
+    @apply h-2 rounded-full bg-white/10 overflow-hidden;
+  }
+  .pipeline-bar-fill {
+    @apply h-full rounded-full bg-[var(--brand)] transition-all duration-500;
   }
 }

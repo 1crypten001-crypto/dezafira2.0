@@ -6,7 +6,7 @@ import logging
 import html as html_mod
 import httpx
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=False)
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -313,6 +313,339 @@ async def view_miniapp_endpoint(app_id: str, token: str = "", authorization: str
     pwa_html = app.get("pwa_html") or "<h1>MiniApp sem conteudo</h1>"
     return HTMLResponse(content=pwa_html)
 
+
+# ═════════════════════════════════════════════════════════════════════════
+# FABRICA DE BIOSITES — API & RENDERIZADOR LOCAL
+# ═════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/biosites/create")
+async def create_biosite_endpoint(payload: Dict[str, Any], background_tasks: BackgroundTasks):
+    """Cria um Bio Site usando o pipeline de IA em segundo plano."""
+    from modules.biosite_factory import biosite_factory
+    prompt = (payload.get("prompt") or "").strip() or "Meu Negócio"
+    niche = (payload.get("niche") or "").strip() or "Geral"
+    user_id = payload.get("user_id")
+
+    async def _run_pipeline():
+        try:
+            await biosite_factory.create_bio_site_pipeline(prompt, niche, user_id=user_id)
+        except Exception as e:
+            logger.error(f"[BioSiteFactory] Erro na pipeline: {e}")
+
+    background_tasks.add_task(_run_pipeline)
+    return {
+        "success": True,
+        "message": "Geração do Bio Site iniciada com sucesso em segundo plano."
+    }
+
+@app.get("/api/v1/biosites")
+async def list_biosites_endpoint(user_id: Optional[str] = None):
+    """Lista todos os Bio Sites do banco."""
+    from modules.database import get_db_bio_sites
+    sites = get_db_bio_sites(user_id=user_id)
+    return {"biosites": sites, "total": len(sites)}
+
+@app.get("/api/v1/biosites/{bio_id}")
+async def get_biosite_endpoint(bio_id: str):
+    """Retorna os detalhes completos de um Bio Site."""
+    from modules.database import get_db_bio_site
+    site = get_db_bio_site(bio_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Bio Site não encontrado")
+    return site
+
+@app.put("/api/v1/biosites/{bio_id}")
+async def update_biosite_endpoint(bio_id: str, payload: Dict[str, Any]):
+    """Atualiza as informações de um Bio Site e seus links."""
+    from modules.database import update_db_bio_site, add_db_bio_link
+    
+    # 1. Atualizar campos do Bio Site
+    theme_cfg = payload.get("theme_config")
+    theme_json = json.dumps(theme_cfg) if isinstance(theme_cfg, dict) else theme_cfg
+    
+    update_data = {
+        "name": payload.get("name"),
+        "nicho": payload.get("nicho"),
+        "slug": payload.get("slug"),
+        "profile_image_url": payload.get("profile_image_url"),
+        "description": payload.get("description"),
+        "theme_config": theme_json,
+        "pixel_facebook": payload.get("pixel_facebook"),
+        "google_analytics": payload.get("google_analytics"),
+        "status": payload.get("status"),
+        "subscription_status": payload.get("subscription_status"),
+        "asaas_subscription_id": payload.get("asaas_subscription_id")
+    }
+    # Filtrar None para não sobregravar com campos não enviados
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    
+    ok = update_db_bio_site(bio_id, **update_data)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Bio Site não encontrado")
+
+    # 2. Atualizar links se fornecidos
+    if "links" in payload:
+        # Pega a sessão local para fazer deleção e adição dos links
+        from modules.database import SessionLocal, BioLink
+        db = SessionLocal()
+        try:
+            db.query(BioLink).filter(BioLink.bio_site_id == bio_id).delete()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[Database] Erro ao limpar links antigos: {e}")
+        finally:
+            db.close()
+
+        # Adicionar novos links na ordem
+        for i, link in enumerate(payload["links"]):
+            add_db_bio_link(
+                bio_site_id=bio_id,
+                title=link.get("title", ""),
+                url=link.get("url", ""),
+                icon=link.get("icon", ""),
+                animation=link.get("animation", "none"),
+                position=i
+            )
+
+    return {"success": True, "message": "Bio Site atualizado com sucesso"}
+
+@app.delete("/api/v1/biosites/{bio_id}")
+async def delete_biosite_endpoint(bio_id: str):
+    """Exclui um Bio Site do banco."""
+    from modules.database import delete_db_bio_site
+    ok = delete_db_bio_site(bio_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Bio Site não encontrado")
+    return {"success": True, "message": "Bio Site excluído com sucesso"}
+
+@app.get("/bio/{slug}", response_class=HTMLResponse)
+async def public_biosite_view_endpoint(slug: str, preview: Optional[bool] = None):
+    """Serve a página pública ou o preview em tempo real do Bio Site."""
+    from modules.database import get_db_bio_site_by_slug
+    from modules.biosite_factory import biosite_factory
+    
+    site = get_db_bio_site_by_slug(slug)
+    if not site:
+        return HTMLResponse(content="<h1>Página não encontrada (404)</h1>", status_code=404)
+        
+    html = biosite_factory.render_bio_site_html(site, preview_mode=bool(preview))
+    return HTMLResponse(content=html)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# FÁBRICA DE VSL — API & ANALYTICS
+# ═════════════════════════════════════════════════════════════════════════
+@app.post("/api/v1/vsl")
+async def create_vsl_endpoint(payload: Dict[str, Any]):
+    """Cria um registro de VSL e gera script completo + 3 headlines A/B/C via IA."""
+    from modules.vsl_factory import create_vsl
+
+    title = (payload.get("title") or "").strip()
+    nicho = (payload.get("nicho") or payload.get("niche") or "Geral").strip()
+    video_url = (payload.get("video_url") or "").strip()
+    thumbnail_url = payload.get("thumbnail_url")
+    delay_seconds = int(payload.get("delay_seconds") or 0)
+    offer_description = (payload.get("offer_description") or "").strip()
+    target_audience = (payload.get("target_audience") or "").strip()
+    cta_url = (payload.get("cta_url") or "").strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Título é obrigatório")
+
+    vsl = await create_vsl(
+        title=title,
+        niche=nicho,
+        video_url=video_url,
+        thumbnail_url=thumbnail_url or "",
+        offer_description=offer_description,
+        target_audience=target_audience,
+        cta_url=cta_url,
+        delay_seconds=delay_seconds,
+    )
+    return {"success": True, "vsl": vsl, "script": vsl.get("script")}
+
+@app.get("/api/v1/vsl")
+async def list_vsl_endpoint():
+    """Lista todos os vídeos VSL."""
+    from modules.database import get_db_vsl_videos
+    videos = get_db_vsl_videos()
+    return {"vsls": videos, "total": len(videos)}
+
+@app.get("/api/v1/vsl/{vsl_id}")
+async def get_vsl_detail_endpoint(vsl_id: str):
+    """Retorna os detalhes e o analytics de retenção de um vídeo VSL."""
+    from modules.database import get_db_vsl_video, get_db_vsl_analytics_summary
+    video = get_db_vsl_video(vsl_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    summary = get_db_vsl_analytics_summary(vsl_id)
+    return {"video": video, "analytics": summary}
+
+@app.put("/api/v1/vsl/{vsl_id}")
+async def update_vsl_endpoint(vsl_id: str, payload: Dict[str, Any]):
+    """Atualiza as configurações de um vídeo VSL."""
+    from modules.database import update_db_vsl_video
+    update_data = {
+        "title": payload.get("title"),
+        "video_url": payload.get("video_url"),
+        "nicho": payload.get("nicho"),
+        "thumbnail_url": payload.get("thumbnail_url"),
+        "delay_seconds": payload.get("delay_seconds"),
+        "headline_a": payload.get("headline_a"),
+        "headline_b": payload.get("headline_b"),
+        "headline_c": payload.get("headline_c"),
+        "script": payload.get("script"),
+        "offer_description": payload.get("offer_description"),
+        "target_audience": payload.get("target_audience"),
+        "cta_url": payload.get("cta_url"),
+        "status": payload.get("status")
+    }
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    ok = update_db_vsl_video(vsl_id, **update_data)
+    if not ok:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    return {"success": True, "message": "VSL atualizada com sucesso"}
+
+@app.delete("/api/v1/vsl/{vsl_id}")
+async def delete_vsl_endpoint(vsl_id: str):
+    """Exclui um vídeo VSL."""
+    from modules.database import delete_db_vsl_video
+    ok = delete_db_vsl_video(vsl_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    return {"success": True, "message": "VSL excluída com sucesso"}
+
+@app.post("/api/v1/vsl/{vsl_id}/render-video")
+async def render_vsl_video_endpoint(vsl_id: str, payload: Dict[str, Any] = None):
+    """🎬 Renderiza o vídeo da VSL (cenas Agnes + narração TTS + ffmpeg).
+    Usa o script salvo; `{style_id, voice}` opcionais no body."""
+    from modules.database import get_db_vsl_video, update_db_vsl_video
+    from modules.vsl_video import generate_vsl_video
+
+    vsl = get_db_vsl_video(vsl_id)
+    if not vsl:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    payload = payload or {}
+    res = await generate_vsl_video(
+        vsl_id=vsl_id,
+        script=vsl.get("script") or "",
+        title=vsl.get("title") or "VSL",
+        niche=vsl.get("nicho") or "Geral",
+        style_id=payload.get("style_id") or "moderno",
+        brand_kit=payload.get("brand_kit"),
+        voice=payload.get("voice") or "pt-BR-FranciscaNeural",
+    )
+    if res.get("status") == "ok" and res.get("video_url"):
+        update_db_vsl_video(vsl_id, video_url=res["video_url"])
+    return {"success": res.get("status") == "ok", "vsl_id": vsl_id, **res}
+
+
+# Task cache em memória: vsl_id → task de vídeo Agnes (perde em restart; o
+# frontend re-dispara e o resultado final fica salvo em video_url no banco).
+_VSL_AGNES_TASKS: Dict[str, str] = {}
+
+
+def _vsl_agnes_source_image(vsl: Dict[str, Any]) -> Optional[str]:
+    """Converte a thumbnail da VSL em imagem para a Agnes (base64 local ou URL)."""
+    thumb = (vsl.get("thumbnail_url") or "").strip()
+    if not thumb:
+        return None
+    if thumb.startswith("/outputs/"):
+        fp = os.path.join(_BASE_DIR, thumb.lstrip("/").replace("/", os.sep))
+        if os.path.isfile(fp):
+            from modules.agnes_video import image_to_base64
+            return image_to_base64(fp)
+        return None
+    if thumb.startswith("http"):
+        return thumb
+    return None
+
+
+@app.post("/api/v1/vsl/{vsl_id}/render-agnes-video")
+async def render_vsl_agnes_video(vsl_id: str):
+    """🎬 Gera o vídeo da VSL com Agnes AI (agnes-video-v2.0, image-to-video)
+    usando a thumbnail da VSL como frame inicial. Retorna a task (assíncrona)."""
+    from modules.database import get_db_vsl_video
+    from modules.agnes_video import agnes_video_generate
+    from modules.art_director import ArtDirector
+
+    vsl = get_db_vsl_video(vsl_id)
+    if not vsl:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    image = _vsl_agnes_source_image(vsl)
+    title = vsl.get("title") or "VSL"
+    
+    director = ArtDirector()
+    style_id = vsl.get("style_id") or "moderno"
+    motion_config = director.generate_video_motion_prompt(style_id, title)
+    
+    task = await agnes_video_generate(
+        motion_config["prompt"],
+        image=image,
+        motion=motion_config["motion"],
+        aspect_ratio=motion_config["aspect_ratio"],
+        fps=motion_config["fps"],
+        negative_prompt=motion_config["negative_prompt"]
+    )
+    if task.get("error"):
+        raise HTTPException(status_code=502, detail=task["error"])
+    _VSL_AGNES_TASKS[vsl_id] = task.get("task_id", "")
+    return {"success": True, "vsl_id": vsl_id, "task_id": task.get("task_id"), "status": task.get("status")}
+
+
+@app.get("/api/v1/vsl/{vsl_id}/agnes-video")
+async def vsl_agnes_video_status(vsl_id: str):
+    """Polling da task de vídeo Agnes da VSL; ao concluir, baixa o MP4 e
+    atualiza `video_url` da VSL (o player do Clube passa a rodar o vídeo IA)."""
+    from modules.database import get_db_vsl_video, update_db_vsl_video
+    from modules.agnes_video import agnes_video_status, agnes_download_video
+
+    vsl = get_db_vsl_video(vsl_id)
+    if not vsl:
+        raise HTTPException(status_code=404, detail="VSL não encontrada")
+    task_id = _VSL_AGNES_TASKS.get(vsl_id, "")
+    if not task_id:
+        return {"success": False, "status": "no_task", "detail": "Nenhuma task de vídeo IA iniciada (clique em gerar)."}
+    st = await agnes_video_status(task_id)
+    if st.get("error"):
+        raise HTTPException(status_code=502, detail=st["error"])
+    status = (st.get("status") or "").lower()
+    local_url = None
+    if status in ("completed", "succeeded", "done", "success") and st.get("url"):
+        os.makedirs(os.path.join(_BASE_DIR, "outputs", "vsl"), exist_ok=True)
+        dest = os.path.join(_BASE_DIR, "outputs", "vsl", f"agnes_{vsl_id}.mp4")
+        saved = await agnes_download_video(st["url"], dest)
+        if saved:
+            local_url = "/outputs/vsl/" + os.path.basename(dest)
+            update_db_vsl_video(vsl_id, video_url=local_url)
+    return {"success": True, "vsl_id": vsl_id, "task_id": task_id, **st, "local_url": local_url}
+
+
+@app.post("/api/v1/vsl/analytics")
+async def register_vsl_analytics_endpoint(payload: Dict[str, Any]):
+    """Recebe logs de retenção e cliques de conversão do player da Landing Page."""
+    from modules.database import add_db_vsl_analytics_event
+    vsl_id = payload.get("vsl_id")
+    session_id = payload.get("session_id")
+    seconds_watched = int(payload.get("seconds_watched") or 0)
+    max_percentage = int(payload.get("max_percentage") or 0)
+    converted = bool(payload.get("converted"))
+    headline_variant = payload.get("headline_variant") or "A"
+
+    if not vsl_id or not session_id:
+        raise HTTPException(status_code=400, detail="vsl_id e session_id são obrigatórios")
+
+    event = add_db_vsl_analytics_event(
+        vsl_id=vsl_id,
+        session_id=session_id,
+        seconds_watched=seconds_watched,
+        max_percentage=max_percentage,
+        converted=converted,
+        headline_variant=headline_variant
+    )
+    return {"success": True, "event": event}
+
+
 # ═════════════════════════════════════════════════════════════════════════
 # FABRICA DE EBOOKS TRIPLA — API ASYNC COM PROGRESSO
 # ═════════════════════════════════════════════════════════════════════════
@@ -591,7 +924,7 @@ async def hermes_chat_endpoint(payload: HermesChatPayload):
     return {"reply": reply, "session_id": sid, "pipeline_started": pipeline_started, "engine": engine}
 
 
-_HERMES_CHAT_HTML = """<!DOCTYPE html>
+_HERMES_CHAT_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"/>
@@ -742,11 +1075,19 @@ async def chat_official():
     """Serve o Chat Oficial do Hermes (página embutida no backend).
 
     Se HERMES_WEBUI_PUBLIC_URL estiver definido (ex: URL do Hermes WebUI
-    deployado), redireciona para lá; senão serve a página de chat embutida.
+    deployado) E a WebUI estiver acessível, redireciona para lá; senão serve
+    a página de chat embutida (que chama a API em caminhos relativos).
     """
     webui_url = os.getenv("HERMES_WEBUI_PUBLIC_URL", "").strip()
     if webui_url:
-        return RedirectResponse(url=webui_url)
+        try:
+            async with httpx.AsyncClient(timeout=2.0, follow_redirects=True) as client:
+                r = await client.get(webui_url)
+                if r.status_code < 500:
+                    return RedirectResponse(url=webui_url)
+            print(f"[HermesChat] WebUI {webui_url} indisponível (HTTP {r.status_code}) — servindo página embutida")
+        except Exception as e:
+            print(f"[HermesChat] WebUI {webui_url} fora do ar ({type(e).__name__}) — servindo página embutida")
     return HTMLResponse(
         content=_HERMES_CHAT_HTML,
         headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
@@ -816,6 +1157,89 @@ class RobustCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(RobustCORSMiddleware)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DOMÍNIOS DEDICADOS DE PWA — roteamento por Host (ex: 1convite.com.br)
+#
+# Quando um Host registrado na tabela `miniapp_domains` acessa o backend, o
+# request é roteado para o PWA correspondente na RAIZ do domínio:
+#   GET 1convite.com.br/            →  serve /app/1convite/
+#   GET 1convite.com.br/manifest.json →  serve /app/1convite/manifest.json
+# Os outros PWAs continuam em /app/{slug} (sem domínio próprio) — inalterados.
+# ═══════════════════════════════════════════════════════════════════════════
+_domain_map_cache = None
+_domain_map_cache_ts = 0.0
+
+
+def _get_domain_map() -> dict:
+    """Mapeia hostname (minúsculo) -> slug do miniapp. Cache de 60s."""
+    global _domain_map_cache, _domain_map_cache_ts
+    import time as _time
+    now = _time.time()
+    if _domain_map_cache is None or now - _domain_map_cache_ts > 60:
+        try:
+            from modules.convite_models import get_db_miniapp_domains
+            _domain_map_cache = {d["domain"]: d["slug"] for d in get_db_miniapp_domains()}
+        except Exception:
+            # Nunca derruba o servidor por causa do mapa de domínios
+            _domain_map_cache = {}
+        _domain_map_cache_ts = now
+    return _domain_map_cache
+
+
+def _reset_domain_map() -> None:
+    global _domain_map_cache, _domain_map_cache_ts
+    _domain_map_cache = None
+    _domain_map_cache_ts = 0.0
+
+
+_PWA_BUILD_CACHE: dict = {}
+
+
+def _pwa_build_dir(slug: str):
+    """Pasta do bundle estático do PWA (web/{slug}/dist) — ou None se não buildado.
+
+    Convenção: após `npm run build` em web/{slug}/frontend, copie o `dist/`
+    gerado para web/{slug}/dist/. Quando existe index.html, o domínio dedicado
+    serve o bundle na raiz (SPA). Cache de 30s para não bater em disco a cada request.
+    """
+    import time as _time
+    now = _time.time()
+    hit = _PWA_BUILD_CACHE.get(slug)
+    if hit and now - hit[0] < 30:
+        return hit[1]
+    build_dir = os.path.join(_BASE_DIR, "web", slug, "dist")
+    result = build_dir if os.path.isfile(os.path.join(build_dir, "index.html")) else None
+    _PWA_BUILD_CACHE[slug] = (now, result)
+    return result
+
+
+@app.middleware("http")
+async def dedicated_domain_middleware(request: Request, call_next):
+    """Roteia por Host: domínio dedicado → PWA na raiz do domínio.
+
+    Prioridades no domínio dedicado (ex: 1convite.com.br):
+      1. API (/api/*) e estáticos (/static/*) passam SEM reescrita — o PWA React
+         chama a API no mesmo host.
+      2. Se existe bundle buildado (web/{slug}/dist/index.html), serve o SPA
+         (/_pwa_build/{slug}/...) — manifest/sw/ícones vêm do próprio dist.
+      3. Sem build: fallback para o PWA gerado dinamicamente (/app/{slug}/...).
+    """
+    host = (request.headers.get("host") or "").split(":")[0].lower()
+    slug = _get_domain_map().get(host)
+    if slug:
+        path = request.scope.get("path", "/")
+        if path.startswith(("/app/", "/api/", "/static/", "/_pwa_build/")):
+            return await call_next(request)
+        if _pwa_build_dir(slug):
+            if path in ("/", ""):
+                request.scope["path"] = f"/_pwa_build/{slug}/index.html"
+            else:
+                request.scope["path"] = f"/_pwa_build/{slug}{path}"
+        else:
+            base = f"/app/{slug}"
+            request.scope["path"] = (base + "/") if path in ("/", "") else (base + path)
+    return await call_next(request)
 
 import bcrypt as _bcrypt_mod
 from datetime import datetime, timedelta
@@ -958,10 +1382,10 @@ async def require_admin_or_service(
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
     return user
 
-
+# Health check endpoint for Railway
 @app.post("/api/v1/miniapps/{app_id}/bidu-assets")
 async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin_or_service)):
-    """🦉 Bidu: regenera o kit de identidade visual (logo + mascote + banner)
+    """Bidu: regenera o kit de identidade visual (logo + mascote + banner)
     de um MiniApp existente via Agnes AI. Para o piloto e upgrades visuais."""
     import json as _json
     from modules.database import get_db_miniapp, update_db_miniapp
@@ -969,7 +1393,7 @@ async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin_or_serv
 
     app = get_db_miniapp(app_id)
     if not app:
-        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
 
     # Reconstrói o brand a partir do theme persistido (Dona Célia)
     theme = {}
@@ -1007,7 +1431,8 @@ async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin_or_serv
         raise HTTPException(status_code=500, detail=f"Erro ao gerar kit Bidu: {str(e)}")
 
 
-# Health check endpoint for Railway
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "dezafira-backend"}
@@ -1242,6 +1667,39 @@ def _resolve_miniapp_record(slug: str) -> dict:
     return {}
 
 
+@app.get("/_pwa_build/{slug}/{path:path}")
+async def serve_pwa_build(slug: str, path: str):
+    """Serve o bundle estático do PWA (web/{slug}/dist) no domínio dedicado.
+
+    SPA fallback: rotas sem arquivo correspondente devolvem index.html.
+    Mídias/ícones/sw.js/manifest.json vêm direto do dist buildado.
+    """
+    import mimetypes
+    build_dir = _pwa_build_dir(slug)
+    if not build_dir:
+        raise HTTPException(status_code=404, detail="Build do PWA não encontrado")
+    # Segurança: nunca sair do diretório do build
+    clean = path.replace("\\", "/").lstrip("/")
+    candidate = os.path.abspath(os.path.join(build_dir, clean))
+    if not candidate.startswith(os.path.abspath(build_dir) + os.sep) and candidate != os.path.abspath(build_dir):
+        raise HTTPException(status_code=404, detail="Fora do diretório do build")
+    if os.path.isfile(candidate):
+        media = mimetypes.guess_type(candidate)[0] or "application/octet-stream"
+        with open(candidate, "rb") as fh:
+            content = fh.read()
+        headers = {}
+        if media == "text/html":
+            headers["Cache-Control"] = "no-cache"
+        return Response(content=content, media_type=media, headers=headers)
+    # SPA fallback → index.html
+    index_path = os.path.join(build_dir, "index.html")
+    if os.path.isfile(index_path):
+        with open(index_path, "rb") as fh:
+            content = fh.read()
+        return Response(content=content, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    raise HTTPException(status_code=404, detail="index.html não encontrado no build")
+
+
 @app.get("/app/{slug}", response_class=HTMLResponse)
 async def serve_pwa_app(slug: str, request: Request):
     """Serve o PWA personalizado para o slug (resolve do banco de dados)."""
@@ -1259,13 +1717,20 @@ async def serve_pwa_app(slug: str, request: Request):
 
 
 @app.get("/app/{slug}/manifest.json")
-async def serve_pwa_manifest(slug: str):
-    """Serve o manifest.json dinamico para o PWA (branding Dona Celia + copy Carlao)."""
+async def serve_pwa_manifest(slug: str, request: Request):
+    """Serve o manifest.json dinamico para o PWA (branding Dona Celia + copy Carlao).
+
+    Em domínio dedicado (miniapp_domains), o manifest usa start_url/scope na raiz
+    para o install funcionar a partir do domínio próprio.
+    """
     from services.pwa_generator import PWAGenerator
 
     record = _resolve_miniapp_record(slug)
     if not record:
         raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
+
+    host = (request.headers.get("host") or "").split(":")[0].lower()
+    dedicated = _get_domain_map().get(host) == (record.get("slug") or slug)
 
     theme = PWAGenerator.record_theme(record)
     copy = PWAGenerator.resolve_copy(record, theme)
@@ -1275,6 +1740,9 @@ async def serve_pwa_manifest(slug: str):
         app_name=record.get("app_name", "Dezafira App"),
         theme=theme,
         description=copy["description"],
+        start_url="/" if dedicated else None,
+        scope="/" if dedicated else None,
+        icon_base="/" if dedicated else None,
     )
     return manifest
 
@@ -1337,6 +1805,137 @@ async def serve_pwa_icon_512(slug: str):
         media_type="image/png",
         headers={"Cache-Control": "public, max-age=604800", "ETag": hashlib.md5(png_bytes).hexdigest()}
     )
+
+
+# ── Domínios dedicados de PWA (rota por Host) ──────────────────────────────
+
+class MiniappDomainPayload(BaseModel):
+    domain: str  # hostname (ex: 1convite.com.br)
+
+
+@app.get("/api/v1/miniapps/{slug}/domains")
+async def miniapp_domains_list(slug: str, _admin=Depends(require_admin_or_service)):
+    """Lista os domínios dedicados de um PWA."""
+    from modules.convite_models import get_db_miniapp_domains
+    record = _resolve_miniapp_record(slug)
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+    app_slug = record.get("slug") or slug
+    domains = [d for d in get_db_miniapp_domains() if d["slug"] == app_slug]
+    return {"success": True, "slug": app_slug, "domains": [d["domain"] for d in domains]}
+
+
+@app.post("/api/v1/miniapps/{slug}/domains")
+async def miniapp_domains_add(slug: str, payload: MiniappDomainPayload,
+                              _admin=Depends(require_admin_or_service)):
+    """Registra um domínio dedicado para o PWA (Host-routing na raiz do domínio)."""
+    from modules.convite_models import create_db_miniapp_domain
+    domain = payload.domain.strip().lower().lstrip("*.")
+    if not domain:
+        raise HTTPException(status_code=400, detail="Campo 'domain' obrigatório")
+    record = _resolve_miniapp_record(slug)
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+    app_slug = record.get("slug") or slug
+    created = create_db_miniapp_domain(domain, record.get("id", slug), app_slug)
+    _reset_domain_map()
+    return {"success": True, **created}
+
+
+@app.delete("/api/v1/miniapps/{slug}/domains/{domain}")
+async def miniapp_domains_remove(slug: str, domain: str,
+                                 _admin=Depends(require_admin_or_service)):
+    """Remove um domínio dedicado de um PWA."""
+    from modules.convite_models import delete_db_miniapp_domain
+    record = _resolve_miniapp_record(slug)
+    if not record:
+        raise HTTPException(status_code=404, detail="MiniApp não encontrado")
+    removed = delete_db_miniapp_domain(domain.strip().lower())
+    _reset_domain_map()
+    if not removed:
+        raise HTTPException(status_code=404, detail="Domínio não encontrado")
+    return {"success": True, "domain": domain.strip().lower()}
+
+
+# ── Fábrica de Convites (produto 1Convite) ─────────────────────────────────
+
+class ConviteBrandingPayload(BaseModel):
+    nome: Optional[str] = None
+    nome_marca: Optional[str] = None
+    tagline: Optional[str] = None
+    descricao: Optional[str] = None
+    cor_primaria: Optional[str] = None
+    cor_acento: Optional[str] = None
+    cor_fundo: Optional[str] = None
+    gradiente_de: Optional[str] = None
+    emoji: Optional[str] = None
+    logo_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    preco_cents: Optional[int] = 0
+    dominio_dedicado: Optional[str] = "1convite.com.br"
+
+
+@app.post("/api/v1/convite/factory/branding")
+async def convite_factory_branding(payload: ConviteBrandingPayload,
+                                   _admin=Depends(require_admin_or_service)):
+    """Aplica branding no PWA do 1Convite (paleta, nome, copy, logo)."""
+    from modules.convite_factory import ConviteFactory
+    try:
+        return ConviteFactory.apply_branding(payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/convite/factory/blueprint")
+async def convite_factory_blueprint(payload: ConviteBrandingPayload,
+                                    _admin=Depends(require_admin_or_service)):
+    """Cria o blueprint do produto 1Convite (formats=app, pronto pra publicar)."""
+    from modules.convite_factory import ConviteFactory
+    try:
+        return ConviteFactory.create_blueprint(payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/convite/factory/publish/{bp_id}")
+async def convite_factory_publish(bp_id: str, _admin=Depends(require_admin_or_service)):
+    """Publica o blueprint do 1Convite no DezafiraClube via ponte."""
+    from modules.convite_factory import ConviteFactory
+    try:
+        return await ConviteFactory.publish(bp_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/convite/factory/blueprints")
+async def convite_factory_blueprints(_admin=Depends(require_admin_or_service)):
+    """Lista os blueprints do produto 1Convite (app_slug=1convite)."""
+    from modules.database import list_db_blueprints
+    from modules.convite_factory import SLUG as CONVITE_SLUG
+    try:
+        blueprints = list_db_blueprints(limit=100) or []
+        result = []
+        for bp in blueprints:
+            cfg = bp.get("config") or {}
+            if cfg.get("app_slug") == CONVITE_SLUG or cfg.get("slug") == CONVITE_SLUG:
+                result.append({
+                    "id": bp.get("id"),
+                    "name": bp.get("name"),
+                    "price_cents": bp.get("price_cents") or 0,
+                    "status": bp.get("status"),
+                    "stage": bp.get("stage"),
+                    "created_at": bp.get("created_at"),
+                    "app_url": cfg.get("app_url"),
+                })
+        return {"success": True, "blueprints": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/miniapps/migrate-legacy")
@@ -2362,9 +2961,11 @@ async def get_course(course_id: str):
     }}
 
 @app.post("/api/v1/courses/{course_id}/agnes-cover")
-async def generate_course_agnes_cover(course_id: str, _admin=Depends(require_admin)):
+async def generate_course_agnes_cover(course_id: str, payload: dict = None,
+                                      _admin=Depends(require_admin)):
     """🎨 Agnes Studio: gera/regenera a capa do curso (16:9) com design real
-    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura."""
+    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura.
+    Body opcional: {"style_id": "moderno|elegante|tech|minimal|dark-gold"}."""
     import json as _json
     from modules.database import get_db_course, update_db_course
     from modules.agnes_studio import AgnesStudio
@@ -2373,22 +2974,27 @@ async def generate_course_agnes_cover(course_id: str, _admin=Depends(require_adm
     if not course:
         raise HTTPException(status_code=404, detail="Curso não encontrado")
 
-    # Reutiliza o design persistido (se houver) para manter a identidade visual
-    design = None
-    if course.get("cover_design"):
-        try:
-            design = _json.loads(course["cover_design"])
-        except Exception:
-            design = None
+    style_id = ((payload or {}).get("style_id") or "moderno").strip() or "moderno"
+    brand_kit = (payload or {}).get("brand_kit")
 
     try:
         studio = AgnesStudio()
+        # Brand kit global (cores/fontes) tem prioridade; senão reutiliza o
+        # design persistido para manter a identidade visual
+        design = None
+        if isinstance(brand_kit, dict):
+            design = studio._make_design(style_id, course.get("topic", "") or "", brand_kit)
+        elif course.get("cover_design"):
+            try:
+                design = _json.loads(course["cover_design"])
+            except Exception:
+                design = None
         result = await studio.generate_course_cover(
             title=course.get("title", ""),
             subtitle=course.get("subtitle", "") or "",
             author="Dezafira Studio",
             niche=course.get("topic", "") or "",
-            style_id="moderno",
+            style_id=style_id,
             course_id=course_id,
             difficulty=course.get("difficulty", "") or "",
             modules_count=course.get("total_modules", 0) or 0,
@@ -2981,9 +3587,11 @@ async def get_ebook(book_id: str, token: str = "", authorization: str = Header(N
 
 
 @app.post("/api/v1/ebooks/{book_id}/agnes-cover")
-async def generate_ebook_agnes_cover(book_id: str, _admin=Depends(require_admin)):
+async def generate_ebook_agnes_cover(book_id: str, payload: dict = None,
+                                     _admin=Depends(require_admin)):
     """🎨 Agnes Studio: gera/regenera a capa do ebook com design de capa real
-    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura."""
+    (tipografia + autor + créditos) e renderiza HTML → PNG via Obscura.
+    Body opcional: {"style_id": "moderno|elegante|tech|minimal|dark-gold"}."""
     from modules.database import get_db_book, update_db_book
     from modules.agnes_studio import AgnesStudio
 
@@ -2993,22 +3601,27 @@ async def generate_ebook_agnes_cover(book_id: str, _admin=Depends(require_admin)
 
     import json as _json
 
-    # Reutiliza o design persistido (se houver) para manter a identidade visual
-    design = None
-    if book.get("cover_design"):
-        try:
-            design = _json.loads(book["cover_design"])
-        except Exception:
-            design = None
+    style_id = ((payload or {}).get("style_id") or "moderno").strip() or "moderno"
+
+    brand_kit = (payload or {}).get("brand_kit")
 
     try:
         studio = AgnesStudio()
+        # Brand kit global tem prioridade; senão reutiliza o design persistido
+        design = None
+        if isinstance(brand_kit, dict):
+            design = studio._make_design(style_id, book.get("niche", "") or book.get("topic", ""), brand_kit)
+        elif book.get("cover_design"):
+            try:
+                design = _json.loads(book["cover_design"])
+            except Exception:
+                design = None
         result = await studio.generate_ebook_cover(
             title=book.get("title", ""),
             subtitle=book.get("subtitle", "") or "",
             author=book.get("author", "") or "",
             niche=book.get("niche", "") or book.get("topic", ""),
-            style_id=book.get("style_id", "moderno") or "moderno",
+            style_id=style_id,
             book_id=book_id,
             design=design,
         )
@@ -5808,15 +6421,20 @@ async def regenerate_blog_post_image(post_id: str, _admin=Depends(require_admin)
 
 
 @app.post("/api/v1/blog/post/{post_id}/agnes-cover")
-async def generate_blog_agnes_cover(post_id: str, _admin=Depends(require_admin)):
+async def generate_blog_agnes_cover(post_id: str, payload: dict = None,
+                                    _admin=Depends(require_admin)):
     """🎨 Agnes Studio: gera/regenera a imagem de destaque do artigo (1200×630)
-    com design real (tipografia + identidade do canal) e renderiza HTML → PNG via Obscura."""
+    com design real (tipografia + identidade do canal) e renderiza HTML → PNG via Obscura.
+    Body opcional: {"style_id": "moderno|elegante|tech|minimal|dark-gold"}."""
     from modules.database import get_db_blog_post, update_db_blog_post
     from modules.agnes_studio import AgnesStudio
 
     post = get_db_blog_post(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
+
+    style_id = ((payload or {}).get("style_id") or "moderno").strip() or "moderno"
+    brand_kit = (payload or {}).get("brand_kit")
 
     channel_name = ""
     try:
@@ -5831,13 +6449,18 @@ async def generate_blog_agnes_cover(post_id: str, _admin=Depends(require_admin))
 
     try:
         studio = AgnesStudio()
+        design = None
+        if isinstance(brand_kit, dict):
+            design = studio._make_design(
+                style_id, post.get("topic", "") or post.get("keywords", "") or "", brand_kit)
         result = await studio.generate_blog_cover(
             title=post.get("title", ""),
             subtitle=post.get("excerpt", "") or post.get("meta_description", "") or "",
             niche=post.get("topic", "") or post.get("keywords", "") or "",
-            style_id="moderno",
+            style_id=style_id,
             post_id=post_id,
             blog_name=channel_name,
+            design=design,
         )
         if result.get("cover_url"):
             update_db_blog_post(
@@ -5933,6 +6556,73 @@ async def agnes_use_cover(payload: dict, _admin=Depends(require_admin)):
     else:
         raise HTTPException(status_code=400, detail="entity_type deve ser course, ebook ou post")
     return {"success": True, "cover_url": cover_url, "entity_type": entity_type, "entity_id": entity_id}
+
+
+@app.delete("/api/v1/agnes/gallery/{filename}")
+async def agnes_gallery_delete(filename: str, _admin=Depends(require_admin)):
+    """🗑️ Remove uma capa da galeria Agnes (outputs/agnes).
+    Só remove arquivos .png com nome seguro (sem path traversal)."""
+    if ".." in filename or "/" in filename or "\\" in filename or not filename.lower().endswith(".png"):
+        raise HTTPException(status_code=400, detail="filename inválido")
+    out_dir = os.path.join(_BASE_DIR, "outputs", "agnes")
+    fp = os.path.join(out_dir, filename)
+    if not os.path.isfile(fp):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado na galeria Agnes")
+    try:
+        os.remove(fp)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao remover arquivo: {str(e)}")
+    return {"success": True, "filename": filename}
+
+
+class AgnesVideoPayload(BaseModel):
+    prompt: str
+    image: Optional[str] = None  # URL pública http(s) OU base64/data URL
+    model: Optional[str] = None
+    wait: bool = False  # True = polling síncrono (até 5min); False = task assíncrona
+
+
+@app.post("/api/v1/agnes/video")
+async def agnes_video_create(payload: AgnesVideoPayload, _admin=Depends(require_admin)):
+    """🎬 Gera vídeo com Agnes AI (agnes-video-v2.0) a partir de imagem ou prompt.
+
+    - `wait=false` (padrão): retorna a task imediatamente (polling via GET abaixo).
+    - `wait=true`: faz polling síncrono até concluir (ou timeout de 5min) e baixa
+      o MP4 para outputs/vsl/, devolvendo a URL local.
+    """
+    from modules.agnes_video import (
+        agnes_video_generate, agnes_video_generate_and_wait, agnes_download_video,
+    )
+    if not payload.prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt é obrigatório")
+    if payload.wait:
+        result = await agnes_video_generate_and_wait(
+            payload.prompt.strip(), image=payload.image, model=payload.model
+        )
+        if result.get("error"):
+            raise HTTPException(status_code=502, detail=result["error"])
+        url = result.get("url") or ""
+        if url:
+            os.makedirs(os.path.join(_BASE_DIR, "outputs", "vsl"), exist_ok=True)
+            dest = os.path.join(_BASE_DIR, "outputs", "vsl", f"agnes_video_{result.get('video_id', 'task')[-10:]}.mp4")
+            saved = await agnes_download_video(url, dest)
+            if saved:
+                result["local_url"] = "/outputs/vsl/" + os.path.basename(dest)
+        return {"success": True, **result}
+    task = await agnes_video_generate(payload.prompt.strip(), image=payload.image, model=payload.model)
+    if task.get("error"):
+        raise HTTPException(status_code=502, detail=task["error"])
+    return {"success": True, "task": task}
+
+
+@app.get("/api/v1/agnes/video/{task_id}")
+async def agnes_video_status_route(task_id: str, _admin=Depends(require_admin)):
+    """Polling da task de vídeo Agnes."""
+    from modules.agnes_video import agnes_video_status
+    st = await agnes_video_status(task_id)
+    if st.get("error"):
+        raise HTTPException(status_code=502, detail=st["error"])
+    return {"success": True, **st}
 
 
 @app.post("/api/v1/lili/regenerate-batch")
@@ -7567,4 +8257,322 @@ async def distribution_run_all(_admin=Depends(require_admin)):
         raise HTTPException(status_code=504, detail="Distribuição excedeu 600s")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao distribuir: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FÁBRICA DE PRODUTOS — Motor ÚNICO (ebook + app de recorrência + curso)
+# ═══════════════════════════════════════════════════════════════════════════
+# Consolida as pipelines antigas numa única fachada. Os endpoints antigos
+# (/api/v1/pipeline/run-*-factory) continuam funcionando por compatibilidade.
+
+@app.post("/api/v1/products/run")
+async def products_run(payload: dict, _admin=Depends(require_admin_or_service)):
+    """Dispara a Fábrica de Produtos.
+
+    Body: {"format": "ebook" | "app" | "curso", ...campos da receita}
+      - ebook: {niche, title?, price_cents?}
+      - app:   {niche, app_type: "mindmap"|"miniapp", title?, price_cents?}
+      - curso: {topic, title?, price_cents?}
+    """
+    from modules.product_factory import run_product
+    try:
+        result = await run_product(payload.get("format", ""), payload)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao iniciar fábrica: {str(e)}")
+
+
+@app.get("/api/v1/products/task/{task_id}")
+async def products_task_status(task_id: str, _admin=Depends(require_admin_or_service)):
+    """Status unificado de uma tarefa da Fábrica de Produtos."""
+    from modules.product_factory import product_status
+    data = product_status(task_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Task não encontrada")
+    return data
+
+
+@app.get("/api/v1/products/history")
+async def products_history(_admin=Depends(require_admin_or_service)):
+    """Histórico unificado de execuções de todas as fábricas."""
+    from modules.product_factory import product_history
+    return product_history()
+
+
+@app.get("/api/v1/products")
+async def products_catalog(_admin=Depends(require_admin_or_service)):
+    """Catálogo unificado: todos os entregáveis produzidos (ebooks, apps, cursos)."""
+    from modules.product_factory import product_catalog
+    return product_catalog()
+
+
+class SendToClubePayload(BaseModel):
+    name: str
+    price_cents: int = 0
+    description: Optional[str] = None
+    external_link: Optional[str] = None
+    image_url: Optional[str] = None
+    resource_type: str = "link"
+
+
+@app.post("/api/v1/products/send-to-clube")
+async def products_send_to_clube(payload: SendToClubePayload, _admin=Depends(require_admin)):
+    """Ponte Adm → Clube: publica um entregável da fábrica no catálogo do Clube."""
+    from modules.product_factory import send_product_to_clube
+    result = await send_product_to_clube(
+        name=payload.name,
+        price_cents=payload.price_cents,
+        description=payload.description or "",
+        external_link=payload.external_link or "",
+        image_url=payload.image_url or "",
+        resource_type=payload.resource_type,
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "Erro na ponte com o Clube"))
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BLUEPRINT DE PRODUTO — Receita completa (tema + nicho → todos os artefatos)
+# ═══════════════════════════════════════════════════════════════════════════
+# Blueprint gera: produto, blog/banners, landing, funil (bump/upsell/downsell),
+# área de membros e miniapp — com revisão visual de imagens (super prompt +
+# upload + zoom) e publicação no DezafiraClube via ponte.
+
+class CreateBlueprintPayload(BaseModel):
+    name: str
+    theme: str
+    niche: str = "Geral"
+    price_cents: int = 0
+    formats: list = ["ebook"]
+    config: Optional[dict] = None
+
+
+class UpdateBlueprintPayload(BaseModel):
+    config: Optional[dict] = None  # merge parcial (ex: brand_kit)
+
+
+@app.patch("/api/v1/blueprints/{bp_id}")
+async def blueprints_update(bp_id: str, payload: UpdateBlueprintPayload,
+                            _admin=Depends(require_admin)):
+    """Atualiza o config do blueprint (merge parcial — ex: brand_kit)."""
+    from modules.database import get_db_blueprint, update_db_blueprint
+    bp = get_db_blueprint(bp_id)
+    if not bp:
+        raise HTTPException(status_code=404, detail="Blueprint não encontrado")
+    config = dict(bp.get("config") or {})
+    if isinstance(payload.config, dict):
+        for k, v in payload.config.items():
+            if v is None:
+                config.pop(k, None)
+            elif isinstance(v, dict) and isinstance(config.get(k), dict):
+                config[k] = {**config[k], **v}
+            else:
+                config[k] = v
+    update_db_blueprint(bp_id, config=config)
+    updated = get_db_blueprint(bp_id)
+    return {"bp_id": bp_id, "config": updated["config"]}
+
+
+@app.post("/api/v1/blueprints")
+async def blueprints_create(payload: CreateBlueprintPayload, _admin=Depends(require_admin)):
+    """Cria um blueprint (status=draft)."""
+    from modules.database import create_db_blueprint
+    try:
+        result = create_db_blueprint(
+            name=payload.name,
+            theme=payload.theme,
+            niche=payload.niche,
+            price_cents=max(0, int(payload.price_cents) or 0),
+            formats=[f for f in (payload.formats or ["ebook"]) if isinstance(f, str)],
+            config=payload.config or {},
+        )
+        if result.get("error"):
+            raise HTTPException(status_code=500, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar blueprint: {str(e)}")
+
+
+@app.get("/api/v1/blueprints")
+async def blueprints_list(_admin=Depends(require_admin_or_service)):
+    """Lista blueprints (mais recentes primeiro)."""
+    from modules.database import list_db_blueprints
+    items = list_db_blueprints(limit=100)
+    return {"blueprints": items, "total": len(items)}
+
+
+@app.get("/api/v1/blueprints/{bp_id}")
+async def blueprints_get(bp_id: str, _admin=Depends(require_admin_or_service)):
+    """Estado completo de um blueprint (config, content, assets, stage, publish_log)."""
+    from modules.database import get_db_blueprint
+    bp = get_db_blueprint(bp_id)
+    if not bp:
+        raise HTTPException(status_code=404, detail="Blueprint não encontrado")
+    # Mescla status da task em memória para o polling da UI
+    from modules.blueprint_engine import blueprint_task_status
+    task = blueprint_task_status(bp_id)
+    if task and task.get("status") != bp.get("status"):
+        bp["status"] = task["status"]
+        bp["stage"] = task.get("stage", bp.get("stage"))
+        bp["message"] = task.get("message", "")
+    return bp
+
+
+@app.post("/api/v1/blueprints/{bp_id}/run")
+async def blueprints_run(bp_id: str, _admin=Depends(require_admin_or_service)):
+    """Dispara o motor do blueprint (estágios 0-5) em background."""
+    from modules.database import get_db_blueprint
+    from modules.blueprint_engine import start_blueprint_run
+    bp = get_db_blueprint(bp_id)
+    if not bp:
+        raise HTTPException(status_code=404, detail="Blueprint não encontrado")
+    return start_blueprint_run(bp_id)
+
+
+@app.delete("/api/v1/blueprints/{bp_id}")
+async def blueprints_delete(bp_id: str, _admin=Depends(require_admin)):
+    """Remove um blueprint."""
+    from modules.database import delete_db_blueprint
+    if not delete_db_blueprint(bp_id):
+        raise HTTPException(status_code=404, detail="Blueprint não encontrado")
+    return {"success": True}
+
+
+class RegenerateAssetPayload(BaseModel):
+    slot: str
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/regenerate")
+async def blueprints_asset_regenerate(bp_id: str, payload: RegenerateAssetPayload,
+                                      _admin=Depends(require_admin)):
+    """Regenera a imagem de um slot (nova seed via Agnes AI → cascata)."""
+    from modules.blueprint_engine import regenerate_asset
+    try:
+        return await regenerate_asset(bp_id, payload.slot)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao regenerar asset: {str(e)}")
+
+
+class UploadAssetPayload(BaseModel):
+    slot: str
+    data_url: str  # data:image/png;base64,...
+
+
+class AgnesCoverAssetPayload(BaseModel):
+    slot: str
+    style_id: str = "moderno"  # moderno │ elegante │ tech │ minimal │ dark-gold
+
+
+class AgnesVariantsPayload(BaseModel):
+    slot: str
+    styles: Optional[list] = None  # estilos a comparar (default: os 5)
+
+
+class AgnesApplyVariantPayload(BaseModel):
+    slot: str
+    filename: str
+    style_id: str = "moderno"
+
+
+class RestoreAssetPayload(BaseModel):
+    slot: str
+    index: int  # índice no histórico do asset (0 = mais antiga? não: ordem de inserção)
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/agnes-variants")
+async def blueprints_asset_agnes_variants(bp_id: str, payload: AgnesVariantsPayload,
+                                          _admin=Depends(require_admin)):
+    """🎨 Gera variantes (um arquivo por estilo) do slot para comparar lado a
+    lado SEM persistir — a UI escolhe e aplica via /assets/agnes-apply-variant."""
+    from modules.blueprint_engine import generate_agnes_variants
+    try:
+        return await generate_agnes_variants(bp_id, payload.slot, payload.styles)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar variantes: {str(e)}")
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/agnes-apply-variant")
+async def blueprints_asset_agnes_apply_variant(bp_id: str, payload: AgnesApplyVariantPayload,
+                                               _admin=Depends(require_admin)):
+    """Aplica uma variante já gerada ao asset do slot (sem regenerar)."""
+    from modules.blueprint_engine import apply_agnes_variant
+    try:
+        return await apply_agnes_variant(bp_id, payload.slot, payload.filename, payload.style_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao aplicar variante: {str(e)}")
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/agnes-cover")
+async def blueprints_asset_agnes_cover(bp_id: str, payload: AgnesCoverAssetPayload,
+                                       _admin=Depends(require_admin)):
+    """🎨 Gera a capa EDITORIAL do slot via Agnes Studio (tipografia + autor +
+    créditos) — alternativa à imagem por prompt. Estilo selecionável."""
+    from modules.blueprint_engine import generate_agnes_cover_asset
+    try:
+        return await generate_agnes_cover_asset(bp_id, payload.slot, payload.style_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar capa Agnes: {str(e)}")
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/upload")
+async def blueprints_asset_upload(bp_id: str, payload: UploadAssetPayload,
+                                  _admin=Depends(require_admin)):
+    """Upload manual de imagem para um slot (data URL base64)."""
+    from modules.blueprint_engine import upload_asset
+    try:
+        return await upload_asset(bp_id, payload.slot, payload.data_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar upload: {str(e)}")
+
+
+@app.post("/api/v1/blueprints/{bp_id}/assets/restore")
+async def blueprints_asset_restore(bp_id: str, payload: RestoreAssetPayload,
+                                   _admin=Depends(require_admin)):
+    """🕘 Restaura uma versão do histórico do slot (diff/antes-depois no AssetSlot)."""
+    from modules.blueprint_engine import restore_asset_version
+    try:
+        return await restore_asset_version(bp_id, payload.slot, payload.index)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao restaurar versão: {str(e)}")
+
+
+@app.post("/api/v1/blueprints/{bp_id}/publish")
+async def blueprints_publish(bp_id: str, _admin=Depends(require_admin)):
+    """Publica o blueprint no DezafiraClube via ponte (estágio 6)."""
+    from modules.database import get_db_blueprint
+    from modules.blueprint_engine import publish_blueprint
+    bp = get_db_blueprint(bp_id)
+    if not bp:
+        raise HTTPException(status_code=404, detail="Blueprint não encontrado")
+    return await publish_blueprint(bp_id)
+
+
+# =====================================================================
+# CONTEUDO 1CONVITE - API publica (Biblia, matriz, trilhas, jogos)
+# =====================================================================
+from modules.convite_api import register_convite_routes
+register_convite_routes(app)
+
+# Compatibilidade: contrato /api/v1/* da API Express original do 1Convite
+# (o PWA React absorvido em web/1convite chama estas rotas). Inclui o proxy
+# /api/v1/chatgpt/* para o sidecar LWC (LWC_SIDECAR_URL).
+from modules.convite_compat_api import register_convite_compat_routes
+register_convite_compat_routes(app)
 

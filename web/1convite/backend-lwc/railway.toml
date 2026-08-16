@@ -1,0 +1,20 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Railway — sidecar LWC do 1Convite (Conselheiros IA via ChatGPT)
+#
+# Deploy: serviço Railway apontando para o repo Dezafira2.0, root dir
+#         `web/1convite/backend-lwc` (Nixpacks detecta Node automaticamente).
+# Variáveis: LWC_SECRET (mesmo segredo do 1Convite original), PORT.
+# Depois, no serviço `dezafiraadm`, defina:
+#         LWC_SIDECAR_URL=https://<seu-sidecar>.up.railway.app
+# ═══════════════════════════════════════════════════════════════════════════
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 60
+
+[[deploy.healthcheck]]
+path = "/healthz"

@@ -1,0 +1,187 @@
+# FÁBRICA DE OFERTAS — COMPLETO! 🚀
+
+## ✅ Todos os Arquivos Criados
+
+**Backend Python (10 arquivos):**
+- `modules/offer_models.py` — Modelos ORM (5 tabelas)
+- `modules/facebook_ads_spy.py` — Dário (Facebook Ads via Obscura)
+- `modules/google_seo_spy.py` — Dário (SEO + Backlinks)
+- `modules/offer_factory.py` — Orquestrador principal
+- `modules/offer_api.py` — Endpoints API (11 rotas)
+- `modules/offer_modeler.py` — Conselheiro
+- `modules/offer_copywriter.py` — Tonho
+- `modules/offer_character.py` — Zé do Traço
+- `modules/offer_critic.py` — Dona Benta
+- `scripts/migrate_offers.py` — Migration SQL
+
+**Frontend Next.js (1 arquivo):**
+- `club-frontend/app/admin/fabrica-ofertas/page.tsx` — UI Completa (731 linhas)
+
+**Documentação (2 arquivos):**
+- `docs/fabrica_ofertas.md` — Documentação técnica
+- `SETUP_FABRICA_OFERTAS.md` — Guia de instalação passo a passo
+
+**Total:** 3,570 linhas de código
+
+---
+
+## 🎯 Agentes Criados
+
+| Agente | Função | Status |
+|--------|--------|--------|
+| **Dário** | Investigação Facebook Ads + Google SEO | ✅ Pronto |
+| **Conselheiro** | Modelagem estratégica (angle, mechanism, avatares) | ✅ Pronto |
+| **Tonho** | Copywriting (headlines, body, CTAs) | ✅ Pronto |
+| **Zé do Traço** | Personagens via Agnes Studio | ✅ Pronto |
+| **Dona Benta** | Validação (scores de conversão + SEO) | ✅ Pronto |
+
+---
+
+## 📋 Próximos Passos (Você precisa fazer)
+
+### 1️⃣ Executar Migration
+```bash
+cd C:\Users\jonat\Desktop\dezafira3.0
+python scripts/migrate_offers.py
+```
+
+### 2️⃣ Registrar Router no server.py
+Abra `server.py` e adicione:
+```python
+# No topo (após imports):
+from modules.offer_api import register_offer_routes
+
+# No final (antes de app.run()):
+register_offer_routes(app)
+```
+
+### 3️⃣ Adicionar Métodos na API Client
+Abra `club-frontend/lib/api.ts` e adicione no final da classe:
+```typescript
+// Offer Factory
+async createOffer(data: { niche: string; keyword: string; public?: string }) { ... }
+async listOffers(params?: { limit?: number; status?: string }) { ... }
+async getOffer(offerId: string) { ... }
+async runOfferPipeline(offerId: string) { ... }
+async getOfferInvestigation(offerId: string) { ... }
+async getOfferKeywords(offerId: string) { ... }
+async getOfferBacklinks(offerId: string) { ... }
+async getOfferAssets(offerId: string) { ... }
+async publishOffer(offerId: string) { ... }
+async regenerateOfferAsset(offerId: string, data: { slot: string; style_id?: string }) { ... }
+async deleteOffer(offerId: string) { ... }
+```
+
+### 4️⃣ Configurar .env
+```bash
+FACEBOOK_ACCESS_TOKEN=seu_token_aqui
+FACEBOOK_APP_ID=seu_app_id
+FACEBOOK_APP_SECRET=seu_app_secret
+FACEBOOK_ADS_LIMIT=20
+OFFER_CACHE_TTL=86400
+
+GOOGLE_API_KEY=sua_api_key
+GOOGLE_CSE_ID=seu_cse_id
+
+AGNES_API_KEY=sua_api_key
+```
+
+### 5️⃣ Obter Facebook Access Token
+1. Acesse https://developers.facebook.com/
+2. Crie um app (Business → Other)
+3. Adicione o product "Graph API"
+4. Vá em Tools → Graph API Explorer
+5. Gere um token com scopes: public_profile, pages_show_list
+6. Copie o token e coloque no .env
+
+**⚠️ Nota:** A API de Ads Library pode precisar de revisão/approval do Meta.
+
+### 6️⃣ Obter Google API Key (Opcional)
+1. Acesse https://console.cloud.google.com/
+2. Crie um projeto
+3. Habilite "Custom Search API"
+4. Crie uma API Key
+5. Crie um Custom Search Engine em https://programmablesearchengine.google.com/
+6. Copie o Search Engine ID
+
+### 7️⃣ Iniciar Servidor
+```bash
+# Terminal 1 - Backend
+cd C:\Users\jonat\Desktop\dezafira3.0
+python server.py
+
+# Terminal 2 - Frontend
+cd C:\Users\jonat\Desktop\dezafira3.0\club-frontend
+npm run dev
+```
+
+### 8️⃣ Testar
+- Acesse: http://localhost:3000/admin/fabrica-ofertas
+- Crie uma oferta de teste
+- Execute o pipeline
+- Verifique os resultados
+
+---
+
+## 🔗 Endpoints Criados (11 rotas)
+
+| Método | Rota | Função |
+|--------|------|--------|
+| POST | `/api/v1/offers/create` | Criar nova oferta |
+| GET | `/api/v1/offers/` | Listar ofertas |
+| GET | `/api/v1/offers/{id}` | Detalhes da oferta |
+| POST | `/api/v1/offers/{id}/run` | Executar pipeline |
+| GET | `/api/v1/offers/{id}/investigation` | Dados do Dário |
+| GET | `/api/v1/offers/{id}/keywords` | Keywords SEO |
+| GET | `/api/v1/offers/{id}/backlinks` | Backlinks |
+| GET | `/api/v1/offers/{id}/assets` | Assets visuais |
+| POST | `/api/v1/offers/{id}/publish` | Publicar no Blueprint |
+| DELETE | `/api/v1/offers/{id}` | Remover oferta |
+| POST | `/api/v1/offers/{id}/regenerate-assets` | Regenerar personagem |
+
+---
+
+## 🗄️ Tabelas Criadas (5)
+
+- `offer_models` — Modelo principal da oferta
+- `offer_investigations` — Dados da investigação (FB + SEO)
+- `offer_keywords` — Keywords SEO identificadas
+- `offer_backlinks` — Backlinks potenciais
+- `offer_assets` — Assets visuais (avatares, mascote)
+
+---
+
+## 🎨 UI Criada
+
+Página completa em `/admin/fabrica-ofertas` com:
+
+**5 Abas:**
+1. **Investigação** — Anúncios Facebook + Keywords SEO + Backlinks
+2. **Modelo** — Angle, Mechanism, Avatares, Mascote
+3. **Copy** — Headlines (A/B/C), Body Long/Short, CTAs
+4. **Assets** — Imagens geradas (Avatar 1, Avatar 2, Mascote)
+5. **Publicar** — Scores de validação + Botão para Blueprint
+
+**Funcionalidades:**
+- ✅ Lista de ofertas com filtros
+- ✅ Formulário de criação
+- ✅ Execução de pipeline
+- ✅ Regeneração de assets
+- ✅ Publicação no Blueprint
+- ✅ Remoção de ofertas
+
+---
+
+## 📊 Documentação
+
+Todos os documentos foram criados:
+- `docs/fabrica_ofertas.md` — Documentação técnica completa
+- `SETUP_FABRICA_OFERTAS.md` — Guia de instalação passo a passo
+
+---
+
+## 🎉 Fábrica de Ofertas Pronto!
+
+**Total:** 14 arquivos criados, 3,570 linhas de código, 5 agentes IA, 11 endpoints API, UI completa.
+
+**Pronto para usar após executar os passos acima!** 🚀

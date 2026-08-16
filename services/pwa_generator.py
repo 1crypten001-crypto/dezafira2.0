@@ -329,9 +329,14 @@ class PWAGenerator:
         return cut or name[:max_len]
 
     @staticmethod
-    def build_manifest(app_id: str, slug: str, app_name: str, theme: dict, description: str = "") -> dict:
-        start_url = f"/app/{slug}"
-        scope = f"/app/{slug}/"
+    def build_manifest(app_id: str, slug: str, app_name: str, theme: dict, description: str = "",
+                       start_url: str = None, scope: str = None, icon_base: str = None) -> dict:
+        # Domínio dedicado: start_url/scope na raiz para install funcionar a partir
+        # do domínio próprio (ex: 1convite.com.br). Padrão: /app/{slug}.
+        start_url = start_url or f"/app/{slug}"
+        scope = scope or f"/app/{slug}/"
+        icon_base = icon_base or f"/app/{slug}"
+        icon_src_base = icon_base.rstrip("/")  # evita "//icon-192.png" quando base = "/"
         bg = theme.get("bg", "#090D16")
         primary = theme.get("primary", "#3B82F6")
         return {
@@ -346,19 +351,19 @@ class PWAGenerator:
             "orientation": "portrait",
             "icons": [
                 {
-                    "src": f"/app/{slug}/icon-192.png",
+                    "src": f"{icon_src_base}/icon-192.png",
                     "sizes": "192x192",
                     "type": "image/png",
                     "purpose": "any"
                 },
                 {
-                    "src": f"/app/{slug}/icon-512.png",
+                    "src": f"{icon_src_base}/icon-512.png",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "any"
                 },
                 {
-                    "src": f"/app/{slug}/icon-512.png",
+                    "src": f"{icon_src_base}/icon-512.png",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "maskable"
@@ -367,12 +372,12 @@ class PWAGenerator:
             "shortcuts": [
                 {
                     "name": "Iniciar Quiz",
-                    "url": f"/app/{slug}?action=quiz",
+                    "url": f"{icon_base}?action=quiz",
                     "description": "Comece o quiz personalizado"
                 },
                 {
                     "name": "Meu Progresso",
-                    "url": f"/app/{slug}?action=progress",
+                    "url": f"{icon_base}?action=progress",
                     "description": "Veja seu progresso e streak"
                 }
             ]
