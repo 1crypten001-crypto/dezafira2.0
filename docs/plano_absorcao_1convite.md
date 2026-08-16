@@ -94,6 +94,7 @@ Domínio dedicado do produto 1Convite:
 - [x] Manifest/SW domain-aware (start_url `/`, scope `/` no domínio dedicado)
 - [x] Endpoints admin para gerir domínios (`GET/POST/DELETE /api/v1/miniapps/{slug}/domains`)
 - [x] 11 testes de Host-routing passando (TestClient + banco de teste)
+- [x] **Custom domain criado no Railway (16/08)** — `1convite.com.br` → serviço `dezafiraadm` (porta 8080), id `1b5d315e`. Instruções de DNS fornecidas: **CNAME `1convite.com.br` → `yufqkp4n.up.railway.app`** (tráfego) + **TXT `railway-verify=49cc427d...`** (SSL). ⏳ **Falta o dono apontar o DNS** — hoje `1convite.com.br` resolve para `69.46.46.48` (hosting antigo do 1Convite). Banco de produção já tem `miniapp_domains` = 1convite.com.br → miniapp 1convite (ativo)
 
 ### Fase 3 — PWA como produto da fábrica (✅ base pronta, ⏳ PWA React + publicação)
 - [x] Registrar o 1Convite como miniapp (`/app/1convite`) com branding — `seed_convite.py --register-miniapp`
