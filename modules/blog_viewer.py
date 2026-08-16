@@ -120,6 +120,36 @@ function toggleDark(){
 }
 </script>"""
 
+def _convite_banner_html(post: dict) -> str:
+    """Banner-imagem do 1Convite (funil blog → página de venda/checkout).
+
+    Escolhe a arte por tema do artigo e aponta para o produto no DezafiraClube
+    (página de venda com checkout Asaas PIX/cartão).
+    """
+    import re as _re
+    text = " ".join([
+        str(post.get("title") or ""),
+        str(post.get("topic") or ""),
+        str(post.get("keywords") or ""),
+    ]).lower()
+    if _re.search(r"bíblia|palavra|versículo|escritura|leitura|salmos", text):
+        variant = "banner_biblia"
+    elif _re.search(r"quiz|jogo|arcade|forca|caça|caca|charada|pergunta", text):
+        variant = "banner_jogos"
+    elif _re.search(r"trilha|jornada|caminho|reflex|medita|devocional", text):
+        variant = "banner_trilhas"
+    else:
+        variant = "banner_hero"
+    url = "https://www.dezafira.com.br/product/1convite"
+    img = f"https://1convite.com.br/static/images/1convite/{variant}.png"
+    return f"""
+    <div style="margin:30px 0 6px;text-align:center">
+      <a href="{url}" target="_blank" rel="noopener" aria-label="Conheça o 1Convite — Bíblia narrada, trilhas e jogos bíblicos">
+        <img src="{img}" alt="1Convite — Bíblia narrada, trilhas e jogos bíblicos" style="width:100%;max-width:820px;border-radius:16px;display:block;margin:0 auto" loading="lazy">
+      </a>
+    </div>"""
+
+
 def _cookie_banner_html(slug: str = "") -> str:
     """Gera HTML do banner de cookies com link dinamico para a pagina de privacidade."""
     privacy_url = f"/blog/{slug}/privacidade" if slug else "/privacidade"
@@ -895,6 +925,12 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     }}
     </script>"""
 
+    # Banner-imagem do 1Convite — só injeta se o conteúdo ainda não tiver o banner
+    # (evita duplicar quando o banner também foi gravado no corpo do artigo).
+    convite_banner_html = ""
+    if "images/1convite/" not in (post.get("content") or ""):
+        convite_banner_html = _convite_banner_html(post)
+
     # CTA configurável via brand_config.cta (Fase 2 — funil: blog → landing/produto do Clube)
     cta_html = ""
     if brand_config and isinstance(brand_config.get("cta"), dict):
@@ -987,6 +1023,7 @@ def generate_article_view(slug: str, blog_info: dict, post: dict, related_posts:
     {f'<div class="post-tags">{tags}</div>' if tags else ''}
     {toc_html}
     <div class="post-content">{content}</div>
+    {convite_banner_html}
     {author_box_html}
     {cta_html}
     {newsletter_html}

@@ -1229,7 +1229,7 @@ async def dedicated_domain_middleware(request: Request, call_next):
     slug = _get_domain_map().get(host)
     if slug:
         path = request.scope.get("path", "/")
-        if path.startswith(("/app/", "/api/", "/static/", "/_pwa_build/")):
+        if path.startswith(("/app/", "/api/", "/static/", "/_pwa_build/", "/instalar", "/entrega")):
             return await call_next(request)
         if _pwa_build_dir(slug):
             if path in ("/", ""):
@@ -1383,56 +1383,6 @@ async def require_admin_or_service(
     return user
 
 # Health check endpoint for Railway
-@app.post("/api/v1/miniapps/{app_id}/bidu-assets")
-async def bidu_assets_endpoint(app_id: str, _admin=Depends(require_admin_or_service)):
-    """Bidu: regenera o kit de identidade visual (logo + mascote + banner)
-    de um MiniApp existente via Agnes AI. Para o piloto e upgrades visuais."""
-    import json as _json
-    from modules.database import get_db_miniapp, update_db_miniapp
-    from modules.bidu_visual import BiduVisualAgent
-
-    app = get_db_miniapp(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="MiniApp nao encontrado")
-
-    # Reconstrói o brand a partir do theme persistido (Dona Célia)
-    theme = {}
-    if app.get("theme"):
-        try:
-            theme = _json.loads(app["theme"])
-        except Exception:
-            theme = {}
-    brand = {
-        "brand_name": app.get("brand_name") or app.get("app_name") or "",
-        "brand_voice": app.get("brand_voice") or "",
-        "theme": theme,
-        "header_symbol": theme.get("emoji", ""),
-    }
-
-    try:
-        agent = BiduVisualAgent()
-        result = await agent.generate_assets(
-            brand=brand,
-            pain=app.get("pain") or "",
-            app_name=app.get("app_name") or "",
-            slug=app.get("slug") or "",
-        )
-        update_db_miniapp(
-            app_id,
-            logo_url=result.get("logo_url") or "",
-            banner_url=result.get("banner_url") or "",
-            mascot_url=(result.get("mascot") or {}).get("front", ""),
-            character_brief=_json.dumps(result.get("character_brief") or {}, ensure_ascii=False),
-            assets_dir=result.get("assets_dir", ""),
-        )
-        result["app_id"] = app_id
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar kit Bidu: {str(e)}")
-
-
-
-
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "dezafira-backend"}
@@ -4632,6 +4582,14 @@ async def generate_blog_banner(slug: str):
 @app.get("/o-reino", response_class=RedirectResponse)
 async def redirect_oreino():
     return RedirectResponse(url="/blog/o-reino")
+
+
+@app.get("/instalar", response_class=HTMLResponse)
+@app.get("/entrega", response_class=HTMLResponse)
+async def pagina_instalar_1convite():
+    """Página pública de entrega + instalação do app 1Convite (PWA)."""
+    from modules.instalar_page import instalar_page_html
+    return HTMLResponse(content=instalar_page_html())
 
 @app.get("/blog/{slug}", response_class=HTMLResponse)
 async def serve_blog_frontend(slug: str, post: str = None, cat: str = None, q: str = None):
@@ -8575,4 +8533,10 @@ register_convite_routes(app)
 # /api/v1/chatgpt/* para o sidecar LWC (LWC_SIDECAR_URL).
 from modules.convite_compat_api import register_convite_compat_routes
 register_convite_compat_routes(app)
+
+# =====================================================================
+# ACERVO DAS FABRICAS - admin (listagem, preview, editor Agnes/DeepSeek)
+# =====================================================================
+from modules.acervo_api import register_acervo_routes
+register_acervo_routes(app, require_admin_or_service)
 

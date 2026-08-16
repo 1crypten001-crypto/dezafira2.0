@@ -582,6 +582,41 @@ function App() {
   // CONFIGURAÇÃO DO WHATSAPP COMERCIAL (FUNIL DE VENDAS)
   const COMMERCIAL_WHATSAPP_NUMBER = '5511999999999'; // Modifique aqui com o seu número de WhatsApp comercial
 
+  // Checkout real via Asaas (PIX/cartão) — cria a cobrança e abre a fatura.
+  const iniciarCheckoutPremium = async (valorCents, descricao, plano) => {
+    try {
+      setIsPaying(true);
+      const res = await fetch(`${API_BASE}/pagamentos/criar-preferencia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: profileName,
+          email: profileEmail,
+          valor_cents: valorCents,
+          descricao: descricao,
+          referencia: `1convite_${plano.toLowerCase().replace(/\s+/g, '-')}`,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.success) {
+        if (d.checkoutUrl && String(d.checkoutUrl).startsWith('http')) {
+          window.open(d.checkoutUrl, '_blank');
+          alert(`Cobrança ${plano} gerada! Complete o pagamento na janela aberta (PIX ou cartão). Após a confirmação, seu Premium é liberado na hora.`);
+        } else {
+          setPaymentPreferenceId(d.preferenceId);
+          setActiveTab('simular-pagamento');
+        }
+      } else {
+        alert('Não foi possível gerar a cobrança. Tente novamente ou fale conosco pelo WhatsApp.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Falha ao conectar. Verifique sua internet e tente de novo.');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   const iniciarCheckoutWhatsApp = () => {
     const text = `Olá! Quero assinar o Plano Premium do 1Convite para o e-mail: ${profileEmail}`;
     const url = `https://wa.me/${COMMERCIAL_WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
@@ -1125,8 +1160,8 @@ function App() {
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const API_BASE = (isLocalhost && !isCapacitor)
-    ? 'http://localhost:3001/api/v1' 
-    : 'https://invigorating-expression-production-d4df.up.railway.app/api/v1';
+    ? 'http://localhost:3001/api/v1'
+    : '/api/v1';
 
   // ── TIMERS DOS JOGOS ──────────────────────────────────────
   // Timer do Quiz
@@ -4355,20 +4390,38 @@ Importante: O JSON deve ser 100% válido.`;
                 ))}
               </div>
 
-              <div className="glass-panel orange-card" style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.85rem', color: '#78716C', marginBottom: '4px', fontWeight: '600' }}>PLANO MENSAL</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '1.1rem', color: '#78716C' }}>R$</span>
-                  <span style={{ fontSize: '3rem', fontWeight: '900', color: '#C2550A', lineHeight: 1 }}>19</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#C2550A' }}>,90</span>
-                  <span style={{ fontSize: '0.85rem', color: '#A8A29E', alignSelf: 'flex-end', marginBottom: '6px' }}>/mês</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div className="glass-panel orange-card" style={{ textAlign: 'center', padding: '18px 14px', border: '1px solid rgba(212,175,55,.4)' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#78716C', marginBottom: '4px', fontWeight: '700', letterSpacing: '1px' }}>MENSAL</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '3px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.95rem', color: '#78716C' }}>R$</span>
+                    <span style={{ fontSize: '2.6rem', fontWeight: '900', color: '#C2550A', lineHeight: 1 }}>29</span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: '800', color: '#C2550A' }}>,90</span>
+                    <span style={{ fontSize: '0.78rem', color: '#A8A29E' }}>/mês</span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#A8A29E', marginBottom: '12px' }}>Cancele quando quiser</div>
+                  <button className="btn-primary" onClick={() => iniciarCheckoutPremium(2990, '1Convite Premium — Mensal (R$ 29,90/mês)', 'Mensal')} style={{ width: '100%', padding: '11px 8px', fontSize: '0.85rem' }}>
+                    {isPaying ? 'Gerando…' : '⚡ Assinar Mensal'}
+                  </button>
                 </div>
-                <button className="btn-primary" onClick={iniciarCheckoutWhatsApp} style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', border: 'none', boxShadow: '0 8px 24px rgba(37,211,102,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                  Ativar no WhatsApp (Pix/Cartão)
-                </button>
-                <p style={{ fontSize: '0.78rem', color: '#A8A29E', marginTop: '12px' }}>Cancele quando quiser • Pagamento seguro</p>
+                <div className="glass-panel orange-card" style={{ textAlign: 'center', padding: '18px 14px', border: '1px solid rgba(212,175,55,.4)', position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#C2550A', color: '#fff', fontSize: '0.68rem', fontWeight: '800', padding: '3px 10px', borderRadius: '999px', letterSpacing: '0.5px' }}>2 MESES GRÁTIS</div>
+                  <div style={{ fontSize: '0.8rem', color: '#78716C', marginBottom: '4px', fontWeight: '700', letterSpacing: '1px' }}>ANUAL</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '3px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.95rem', color: '#78716C' }}>R$</span>
+                    <span style={{ fontSize: '2.6rem', fontWeight: '900', color: '#C2550A', lineHeight: 1 }}>297</span>
+                    <span style={{ fontSize: '1rem', fontWeight: '800', color: '#C2550A' }}>,00</span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#A8A29E', marginBottom: '12px' }}>12 meses por R$ 24,75/mês</div>
+                  <button className="btn-primary" onClick={() => iniciarCheckoutPremium(29700, '1Convite Premium — Anual (R$ 297,00 à vista)', 'Anual')} style={{ width: '100%', padding: '11px 8px', fontSize: '0.85rem' }}>
+                    {isPaying ? 'Gerando…' : '🔥 Assinar Anual'}
+                  </button>
+                </div>
               </div>
+              <p style={{ fontSize: '0.78rem', color: '#A8A29E', marginTop: '4px' }}>Pagamento via Asaas (PIX ou cartão) • Acesso liberado na hora após confirmação</p>
+              <button className="btn-secondary" style={{ marginTop: '8px', width: '100%', fontSize: '0.8rem' }} onClick={() => window.open('/instalar', '_blank')}>
+                📲 Como instalar o app no celular
+              </button>
             </div>
           </div>
         )}
@@ -4384,7 +4437,7 @@ Importante: O JSON deve ser 100% válido.`;
               <h3 style={{ marginBottom: '14px' }}>Resumo da Assinatura</h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px', marginBottom: '18px', border: '1px solid #E2E8F0' }}>
                 <span style={{ fontWeight: '500' }}>1Convite Premium — Mensal</span>
-                <strong style={{ color: '#1C1917' }}>R$ 19,90</strong>
+                <strong style={{ color: '#1C1917' }}>R$ 29,90</strong>
               </div>
               <p style={{ fontSize: '0.88rem', marginBottom: '20px', color: '#78716C', lineHeight: '1.65' }}>
                 Ambiente de checkout seguro. Clique no botão abaixo para simular a aprovação instantânea do pagamento.
@@ -4738,7 +4791,7 @@ Importante: O JSON deve ser 100% válido.`;
                     </span>
                   </div>
                   <span style={{ fontWeight: 'bold', color: 'var(--orange)' }}>
-                    {user?.status_plano === 'PREMIUM' ? 'ATIVO' : 'R$ 19,90/mês'}
+                    {user?.status_plano === 'PREMIUM' ? 'ATIVO' : 'R$ 29,90/mês'}
                   </span>
                 </div>
 

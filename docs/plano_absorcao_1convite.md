@@ -1,7 +1,7 @@
 # 🚀 Plano de Execução — Absorção do 1Convite no Ecossistema Dezafira
 
 > **Status:** em andamento (fase 1: conteúdo + infra de domínio dedicado)
-> **Última atualização:** 15/08/2026
+> **Última atualização:** 16/08/2026
 > **Objetivo final:** o 1Convite deixa de ser um sistema separado e vira um
 > **produto da fábrica** (DezafiraADM), com conteúdo no banco do ADM, PWA no
 > padrão Dezafira e entrega via DezafiraClub — com domínio dedicado
@@ -130,14 +130,22 @@ Domínio dedicado do produto 1Convite:
 - [ ] `GOOGLE_API_KEY` (Google Custom Search JSON API) — opcional, desbloqueia o caminho de API do Dario SEO
 
 ### Fase 4c — PRIMEIRA OFERTA (produção) — ✅ 15/08
-- [x] **Banners do 1Convite no blog O Reino (produção)** — blog `o-reino` (blg_50e26e, 21 posts) encontrado no ADM de produção; **21/21 artigos** receberam o banner-CTA do 1Convite (bloco HTML/CSS com branding dourado → botão "COMEÇAR AGORA" → **https://1convite.com.br** — página de venda + checkout Asaas PIX). Banner do canal gerado (pollinations)
+- [x] **Banners do 1Convite no blog O Reino (produção)** — blog `o-reino` (blg_50e26e, 21 posts) encontrado no ADM de produção; **21/21 artigos** receberam o banner-CTA do 1Convite (bloco HTML/CSS com branding dourado → botão "COMEÇAR AGORA" → **https://1convite.com.br** — página de venda + checkout Asaas PIX). Banner do canal gerado (pollinations). **16/08:** CTA atualizado → **página de venda** (`/product/1convite`) + banner-imagem por tema (ver Fase 4d)
 - [x] **Blueprint preenchido** — `bp_7f93b831a1` completo: price **R$ 19,90** (editar antes de publicar), descrição/vendas, benefícios, pitch, CTA, `checkout_provider=asaas`, `external_link=https://1convite.com.br`, status review
 - [x] **Asaas na venda** — módulo + endpoints prontos (ver Fase 4b); o checkout do app usa PIX real
 - [x] **UI da Fábrica de Convites** — `club-frontend/app/admin/fabrica-convite/page.tsx` (status miniapp/domínio/Asaas/blueprints + branding + criar blueprint + publicar) + item "👑 1Convite" no menu admin + endpoint `GET /api/v1/convite/factory/blueprints` (401 sem auth) — testado
 - [x] **Publicar no Clube (16/08)** — feito em produção, ver Fase 3: `/product/1convite` no ar (product_id 18)
 - [x] **FUNIL E2E validado em PRODUÇÃO (16/08)** — (1) banner no artigo do blog O Reino (`/blog/o-reino?post=post_*`, botão dourado → `https://1convite.com.br`) ✅; (2) checkout do PWA no domínio: `POST /api/v1/pagamentos/criar-preferencia` → cobrança PIX real `pay_s6s2miq1ben0rxj6` (R$ 19,90, PENDING, EMV+QR válidos, removida após teste) ✅; (3) **compra no Clube**: membro de teste registrado + perfil com CPF → `GET /purchase/18` → **303 → `https://www.asaas.com/i/pay_l3c6kwzugdycegss`** (PIX real produção, PENDING, R$ 19,00, removida após teste) ✅
 - [x] **Clube: Asaas em produção** — `ASAAS_API_KEY` + `ASAAS_API_URL` (produção) setadas no env do `dezafiraclube`; settings do banco corrigidas (`asaas_api_url` estava **sandbox** + chave fraca `311101Jfpl@!` — agora o env de produção sobrepõe). **`enable_member_login` ativado** (`0`→`1` — área de membros e compras no ar; antes toda compra dava 403 "área desativada"); `enable_otp_login` restaurado para `1` após o teste
-- [~] **Preço a alinhar** — produto no Clube `price_cents=1900` (**R$ 19,00**) mas blueprint/docs dizem **R$ 19,90** (1990) e o checkout do PWA usou 1990; decidir o preço final e alinhar os dois lados
+- [x] **Preço DEFINIDO (16/08)** — **R$ 29,90/mês ou R$ 297,00 à vista (12 meses, 2 meses grátis)** — alinhado nos 3 lados: produto no Clube (`price_cents=29700`), blueprint `bp_9f086a77ad` (`29700`) e PWA (tela Premium)
+
+### Fase 4d — PREÇO, ARTES DOS BANNERS E PÁGINAS DE ENTREGA (16/08)
+- [x] **Precificação aplicada** — produto `/product/1convite` no Clube atualizado via admin: **R$ 297,00 à vista** (`price_cents 29700`) + descrição nova com os dois preços e link de instalação; blueprint `bp_9f086a77ad` atualizado para 29700 (fonte de re-publish)
+- [x] **Artes dos banners CRIADAS** — 5 imagens geradas com PIL (paleta navy `#0f172a→#16213e→#0f3460` + dourado `#d4af37`, monograma 1C, CTA dourado, preço): `static/images/1convite/` → `banner_hero`, `banner_biblia`, `banner_jogos`, `banner_trilhas` (1200×400) + `banner_social_1080.png` (quadrado p/ redes). Servidas em `https://1convite.com.br/static/images/1convite/*.png`
+- [x] **Banner-imagem injetado nos 21 artigos do O Reino (produção)** — Postgres: CTA do banner dourado trocado de `1convite.com.br` → **`https://www.dezafira.com.br/product/1convite`** (página de venda/checkout) + banner-imagem (variante por tema) anexado ao fim de cada artigo. `modules/blog_viewer.py` agora injeta o banner-imagem por tema em qualquer artigo (com guarda anti-duplicação p/ os que já têm no corpo)
+- [x] **Página de ENTREGA + INSTALAÇÃO** — `GET /instalar` e `/entrega` no ADM (`modules/instalar_page.py`, rota liberada no host-routing do domínio dedicado): o que acontece depois da compra (acesso imediato via webhook Asaas, login com o e-mail da compra) + passo a passo de instalação do PWA (Android/Chrome, iPhone/Safari, desktop/Chrome-Edge). Link "Como instalar" na tela Premium do app
+- [x] **PWA: tela Premium com os dois preços + checkout real** — `App.jsx`: cards **Mensal R$ 29,90/mês** e **Anual R$ 297,00 (2 meses grátis)** com checkout Asaas real (`POST /pagamentos/criar-preferencia` com `valor_cents` 2990/29700 → fatura PIX/cartão); removido o fluxo WhatsApp com número placeholder; **fix `API_BASE`** (apontava para domínio Railway antigo `invigorating-expression-...` → agora same-origin `/api/v1`)
+- [x] **PWA buildado e deployado** — `npm run build` → `web/1convite/dist/` novo bundle **`index-DGCtRnqO.js`** (626KB) commitado (o ADM serve `web/{slug}/dist` no domínio dedicado)
 - [~] **Conta de teste** — membro `funil.membro@dezafira.com.br` (senha `TesteFunil@2026`) criado no Clube durante o E2E; remover se quiser banco 100% limpo
 - [x] **Push pro GitHub CONCLUÍDO (16/08)** — merge em `main` (`b0fea9d..c736493` → `14c8b8e` → `1115cb2`). Foram 3 commits: integração 1Convite/Asaas/Dario/Fábrica; fix TS do admin (32 erros) + fix binário do Obscura (usava `obscura-worker` no lugar de `obscura`); fix Python 3.11 (f-string com backslash) + admin sem senha padrão
 - [x] **Builds de produção 5/5 SUCCESS (16/08)** — dezafiraadm, dezafiraadm-frontend, dezafiraclube, obscura, Chrome — todos verdes após os fixes. Obscura: CDP ativo (log "CDP do Obscura ativo em 127.0.0.1:9225" + healthcheck OK; `json/version` responde Chrome/145)
